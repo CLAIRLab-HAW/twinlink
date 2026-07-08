@@ -1,18 +1,46 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "twinlink"
-version = "0.0.1"
+version = "0.1.0"
 authors = [
   { name="Hannes Philip Voss", email="mail@hannesvoss.de" },
 ]
-description = "This package provides a simple and secure bidirectional digital twin framework."
+description = "Robot-agnostic bridge from a real robot (ROS 2 / MCAP) to a digital twin in simulation (MuJoCo, Isaac Sim)."
 readme = "README.md"
 requires-python = ">=3.8"
+license = { text = "MIT" }
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
     "License :: OSI Approved :: MIT License",
 ]
+# Core only: keeping the digital-twin state in memory is dependency-light.
+dependencies = [
+    "numpy>=1.21",
+    "pyyaml>=5.4",
+]
+
+[project.optional-dependencies]
+# Mock mode: replay recorded MCAP / rosbag2 files without a ROS install.
+mcap = ["rosbags>=0.9"]
+# MuJoCo simulation sink + image display.
+mujoco = ["mujoco>=3.0", "opencv-python>=4.5"]
+# Live mode over a foxglove_bridge WebSocket (no ROS install needed).
+# websockets = the client Foxglove Studio / the official SDK use (foxglove_bridge
+# rejects some other clients' handshakes).
+foxglove = ["websockets>=12", "rosbags>=0.9"]
+# Live mode over a native Zenoh client (robots running rmw_zenoh; no ROS needed).
+# The zenoh version must match the robot's rmw_zenoh zenoh version.
+zenoh = ["eclipse-zenoh>=1.0", "rosbags>=0.9"]
+# Live mode (rclpy) is provided by your ROS 2 distribution, not pip.
+all = ["rosbags>=0.9", "mujoco>=3.0", "opencv-python>=4.5", "websockets>=12", "eclipse-zenoh>=1.0"]
 
 [project.urls]
 Homepage = "https://github.com/hannesvoss/twinlink"
 Issues = "https://github.com/hannesvoss/twinlink/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
