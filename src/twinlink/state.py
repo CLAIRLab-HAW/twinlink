@@ -16,6 +16,7 @@ All access is guarded by a single re-entrant lock.  Writers bump a monotonic
 """
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from dataclasses import dataclass, field
@@ -58,15 +59,74 @@ class Transform:
 
 @dataclass
 class CameraFrame:
-    """A single image plus optional intrinsics, addressed by sensor name."""
+    """A single image plus optional intrinsics, addressed by sensor name.
 
-    image: np.ndarray  # HxWx3 uint8 (color) or HxW (depth)
+    Two storage modes:
+
+    * **eager** (default): ``image`` holds the decoded array, ``raw`` is None.
+    * **lazy** (``CameraMap.lazy_decode``): ``image`` is None and ``raw`` holds
+      the still-compressed ``CompressedImage`` payload; the *consumer* calls
+      :meth:`ensure_decoded` on the frame it actually reads.  This keeps the
+      ingest thread of a live source (e.g. ``FoxgloveSource``) free of
+      JPEG/PNG decoding -- with a 30 Hz colour + 15 Hz depth stream only the
+      handful of frames perception actually consumes get decoded instead of
+      every frame on the wire, so the receive loop cannot fall behind the
+      arrival rate (the root cause of ever-growing camera latency).
+    """
+
+    image: Optional[np.ndarray]  # HxWx3 uint8 (color) or HxW (depth); None = lazy
     encoding: str = "rgb8"
     stamp: float = 0.0
     frame_id: str = ""
     intrinsics: Optional[np.ndarray] = None  # 3x3 K
     width: int = 0
     height: int = 0
+    #: Still-compressed payload (lazy mode); cleared after ensure_decoded().
+    raw: Optional[bytes] = None
+    #: The CompressedImage ``format`` string (lazy mode), e.g. "rgb8; jpeg".
+    raw_format: str = ""
+    is_depth: bool = False
+    #: time.monotonic() on this machine when the frame arrived at the source.
+    #: Freshness gate for consumers: frames arrived after a motion finished
+    #: were captured at (or after) the settled pose.  0.0 = unknown/legacy.
+    arrival_monotonic: float = 0.0
+    #: Receive timestamp of the relaying bridge (epoch seconds), if the
+    #: transport carries one (foxglove ws MessageData).  Splits sensor->bridge
+    #: from bridge->client lag when clocks differ.  0.0 = unknown.
+    bridge_recv_stamp: float = 0.0
+
+    def ensure_decoded(self) -> bool:
+        """Decode a lazy frame in place; True if an image is available.
+
+        Idempotent: eager frames and already-decoded frames return True
+        immediately.  Decoding errors are logged once per process and yield
+        False (callers treat it as "no frame yet").  RVL depth payloads are
+        rejected here -- the pure-Python RVL decoder is far too slow for a
+        live pipeline (offline/MCAP use goes through the eager path, which
+        still supports it).
+        """
+        if self.image is not None:
+            return True
+        if self.raw is None:
+            return False
+        from .mapping import decode_compressed_bytes  # local: avoid import cycle
+
+        try:
+            image, encoding = decode_compressed_bytes(
+                self.raw, self.raw_format, is_depth=self.is_depth, allow_rvl=False
+            )
+        except Exception as exc:
+            logging.getLogger("twinlink.state").warning(
+                "lazy image decode failed (format=%r, depth=%s): %s",
+                self.raw_format, self.is_depth, exc,
+            )
+            self.raw = None  # do not retry a poisoned payload
+            return False
+        self.image = image
+        self.encoding = encoding
+        self.height, self.width = int(image.shape[0]), int(image.shape[1])
+        self.raw = None  # free the compressed payload
+        return True
 
 
 @dataclass
@@ -165,6 +225,18 @@ class RobotState:
                 if prev is not None and prev.intrinsics is not None:
                     frame.intrinsics = prev.intrinsics
             self._cameras[name] = frame
+            self._touch()
+
+    def clear_camera(self, name: str) -> None:
+        """Drop a camera's cached frame.
+
+        Consumers call this when their source session (re)starts, so a poll
+        loop never mistakes the previous session's last frame for live data;
+        the entry repopulates when the new session's first image arrives
+        (intrinsics re-attach from the streaming CameraInfo topic).
+        """
+        with self._lock:
+            self._cameras.pop(name, None)
             self._touch()
 
     def set_camera_intrinsics(self, name: str, intrinsics: np.ndarray) -> None:

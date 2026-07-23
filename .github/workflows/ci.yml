@@ -1,0 +1,21 @@
+# CI: pytest + ruff (nur harte Fehler). Standalone; urdf/mujoco-Smoke skippt ohne Workspace.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: libs/twinlink
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install numpy pyyaml pytest ruff
+      - run: cd libs/twinlink && ruff check --select E9,F63,F7,F82 .
+      - run: cd libs/twinlink && python -m pytest -q

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import math
+import sys
 import time
 from typing import Dict, List, Optional
 
@@ -117,8 +118,10 @@ class MujocoSink(StateSink):
         self._viewer = None
         self._mjcam = None
         self._last_snapshot = -1e9
-        self._win_main = "TwinLink — MuJoCo twin"
-        self._win_cam = "TwinLink — sensor camera"
+        # Plain ASCII: OpenCV's macOS Cocoa backend mojibakes non-ASCII window
+        # titles (e.g. an em-dash renders as "â€""), so avoid Unicode here.
+        self._win_main = "TwinLink - MuJoCo twin"
+        self._win_cam = "TwinLink - sensor camera"
         self._frame_body: Dict[str, int] = {}  # cloud frame_id -> mujoco body id (cache)
         self._preview_pos: Optional[Dict[str, float]] = None
         self._last_traj = None
@@ -728,9 +731,22 @@ class MujocoSink(StateSink):
             else:  # orbit
                 cam.azimuth = (cam.azimuth - dx * 0.3) % 360
                 cam.elevation = float(np.clip(cam.elevation - dy * 0.3, -89.0, 89.0))
-        elif event == cv2.EVENT_MOUSEWHEEL:
-            delta = cv2.getMouseWheelDelta(flags) if hasattr(cv2, "getMouseWheelDelta") else flags
-            cam.distance *= 0.9 if delta > 0 else 1.1
+        elif event in (cv2.EVENT_MOUSEWHEEL, cv2.EVENT_MOUSEHWHEEL):
+            # On the macOS Cocoa backend the wheel delta is delivered in the
+            # x/y callback args (y = vertical, x = horizontal), NOT in `flags`,
+            # which there only carries modifier keys. getMouseWheelDelta(flags)
+            # would read those modifiers as the delta and return 0, so every
+            # scroll -- regardless of direction -- hit the `else` branch and
+            # only ever zoomed out. Read the axis delta on macOS instead.
+            if sys.platform == "darwin":
+                delta = y if event == cv2.EVENT_MOUSEWHEEL else x
+            elif hasattr(cv2, "getMouseWheelDelta"):
+                delta = cv2.getMouseWheelDelta(flags)
+            else:
+                delta = flags
+            if delta:
+                steps = max(1, abs(int(delta)))
+                cam.distance *= 0.9 ** steps if delta > 0 else 1.1 ** steps
 
     def _pan(self, cam, dx, dy) -> None:
         az = np.radians(cam.azimuth)

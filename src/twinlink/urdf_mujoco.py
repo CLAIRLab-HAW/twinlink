@@ -19,6 +19,10 @@ descriptions; this helper papers over all of them so an arbitrary robot URDF
    never fails (the twin is kinematic; values are irrelevant).
 6. Optionally a ground plane, a light and a free-joint base are added by
    round-tripping through compiled MJCF.
+7. A welded base is *grounded*: mobile-robot root links sit above the floor
+   (the Husky's ``base_link`` is 0.132 m up), so welding them at the origin
+   sinks the wheels into the ground plane.  The robot is raised so its lowest
+   geometry rests on z=0 instead.
 
 Nothing here is robot-specific; it is driven entirely by the URDF.
 """
@@ -299,6 +303,62 @@ def _add_scene(mjcf_root: ET.Element, floating_base: bool, base_body_name: Optio
     return free_name
 
 
+def _geom_lowest_z(model, data, gid: int) -> float:
+    """Exact lowest world-z of one geom (mesh vertices / analytic primitives)."""
+    import mujoco
+    import numpy as np
+
+    gtype = int(model.geom_type[gid])
+    pos = data.geom_xpos[gid]
+    mat = data.geom_xmat[gid].reshape(3, 3)
+    size = model.geom_size[gid]
+    if gtype == int(mujoco.mjtGeom.mjGEOM_MESH):
+        mid = int(model.geom_dataid[gid])
+        adr, num = int(model.mesh_vertadr[mid]), int(model.mesh_vertnum[mid])
+        verts = model.mesh_vert[adr : adr + num]
+        return float((verts @ mat.T)[:, 2].min() + pos[2])
+    if gtype == int(mujoco.mjtGeom.mjGEOM_BOX):
+        return float(pos[2] - np.abs(mat[2, :]) @ size)
+    if gtype == int(mujoco.mjtGeom.mjGEOM_SPHERE):
+        return float(pos[2] - size[0])
+    if gtype in (int(mujoco.mjtGeom.mjGEOM_CYLINDER), int(mujoco.mjtGeom.mjGEOM_CAPSULE)):
+        c = abs(float(mat[2, 2]))
+        s = float(np.sqrt(max(0.0, 1.0 - c * c)))
+        drop = size[1] * c + size[0] * (s if gtype == int(mujoco.mjtGeom.mjGEOM_CYLINDER) else 1.0)
+        return float(pos[2] - drop)
+    return float(pos[2] - model.geom_rbound[gid])  # conservative fallback
+
+
+def _ground_welded_robot(worldbody: ET.Element, model, data) -> float:
+    """Raise the welded robot so its lowest geom rests on the z=0 ground plane.
+
+    Measures over ALL geoms, not just colliding ones: visual-only loads
+    (``keep_visual`` without ``with_collision``) carry no contact geometry at
+    all, and for full loads the collision hull bottoms out at the same height
+    as the wheels' visual meshes.  Returns the applied shift (0.0 if the model
+    already rests on or above the ground).
+    """
+    import mujoco
+
+    lowest = 0.0
+    for gid in range(model.ngeom):
+        if int(model.geom_type[gid]) == int(mujoco.mjtGeom.mjGEOM_PLANE):
+            continue
+        lowest = min(lowest, _geom_lowest_z(model, data, gid))
+    if lowest >= -1e-4:
+        return 0.0
+    shift = -lowest
+    for body in worldbody.findall("body"):
+        pos = [float(v) for v in (body.get("pos") or "0 0 0").split()]
+        pos[2] += shift
+        body.set("pos", " ".join(f"{v:.6g}" for v in pos))
+        log.info(
+            "grounded welded base %r: raised %.3f m so the robot rests on z=0",
+            body.get("name", "?"), shift,
+        )
+    return shift
+
+
 def _root_link_name(urdf_path: str) -> Optional[str]:
     root = ET.parse(urdf_path).getroot()
     links = [l.get("name") for l in root.findall("link")]
@@ -328,6 +388,11 @@ def load_mujoco_from_urdf(
         driven from odometry, or settle under gravity (otherwise the base is
         welded at the origin).
     add_ground : add a checkered ground plane and a light for a usable scene.
+        With a welded base the robot is also raised so its lowest geometry
+        rests on the plane -- the root link of a mobile base sits above the
+        ground, so welding it at the origin would sink the wheels.  Consumers
+        can read the applied shift off the compiled model as the base body's
+        ``body_pos[...][2]``.
     keep_visual : render the ``<visual>`` meshes instead of ``<collision>``
         geometry.  Falls back to collision geometry per-link when a visual mesh
         cannot be loaded.
@@ -375,6 +440,13 @@ def load_mujoco_from_urdf(
     try:
         mujoco.mj_saveLastXML(tmp_xml, model)
         mjcf = ET.parse(tmp_xml)
+        if add_ground and not floating_base:
+            # Welded base: raise the robot so it stands ON the ground plane
+            # instead of half-sinking its wheels (a floating base settles under
+            # gravity / is driven from odometry and needs no static grounding).
+            data = mujoco.MjData(model)
+            mujoco.mj_forward(model, data)
+            _ground_welded_robot(mjcf.getroot().find("worldbody"), model, data)
         _add_scene(mjcf.getroot(), floating_base, base_body)
         mjcf.write(tmp_xml)
         model = mujoco.MjModel.from_xml_path(tmp_xml)

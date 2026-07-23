@@ -49,7 +49,7 @@ __all__ = [
     "McapSource",
     "UrdfStaticSource",
     # lazily exported (optional deps): Ros2Source, FoxgloveSource, ZenohSource,
-    # MujocoSink, IsaacSimSink, load_mujoco_from_urdf
+    # ZenohUplink, ZenohPublisher, MujocoSink, IsaacSimSink, load_mujoco_from_urdf
 ]
 
 
@@ -62,10 +62,10 @@ def __getattr__(name):
         from .sources.foxglove import FoxgloveSource
 
         return FoxgloveSource
-    if name == "ZenohSource":
-        from .sources.zenoh_source import ZenohSource
+    if name in ("ZenohSource", "ZenohUplink", "ZenohPublisher"):
+        from .sources import zenoh_source
 
-        return ZenohSource
+        return getattr(zenoh_source, name)
     if name == "MujocoSink":
         from .sinks.mujoco_sink import MujocoSink
 

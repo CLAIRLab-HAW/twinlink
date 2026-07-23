@@ -39,8 +39,15 @@ zenoh = ["eclipse-zenoh>=1.0", "rosbags>=0.9"]
 all = ["rosbags>=0.9", "mujoco>=3.0", "opencv-python>=4.5", "websockets>=12", "eclipse-zenoh>=1.0"]
 
 [project.urls]
-Homepage = "https://github.com/hannesvoss/twinlink"
-Issues = "https://github.com/hannesvoss/twinlink/issues"
+Homepage = "https://github.com/CLAIRLab-HAW/twinlink"
+Issues = "https://github.com/CLAIRLab-HAW/twinlink/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+# The system python ships a pytest-cov whose coverage version mismatches;
+# the suite does not use coverage, so keep the broken plugin out.
+addopts = "-p no:cov"

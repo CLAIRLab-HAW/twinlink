@@ -60,14 +60,19 @@ uint32 nanosec
 """
 
 
-def parse_message_data(data: bytes) -> Optional[Tuple[int, bytes]]:
-    """Parse a binary server frame; return ``(subscription_id, cdr_payload)``.
+def parse_message_data(data: bytes) -> Optional[Tuple[int, float, bytes]]:
+    """Parse a binary server frame; return ``(sub_id, recv_stamp, cdr_payload)``.
 
-    Returns ``None`` for non-``MessageData`` frames. Pure/testable."""
+    ``recv_stamp`` is the bridge's receive timestamp converted to epoch
+    seconds (the u64 nanoseconds at bytes 5..13 of a MessageData frame) --
+    it dates the message *at the bridge*, so a consumer can split
+    sensor->bridge from bridge->client latency.  Returns ``None`` for
+    non-``MessageData`` frames. Pure/testable."""
     if not data or data[0] != _OP_MESSAGE_DATA or len(data) < 13:
         return None
     sub_id = struct.unpack_from("<I", data, 1)[0]
-    return sub_id, data[13:]
+    recv_ns = struct.unpack_from("<Q", data, 5)[0]
+    return sub_id, recv_ns * 1e-9, data[13:]
 
 
 def _parse_concatenated_msg(root_type: str, schema: str) -> dict:
@@ -154,6 +159,34 @@ class FoxgloveSource(StateSource):
         self._typestore = None
         self._sub_map: Dict[int, Tuple[str, str, int]] = {}  # subId -> (topic, msgtype, channelId)
         self._next_sub = 0
+        self._decode_errors: set = set()  # topics whose first decode failure was logged
+        # Ingest telemetry: message counts + last bridge->client lag per topic,
+        # logged every _STAT_PERIOD seconds (DEBUG).  A growing lag means the
+        # receive loop is falling behind the wire rate.
+        self._stat_counts: Dict[str, int] = {}
+        self._stat_lag: Dict[str, float] = {}
+        self._stat_t0 = time.monotonic()
+
+    _STAT_PERIOD = 5.0
+
+    def _stat_tick(self, topic: str, recv_stamp: float) -> None:
+        self._stat_counts[topic] = self._stat_counts.get(topic, 0) + 1
+        if recv_stamp:
+            self._stat_lag[topic] = time.time() - recv_stamp
+        now = time.monotonic()
+        elapsed = now - self._stat_t0
+        if elapsed < self._STAT_PERIOD:
+            return
+        if log.isEnabledFor(logging.DEBUG):
+            parts = [
+                "%s: %.1f/s lag=%.0fms" % (
+                    t, n / elapsed, self._stat_lag.get(t, 0.0) * 1e3,
+                )
+                for t, n in sorted(self._stat_counts.items())
+            ]
+            log.debug("ingest %s", " | ".join(parts))
+        self._stat_counts.clear()
+        self._stat_t0 = now
 
     # ------------------------------------------------------------------ #
     def start(self) -> "FoxgloveSource":
@@ -218,6 +251,7 @@ class FoxgloveSource(StateSource):
                     self._ws = None
                 self._sub_map.clear()
                 self._next_sub = 0
+                self._decode_errors.clear()
             if not self.reconnect or self._stop.is_set():
                 break
             if self._stop.wait(backoff):
@@ -285,16 +319,24 @@ class FoxgloveSource(StateSource):
         parsed = parse_message_data(data)
         if parsed is None:
             return
-        sub_id, payload = parsed
+        sub_id, recv_stamp, payload = parsed
         entry = self._sub_map.get(sub_id)
         if entry is None:
             return
         topic, msgtype = entry[0], entry[1]
+        self._stat_tick(topic, recv_stamp)
         try:
             msg = self._typestore.deserialize_cdr(payload, msgtype)
-            self.mapping.apply(topic, msgtype, msg, self.state)
+            self.mapping.apply(topic, msgtype, msg, self.state, recv_stamp=recv_stamp)
         except Exception as exc:
-            log.debug("decode failed on %s (%s): %s", topic, msgtype, exc)
+            # Log the first failure per topic at WARNING (silent DEBUG hides
+            # misconfigured compressed-image codecs behind "camera not ready"),
+            # then stay quiet so a persistently-bad topic doesn't spam.
+            if topic not in self._decode_errors:
+                self._decode_errors.add(topic)
+                log.warning("decode failed on %s [%s]: %s (once)", topic, msgtype, exc)
+            else:
+                log.debug("decode failed on %s (%s): %s", topic, msgtype, exc)
 
 
 class FoxglovePublisher:

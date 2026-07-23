@@ -36,6 +36,7 @@ interface.
 | **Live (ROS 2)** | `Ros2Source` | yes (`rclpy`) | mirror a running robot in real time |
 | **Live (WebSocket)** | `FoxgloveSource` | no | mirror a robot via `foxglove_bridge` (e.g. from macOS) |
 | **Live (Zenoh)** | `ZenohSource` | no | native Zenoh client for robots on `rmw_zenoh` (no ROS, robotics-grade) |
+| **Uplink (Zenoh)** | `ZenohUplink` / `ZenohPublisher` | no | publish onto `rmw_zenoh` topics (keyexpr discovery via liveliness, rmw attachment) |
 | **Mock — recording** | `McapSource` | no | replay an MCAP / rosbag2 recording |
 | **Mock — URDF only** | `UrdfStaticSource` | no | bring a twin up from a bare URDF |
 
@@ -60,7 +61,7 @@ pip install -e .[all]       # everything except rclpy (that comes from ROS 2)
 
 ## Examples
 
-Runnable examples live in the sibling **[spact-integration-demos](../spact-integration-demos)**
+Runnable examples live in the sibling **[spact-integration-demos](../../apps/spact-integration-demos)**
 project, which depends on this package — see its README to run them:
 
 - **`mujoco_mcap_twin.py`** — replay an MCAP recording as a MuJoCo twin, with the
@@ -106,6 +107,8 @@ twinlink/
     foxglove.py     live via foxglove_bridge WebSocket (FoxgloveSource; no ROS, CDR)
                     + FoxglovePublisher: uplink (client-publish onto a ROS topic)
     zenoh_source.py live via native Zenoh client (rmw_zenoh robots; no ROS)
+                    + ZenohUplink/ZenohPublisher: uplink straight into the
+                    rmw_zenoh graph (liveliness keyexpr discovery, rmw attachment)
     mcap.py         MCAP / rosbag2 replay (via rosbags, no ROS needed)
     urdf_static.py  URDF-only mock
   sinks/
@@ -114,7 +117,7 @@ twinlink/
 ```
 
 Runnable examples and robot mapping configs live in the separate
-[spact-integration-demos](../spact-integration-demos) project.
+[spact-integration-demos](../../apps/spact-integration-demos) project.
 
 ## Design notes
 

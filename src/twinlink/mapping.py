@@ -14,7 +14,8 @@ file -- see ``configs/`` for an example.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
+import struct
 
 import numpy as np
 
@@ -28,9 +29,11 @@ ROLE_DEFAULT_TYPE = {
     "tf_static": "tf2_msgs/msg/TFMessage",
     "odom": "nav_msgs/msg/Odometry",
     "image": "sensor_msgs/msg/Image",
+    "compressed_image": "sensor_msgs/msg/CompressedImage",
     "camera_info": "sensor_msgs/msg/CameraInfo",
     "points": "sensor_msgs/msg/PointCloud2",
     "planned_path": "moveit_msgs/msg/DisplayTrajectory",
+    "string": "std_msgs/msg/String",
 }
 
 
@@ -48,6 +51,12 @@ class CameraMap:
     image_topic: Optional[str] = None
     info_topic: Optional[str] = None
     is_depth: bool = False
+    #: Store CompressedImage payloads undecoded (CameraFrame.raw); the consumer
+    #: decodes via CameraFrame.ensure_decoded().  Keeps a live source's ingest
+    #: thread ahead of the wire rate -- see CameraFrame.  Raw (uncompressed)
+    #: Image messages are unaffected.  Off by default: eager consumers
+    #: (MujocoSink, TwinlinkCamera, ...) read ``frame.image`` directly.
+    lazy_decode: bool = False
 
 
 @dataclass
@@ -65,6 +74,9 @@ class RobotMapping:
     points_topics: Dict[str, str] = field(default_factory=dict)
     planned_path_topic: Optional[str] = None
     points_max: int = 60000  # subsample huge clouds before storing
+    # Plain std_msgs/String topics (name -> topic): the latest payload lands in
+    # ``state.extra(name)`` — e.g. the /twin/arm_state JSON downlink.
+    string_topics: Dict[str, str] = field(default_factory=dict)
 
     # Joint-name handling: ROS joint name -> simulator/model joint name.
     joint_remap: Dict[str, str] = field(default_factory=dict)
@@ -81,6 +93,9 @@ class RobotMapping:
     topic_types: Dict[str, str] = field(default_factory=dict)
 
     _origin: Optional[np.ndarray] = field(default=None, init=False, repr=False)
+    # Parsed 3x3 K per camera name (camera_info streams at frame rate but the
+    # intrinsics are constant; see _decode_camera_info).
+    _info_cache: Dict[str, np.ndarray] = field(default_factory=dict, init=False, repr=False)
 
     # ------------------------------------------------------------------ #
     # introspection used by the sources
@@ -100,6 +115,7 @@ class RobotMapping:
         ts += list(self.points_topics.values())
         if self.planned_path_topic:
             ts.append(self.planned_path_topic)
+        ts += list(self.string_topics.values())
         return sorted(set(ts))
 
     def role_of(self, topic: str) -> Optional[str]:
@@ -120,6 +136,8 @@ class RobotMapping:
             return "points"
         if self.planned_path_topic and topic == self.planned_path_topic:
             return "planned_path"
+        if topic in self.string_topics.values():
+            return "string"
         return None
 
     def topic_type(self, topic: str) -> Optional[str]:
@@ -131,7 +149,16 @@ class RobotMapping:
     # ------------------------------------------------------------------ #
     # the single entry point used by every source
     # ------------------------------------------------------------------ #
-    def apply(self, topic: str, msgtype: str, msg, state: RobotState) -> None:
+    def apply(
+        self, topic: str, msgtype: str, msg, state: RobotState,
+        recv_stamp: float = 0.0,
+    ) -> None:
+        """Decode one message into ``state``.
+
+        ``recv_stamp`` (epoch seconds, optional): when the transport knows the
+        moment a relaying bridge received the message (foxglove ws MessageData
+        carries one), it is forwarded onto image frames for latency splitting.
+        """
         role = self.role_of(topic)
         if role == "joint_states":
             self._decode_joint_states(msg, state)
@@ -140,16 +167,27 @@ class RobotMapping:
         elif role == "odom":
             self._decode_odom(msg, state)
         elif role == "image":
-            self._decode_image(msg, state, self._camera_for(topic, "image"))
+            self._decode_image(
+                msg, msgtype, state, self._camera_for(topic, "image"),
+                recv_stamp=recv_stamp,
+            )
         elif role == "camera_info":
             self._decode_camera_info(msg, state, self._camera_for(topic, "camera_info"))
         elif role == "points":
             self._decode_points(msg, state, self._name_for_points(topic))
         elif role == "planned_path":
             self._decode_planned_path(msg, state)
+        elif role == "string":
+            state.set_extra(self._name_for_string(topic), str(msg.data))
 
     def _name_for_points(self, topic: str) -> str:
         for name, t in self.points_topics.items():
+            if t == topic:
+                return name
+        return topic
+
+    def _name_for_string(self, topic: str) -> str:
+        for name, t in self.string_topics.items():
             if t == topic:
                 return name
         return topic
@@ -218,26 +256,63 @@ class RobotMapping:
             )
         )
 
-    def _decode_image(self, msg, state: RobotState, cam: CameraMap) -> None:
-        image = image_to_numpy(msg)
+    def _decode_image(
+        self, msg, msgtype: str, state: RobotState, cam: CameraMap,
+        recv_stamp: float = 0.0,
+    ) -> None:
+        import time as _time
+
+        arrival = _time.monotonic()
+        raw_payload: Optional[bytes] = None
+        raw_format = ""
+        if _is_compressed_image(msgtype, msg):
+            if cam.lazy_decode:
+                # Store the compressed payload as-is; the consumer decodes
+                # (CameraFrame.ensure_decoded).  Width/height are unknown
+                # until then.
+                image, encoding = None, ""
+                height = width = 0
+                raw_payload = _msg_bytes(msg)
+                raw_format = str(getattr(msg, "format", "") or "")
+            else:
+                image, encoding = compressed_image_to_numpy(msg, is_depth=cam.is_depth)
+                height, width = int(image.shape[0]), int(image.shape[1])
+        else:
+            image = image_to_numpy(msg)
+            encoding = str(msg.encoding)
+            height, width = int(msg.height), int(msg.width)
         state.set_camera(
             cam.name,
             CameraFrame(
                 image=image,
-                encoding=str(msg.encoding),
+                encoding=encoding,
                 stamp=stamp_to_sec(msg.header.stamp),
                 frame_id=msg.header.frame_id,
-                width=int(msg.width),
-                height=int(msg.height),
+                width=width,
+                height=height,
+                raw=raw_payload,
+                raw_format=raw_format,
+                is_depth=cam.is_depth,
+                arrival_monotonic=arrival,
+                bridge_recv_stamp=recv_stamp,
             ),
         )
 
     def _decode_camera_info(self, msg, state: RobotState, cam: CameraMap) -> None:
-        try:
-            K = np.array(list(msg.k), float).reshape(3, 3)
-        except Exception:
-            return
-        state.set_camera_intrinsics(cam.name, K)
+        # Intrinsics are constant per session but stream at frame rate: parse
+        # the 3x3 K once, then only re-apply while the state still lacks it
+        # (fresh session / after clear_camera the frame entry is gone and the
+        # re-attach relies on this streaming topic).
+        K = self._info_cache.get(cam.name)
+        if K is None:
+            try:
+                K = np.array(list(msg.k), float).reshape(3, 3)
+            except Exception:
+                return
+            self._info_cache[cam.name] = K
+        frame = state.camera(cam.name)
+        if frame is None or frame.intrinsics is None:
+            state.set_camera_intrinsics(cam.name, K)
 
     def _decode_points(self, msg, state: RobotState, name: str) -> None:
         pts = pointcloud2_to_xyz(msg, max_points=self.points_max)
@@ -292,6 +367,7 @@ class RobotMapping:
             points_topics=dict(d.get("points_topics", {})),
             planned_path_topic=d.get("planned_path_topic"),
             points_max=int(d.get("points_max", 60000)),
+            string_topics=dict(d.get("string_topics", {})),
         )
 
     @classmethod
@@ -351,8 +427,16 @@ def image_to_numpy(msg) -> np.ndarray:
 _PC2_NP = {1: np.int8, 2: np.uint8, 3: np.int16, 4: np.uint16, 5: np.int32, 6: np.uint32, 7: np.float32, 8: np.float64}
 
 
-def pointcloud2_to_xyz(msg, max_points: int = 60000) -> np.ndarray:
-    """Extract finite (N, 3) xyz from a ``sensor_msgs/PointCloud2`` (any layout)."""
+def pointcloud2_to_xyz(
+    msg, max_points: Optional[int] = 60000, max_range: Optional[float] = None
+) -> np.ndarray:
+    """Extract finite (N, 3) xyz from a ``sensor_msgs/PointCloud2`` (any layout).
+
+    ``max_range`` (metres, sensor frame) drops points farther than that from
+    the origin — depth cameras such as the D435 produce "flying pixel"
+    artefacts at invalid-depth boundaries, and cropping by range removes them
+    at the source.  ``max_points=None`` disables subsampling (batch use).
+    """
     fields = {f.name: (int(f.offset), int(f.datatype)) for f in msg.fields}
     if not all(k in fields for k in ("x", "y", "z")):
         return np.zeros((0, 3), float)
@@ -369,7 +453,169 @@ def pointcloud2_to_xyz(msg, max_points: int = 60000) -> np.ndarray:
         return rows[:, off : off + size].copy().view(npdt).reshape(-1).astype(np.float32)
 
     xyz = np.stack([column("x"), column("y"), column("z")], axis=1)
-    xyz = xyz[np.isfinite(xyz).all(axis=1)]
-    if len(xyz) > max_points:
+    valid = np.isfinite(xyz).all(axis=1)
+    if max_range is not None:
+        valid &= np.linalg.norm(xyz, axis=1) <= max_range
+    xyz = xyz[valid]
+    if max_points is not None and len(xyz) > max_points:
         xyz = xyz[np.random.default_rng(0).choice(len(xyz), max_points, replace=False)]
     return xyz
+
+
+# ---------------------------------------------------------------------- #
+# CompressedImage helpers (sensor_msgs/CompressedImage)
+# ---------------------------------------------------------------------- #
+# ``compressed_image_transport`` (color) puts the raw JPEG/PNG bytes straight in
+# ``msg.data`` -- no header.  ``compressed_depth_image_transport`` (depth) prepends
+# a 12-byte ``ConfigHeader`` (4-byte format enum + 2 float ``depthParam``) before
+# the PNG or RVL payload; see upstream ``codec.cpp``.  We branch on ``is_depth``
+# (the ``CameraMap`` flag) and, for depth, on ``msg.format`` ("... compressedDepth
+# rvl" -> RVL, otherwise PNG) -- exactly the way the C++ codec does.
+
+
+# ConfigHeader: 4-byte enum + 2x float32 (depthQuantA, depthQuantB).
+_DEPTH_CONFIG_HEADER = 12
+
+
+def _is_compressed_image(msgtype: str, msg) -> bool:
+    """True for ``sensor_msgs/CompressedImage`` (by type, or by shape as fallback)."""
+    if msgtype and msgtype.endswith("CompressedImage"):
+        return True
+    return not hasattr(msg, "width")
+
+
+def _msg_bytes(msg) -> bytes:
+    raw = msg.data
+    if isinstance(raw, (bytes, bytearray, memoryview)):
+        return bytes(raw)
+    return bytes(bytearray(raw))
+
+
+def compressed_image_to_numpy(msg, is_depth: bool = False) -> Tuple[np.ndarray, str]:
+    """Decode a ``sensor_msgs/CompressedImage`` into ``(HxW[xC] array, encoding)``.
+
+    * Color (``is_depth=False``): JPEG/PNG via ``cv2.imdecode`` -> BGR8, encoding
+      ``"bgr8"`` (the HSV detector wants BGR).
+    * Depth (``is_depth=True``): strips the 12-byte ConfigHeader, then PNG
+      (``cv2.imdecode(IMREAD_UNCHANGED)`` -> uint16 mm) or RVL
+      (:func:`rvl_decompress` -> uint16 mm).  A 32FC1 source is dequantized to
+      float metres via the header's ``depthParam`` (0 -> NaN).  Returns encoding
+      ``"16uc1"`` (uint16 mm) or ``"32fc1"`` (float metres).
+    """
+    data = _msg_bytes(msg)
+    fmt = str(getattr(msg, "format", "") or "")
+    return decode_compressed_bytes(data, fmt, is_depth=is_depth)
+
+
+def decode_compressed_bytes(
+    data: bytes, fmt: str, *, is_depth: bool = False, allow_rvl: bool = True
+) -> Tuple[np.ndarray, str]:
+    """Bytes-level CompressedImage decode -- see :func:`compressed_image_to_numpy`.
+
+    This is the entry point of the *lazy* path (``CameraFrame.ensure_decoded``),
+    which passes ``allow_rvl=False``: the pure-Python RVL decoder takes seconds
+    per 640x480 frame, unusable live -- reject loudly (publish PNG instead:
+    ``format`` parameter of the compressed_depth_image_transport publisher)
+    rather than silently stalling the pipeline.  Offline/batch use (MCAP)
+    keeps RVL support via the default.
+    """
+    import cv2
+
+    fmt = (fmt or "").lower()
+    if not is_depth:
+        buf = np.frombuffer(data, dtype=np.uint8)
+        img = cv2.imdecode(buf, cv2.IMREAD_COLOR)
+        if img is None:
+            raise ValueError(f"compressed color decode failed (format={fmt!r})")
+        return img, "bgr8"
+
+    if "rvl" in fmt and not allow_rvl:
+        raise ValueError(
+            f"RVL depth stream rejected (format={fmt!r}): the pure-Python RVL "
+            "decoder is too slow for a live pipeline -- set the robot's "
+            "compressed_depth_image_transport 'format' parameter to 'png'"
+        )
+    return _decode_depth_compressed(data, fmt)
+
+
+def _decode_depth_compressed(data: bytes, fmt: str) -> Tuple[np.ndarray, str]:
+    import cv2
+
+    if len(data) < _DEPTH_CONFIG_HEADER:
+        raise ValueError(
+            f"depth CompressedImage shorter than ConfigHeader (12 B): {len(data)} B, "
+            f"format={fmt!r} -- empty data means the plain 'compressed' (JPEG) "
+            "transport, which cannot encode 16-bit depth; subscribe to the "
+            "'.../compressedDepth' topic instead"
+        )
+    header, payload = data[:_DEPTH_CONFIG_HEADER], data[_DEPTH_CONFIG_HEADER:]
+    enc_prefix = fmt.split(";", 1)[0].strip()
+    is_float = "32f" in enc_prefix
+    depth_a, depth_b = struct.unpack_from("<ff", header, 4)
+
+    if "rvl" in fmt:
+        cols, rows = struct.unpack_from("<II", payload, 0)
+        if rows == 0 or cols == 0:
+            raise ValueError(f"malformed RVL header: {cols}x{rows}")
+        raw = rvl_decompress(payload[8:], rows * cols).reshape(rows, cols)
+    else:  # png / depth_png / default
+        buf = np.frombuffer(payload, dtype=np.uint8)
+        raw = cv2.imdecode(buf, cv2.IMREAD_UNCHANGED)
+        if raw is None:
+            raise ValueError(f"depth PNG decode failed (format={fmt!r})")
+
+    if is_float:
+        inv = raw.astype(np.float32)
+        depth = np.where(inv > 0, depth_a / (inv - depth_b), np.float32(np.nan))
+        return depth, "32fc1"
+    return raw.astype(np.uint16, copy=False), "16uc1"
+
+
+def rvl_decompress(data: bytes, num_pixels: int) -> np.ndarray:
+    """Decompress an RVL bitstream -> flat ``uint16`` array (``num_pixels`` long).
+
+    Faithful Python port of ``compressed_depth_image_transport::RvlCodec::
+    DecompressRVL`` (Wilson, "Fast Lossless Depth Image Compression", SIGCHI'17):
+    VLE-packed 3-bit payloads in 4-bit nibbles of little-endian 32-bit words,
+    run-length over zero/nonzero runs and zigzag-delta over the nonzero stream.
+    """
+    words = np.frombuffer(data, dtype="<u4")
+    state = {"word": 0, "nib": 0, "wp": 0}
+
+    def _vle() -> int:
+        value, bits = 0, 29
+        while True:
+            if state["nib"] == 0:
+                state["word"] = int(words[state["wp"]])
+                state["wp"] += 1
+                state["nib"] = 8
+            nibble = (state["word"] >> 28) & 0xF
+            value |= (nibble & 0x7) << (29 - bits)
+            state["word"] = (state["word"] << 4) & 0xFFFFFFFF
+            state["nib"] -= 1
+            bits -= 3
+            if not (nibble & 0x8):
+                return value
+
+    out = np.zeros(num_pixels, dtype=np.uint16)
+    idx, remaining, previous = 0, num_pixels, 0
+    while remaining:
+        zeros = _vle()
+        remaining -= zeros
+        if remaining < 0 or idx + zeros > num_pixels:
+            raise ValueError("malformed RVL stream (zero run overruns image)")
+        for _ in range(zeros):
+            out[idx] = 0
+            idx += 1
+        nonzeros = _vle()
+        remaining -= nonzeros
+        if remaining < 0 or idx + nonzeros > num_pixels:
+            raise ValueError("malformed RVL stream (nonzero run overruns image)")
+        for _ in range(nonzeros):
+            positive = _vle()
+            delta = (positive >> 1) ^ -(positive & 1)
+            current = (previous + delta) & 0xFFFF
+            out[idx] = current
+            idx += 1
+            previous = current
+    return out

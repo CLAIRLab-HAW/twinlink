@@ -3,7 +3,8 @@ from .base import StateSource
 from .mcap import McapSource
 from .urdf_static import UrdfStaticSource
 
-__all__ = ["StateSource", "McapSource", "UrdfStaticSource", "Ros2Source", "FoxgloveSource", "ZenohSource"]
+__all__ = ["StateSource", "McapSource", "UrdfStaticSource", "Ros2Source",
+           "FoxgloveSource", "ZenohSource", "ZenohUplink", "ZenohPublisher"]
 
 
 def __getattr__(name):
@@ -17,8 +18,8 @@ def __getattr__(name):
         from .foxglove import FoxgloveSource
 
         return FoxgloveSource
-    if name == "ZenohSource":
-        from .zenoh_source import ZenohSource
+    if name in ("ZenohSource", "ZenohUplink", "ZenohPublisher"):
+        from . import zenoh_source
 
-        return ZenohSource
+        return getattr(zenoh_source, name)
     raise AttributeError(name)
