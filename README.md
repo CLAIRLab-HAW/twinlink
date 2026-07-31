@@ -63,7 +63,7 @@ pip install -e .[all]       # everything except rclpy (that comes from ROS 2)
 
 ## Examples
 
-Runnable examples live in the sibling **[spact-integration-demos](../../apps/spact-integration-demos)**
+Runnable examples live in the sibling **[spact-integration-demos](http://github.com/CLAIRLab-HAW/spact-integration-demos)**
 project, which depends on this package — see its README to run them:
 
 - **`mujoco_mcap_twin.py`** — replay an MCAP recording as a MuJoCo twin, with the
