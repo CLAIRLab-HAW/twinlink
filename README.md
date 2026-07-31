@@ -127,7 +127,7 @@ twinlink/
 ```
 
 Runnable examples and robot mapping configs live in the separate
-[spact-integration-demos](../../apps/spact-integration-demos) project.
+[spact-integration-demos](http://github.com/CLAIRLab-HAW/spact-integration-demos) project.
 
 ## Design notes
 
