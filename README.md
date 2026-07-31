@@ -102,6 +102,14 @@ twinlink/
   bridge.py         TwinLink — wires source → state → sinks
   urdf_mujoco.py    build a MuJoCo model from any URDF (mesh cache, visual/collision)
   collada.py        minimal .dae -> .obj reader (orientation-preserving)
+  events.py         SimEvents — physics-step event record (collisions, grasp
+                    acquired/lost) read by task apps for rewards
+  kinematics.py     Cartesian→joint IK utility over a twin MuJoCo model
+                    (robot-agnostic; MoveIt still plans the collision-free path)
+  mjcf_scene.py     reusable MJCF scene blocks (obstacle pool, distractors,
+                    camera intrinsics/extrinsics) for task twins
+  tf_buffer.py      offline TF tree with BFS path lookup + time interpolation
+                    (rosbags/MCAP/foxglove captures; numpy-only, no ROS)
   sources/
     ros2.py         live ROS 2 (lazy rclpy; subclass for other middleware)
     foxglove.py     live via foxglove_bridge WebSocket (FoxgloveSource; no ROS, CDR)
