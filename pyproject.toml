@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
     "numpy>=1.21",
     "pyyaml>=5.4",
+    "clearlog",
 ]
 
 [project.optional-dependencies]
@@ -44,6 +45,9 @@ Issues = "https://github.com/CLAIRLab-HAW/twinlink/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.uv.sources]
+clearlog = { workspace = true }
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
