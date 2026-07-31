@@ -53,6 +53,8 @@ what you want to run:
 pip install -e .            # core
 pip install -e .[mcap]      # + rosbags  (replay recordings, no ROS needed)
 pip install -e .[mujoco]    # + mujoco, opencv-python
+pip install -e .[foxglove]  # + websockets, rosbags (live over foxglove_bridge)
+pip install -e .[zenoh]     # + eclipse-zenoh, rosbags (live over rmw_zenoh)
 pip install -e .[all]       # everything except rclpy (that comes from ROS 2)
 ```
 
