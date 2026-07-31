@@ -519,9 +519,20 @@ def decode_compressed_bytes(
     rather than silently stalling the pipeline.  Offline/batch use (MCAP)
     keeps RVL support via the default.
     """
+    fmt = (fmt or "").lower()
+
+    # Reject the live-incompatible RVL path *before* importing cv2: the lazy
+    # path runs without opencv installed (CI / minimal installs), and this
+    # raise is the whole point -- it must not be shadowed by a ModuleNotFoundError.
+    if is_depth and "rvl" in fmt and not allow_rvl:
+        raise ValueError(
+            f"RVL depth stream rejected (format={fmt!r}): the pure-Python RVL "
+            "decoder is too slow for a live pipeline -- set the robot's "
+            "compressed_depth_image_transport 'format' parameter to 'png'"
+        )
+
     import cv2
 
-    fmt = (fmt or "").lower()
     if not is_depth:
         buf = np.frombuffer(data, dtype=np.uint8)
         img = cv2.imdecode(buf, cv2.IMREAD_COLOR)
@@ -529,12 +540,6 @@ def decode_compressed_bytes(
             raise ValueError(f"compressed color decode failed (format={fmt!r})")
         return img, "bgr8"
 
-    if "rvl" in fmt and not allow_rvl:
-        raise ValueError(
-            f"RVL depth stream rejected (format={fmt!r}): the pure-Python RVL "
-            "decoder is too slow for a live pipeline -- set the robot's "
-            "compressed_depth_image_transport 'format' parameter to 'png'"
-        )
     return _decode_depth_compressed(data, fmt)
 
 
