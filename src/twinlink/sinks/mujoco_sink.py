@@ -20,6 +20,12 @@ Rendering backends:
 
 Sensor data (e.g. a RealSense colour image carried in the state) is shown in a
 side window so the recorded camera and the simulated twin are visible together.
+
+With ``show_obstacles=True`` the free camera **auto-frames** itself on the union
+of the robot and the first obstacle cloud that arrives (see ``auto_frame``): an
+observed scene sits wherever the sensor happened to look, which is regularly
+outside a robot-centred view, so without this the voxels are off-screen and the
+overlay looks broken.  Passing ``cam_distance`` / ``cam_lookat`` opts out.
 """
 from __future__ import annotations
 
@@ -46,6 +52,16 @@ def _xyzw_to_wxyz(q: np.ndarray) -> np.ndarray:
 # fall back to the camera link, so the cloud lands in front of the camera, not above.
 _R_LINK_FROM_OPTICAL = np.array([[0.0, 0.0, 1.0], [-1.0, 0.0, 0.0], [0.0, -1.0, 0.0]])
 
+# Free-camera fallbacks, used for whichever cam_* argument the caller left out.
+# Framed on the robot: right for a plain kinematic twin, too tight once an
+# obstacle cloud several metres away joins the scene -- hence auto_frame.
+_CAM_DEFAULT_DISTANCE = 2.5
+_CAM_DEFAULT_AZIMUTH = 135.0
+_CAM_DEFAULT_ELEVATION = -20.0
+# Padding on the auto-framed bounding sphere, so the outermost voxels don't sit
+# exactly on the image border.
+_AUTO_FRAME_MARGIN = 1.15
+
 
 class MujocoSink(StateSink):
     def __init__(
@@ -57,10 +73,11 @@ class MujocoSink(StateSink):
         width: int = 640,
         height: int = 480,
         camera: Optional[str] = None,
-        cam_distance: float = 2.5,
-        cam_azimuth: float = 135.0,
-        cam_elevation: float = -20.0,
+        cam_distance: Optional[float] = None,
+        cam_azimuth: Optional[float] = None,
+        cam_elevation: Optional[float] = None,
         cam_lookat=None,
+        auto_frame: Optional[bool] = None,
         base_free_joint: Optional[str] = None,
         joint_remap: Optional[Dict[str, str]] = None,
         show_sensor_camera: Optional[str] = None,
@@ -98,10 +115,18 @@ class MujocoSink(StateSink):
         self.width = width
         self.height = height
         self.camera = camera
-        self.cam_distance = cam_distance
-        self.cam_azimuth = cam_azimuth
-        self.cam_elevation = cam_elevation
+        self.cam_distance = _CAM_DEFAULT_DISTANCE if cam_distance is None else float(cam_distance)
+        self.cam_azimuth = _CAM_DEFAULT_AZIMUTH if cam_azimuth is None else float(cam_azimuth)
+        self.cam_elevation = _CAM_DEFAULT_ELEVATION if cam_elevation is None else float(cam_elevation)
         self.cam_lookat = cam_lookat
+        # Auto-framing only ever touches lookat + distance, so an explicit value
+        # for either one is taken as "the caller has framed this deliberately".
+        # azimuth/elevation stay free: framing the whole bounding sphere works
+        # from any viewing direction.
+        self.auto_frame = (
+            bool(show_obstacles and cam_distance is None and cam_lookat is None)
+            if auto_frame is None else bool(auto_frame)
+        )
         self.base_free_joint = base_free_joint
         self.joint_remap = dict(joint_remap or {})
         self.show_sensor_camera = show_sensor_camera
@@ -128,6 +153,7 @@ class MujocoSink(StateSink):
         self._traj_start = 0.0
         self._win_ready = False
         self._mouse_last: Optional[tuple] = None
+        self._autoframed = False  # auto_frame is one-shot: fires on the first cloud
 
         # Goal preview: ghost arm at the target pose before planning.
         self._goal_preview_pos: Optional[Dict[str, float]] = None
@@ -570,10 +596,12 @@ class MujocoSink(StateSink):
             vox = vox[:: max(1, len(vox) // self.obstacle_max)]
         return vox
 
-    def _draw_obstacles(self, mujoco, scene) -> None:
-        size = np.full(3, self.obstacle_voxel * 0.5)
-        eye = np.eye(3).flatten()
-        rgba = np.array([0.90, 0.35, 0.20, 1.0], np.float32)
+    def _world_clouds(self, mujoco):
+        """Yield each obstacle cloud's points in world coordinates.
+
+        Placement goes through the twin's own kinematics: the cloud's frame_id
+        is resolved to a model body, whose current pose transforms the points.
+        """
         for cloud in self.state.obstacles().values():
             if cloud.points is None or len(cloud.points) == 0:
                 continue
@@ -583,8 +611,13 @@ class MujocoSink(StateSink):
             R = self.data.xmat[bid].reshape(3, 3)  # world <- body
             if optical_fix:  # body <- optical, so world <- optical
                 R = R @ _R_LINK_FROM_OPTICAL
-            t = self.data.xpos[bid]
-            world = cloud.points @ R.T + t
+            yield cloud.points @ R.T + self.data.xpos[bid]
+
+    def _draw_obstacles(self, mujoco, scene) -> None:
+        size = np.full(3, self.obstacle_voxel * 0.5)
+        eye = np.eye(3).flatten()
+        rgba = np.array([0.90, 0.35, 0.20, 1.0], np.float32)
+        for world in self._world_clouds(mujoco):
             for p in self._voxelize(world):
                 if scene.ngeom >= scene.maxgeom:
                     break
@@ -594,7 +627,71 @@ class MujocoSink(StateSink):
                 )
                 scene.ngeom += 1
 
+    # --- auto-framing: fit the free camera around robot + obstacle cloud ----
+    def _robot_aabb(self, mujoco):
+        """World AABB over the model's geoms, or None. Ground plane excluded."""
+        lo = hi = None
+        for i in range(self.model.ngeom):
+            if int(self.model.geom_type[i]) == int(mujoco.mjtGeom.mjGEOM_PLANE):
+                continue  # infinite -- would swallow the bounds
+            r = float(self.model.geom_rbound[i])  # geom bounding-sphere radius
+            c = self.data.geom_xpos[i]
+            glo, ghi = c - r, c + r
+            lo = glo if lo is None else np.minimum(lo, glo)
+            hi = ghi if hi is None else np.maximum(hi, ghi)
+        return lo, hi
+
+    def _maybe_auto_frame(self, mujoco) -> None:
+        """Frame the free camera on robot + obstacles, once, on the first cloud.
+
+        An obstacle cloud sits wherever the sensor looked -- in a recording that
+        can be metres off to the side of the robot, entirely outside the
+        robot-centred startup view, which makes a working overlay look like a
+        broken one.  So on the first non-empty cloud, aim the camera at the
+        centre of the combined AABB and pull it back far enough for the
+        enclosing sphere to fit the vertical FOV.  Because the *sphere* is
+        fitted, azimuth/elevation keep whatever the caller chose.
+
+        One-shot by design: re-framing on every cloud would fight the user's
+        mouse.  Not applied to an explicit cam_distance / cam_lookat.
+        """
+        if self._autoframed or self.state is None:
+            return
+        lo = hi = None
+        for world in self._world_clouds(mujoco):
+            clo, chi = world.min(axis=0), world.max(axis=0)
+            lo = clo if lo is None else np.minimum(lo, clo)
+            hi = chi if hi is None else np.maximum(hi, chi)
+        if lo is None:
+            return  # no cloud yet -- keep the startup framing and retry next frame
+        rlo, rhi = self._robot_aabb(mujoco)
+        if rlo is not None:
+            lo, hi = np.minimum(lo, rlo), np.maximum(hi, rhi)
+
+        lookat = 0.5 * (lo + hi)
+        radius = 0.5 * float(np.linalg.norm(hi - lo))
+        fovy = math.radians(float(self.model.vis.global_.fovy) or 45.0)
+        distance = max(radius / max(math.tan(0.5 * fovy), 1e-3) * _AUTO_FRAME_MARGIN, 0.1)
+        if not (np.isfinite(lookat).all() and math.isfinite(distance)):
+            # The standard decoder drops non-finite points; a hand-filled cloud
+            # might not. Framing on a NaN would blank the render -- worse than
+            # not framing at all, so keep the startup view and say so once.
+            log.warning("auto-frame skipped: obstacle bounds are not finite")
+            self._autoframed = True
+            return
+        self.cam_lookat, self.cam_distance = lookat, distance
+        for cam in (self._mjcam, getattr(self._viewer, "cam", None)):
+            if cam is not None:
+                cam.lookat[:] = lookat
+                cam.distance = distance
+        self._autoframed = True
+        log.info("auto-framed camera on robot+obstacles: lookat=(%.2f, %.2f, %.2f), "
+                 "distance=%.2f (pass cam_lookat/cam_distance to keep your own framing)",
+                 lookat[0], lookat[1], lookat[2], distance)
+
     def _render(self, mujoco) -> bool:
+        if self.auto_frame:
+            self._maybe_auto_frame(mujoco)  # before update_scene: same-frame effect
         if self.render_mode == "viewer":
             if self._viewer is None or not self._viewer.is_running():
                 return False
