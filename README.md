@@ -34,7 +34,7 @@ interface.
 | Mode | Source | Needs ROS? | Use |
 |------|--------|-----------|-----|
 | **Live (ROS 2)** | `Ros2Source` | yes (`rclpy`) | mirror a running robot in real time |
-| **Live (WebSocket)** | `FoxgloveSource` | no | mirror a robot via `foxglove_bridge` (e.g. from macOS) |
+| **Live (WebSocket)** | `FoxgloveSource` | no | mirror a robot via `foxglove_bridge` (e.g. from the workstation) |
 | **Live (Zenoh)** | `ZenohSource` | no | native Zenoh client for robots on `rmw_zenoh` (no ROS, robotics-grade) |
 | **Uplink (Zenoh)** | `ZenohUplink` / `ZenohPublisher` | no | publish onto `rmw_zenoh` topics (keyexpr discovery via liveliness, rmw attachment) |
 | **Mock — recording** | `McapSource` | no | replay an MCAP / rosbag2 recording |

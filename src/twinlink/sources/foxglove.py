@@ -1,6 +1,6 @@
 """Live source over the Foxglove WebSocket protocol (no ROS install needed).
 
-This is the Mac-friendly sibling of :class:`Ros2Source`: instead of ``rclpy`` it
+This is the no-ROS sibling of :class:`Ros2Source`: instead of ``rclpy`` it
 talks to a ``foxglove_bridge`` (which the robot / offboard container already
 runs) over a WebSocket and decodes the CDR payloads itself -- exactly the same
 bytes a ROS 2 publisher puts on the wire, deserialized with the same path as the
@@ -344,7 +344,7 @@ class FoxglovePublisher:
 
     The write-side counterpart of :class:`FoxgloveSource`: it advertises one
     client channel and sends CDR-encoded messages on it, so a client with **no
-    ROS install** (e.g. a Mac) can publish onto a real ROS topic via the bridge.
+    ROS install** (e.g. a workstation) can publish onto a real ROS topic via the bridge.
     This is what turns the WebSocket transport bidirectional -- e.g. a digital
     twin sending a planning goal back to MoveIt.
 
