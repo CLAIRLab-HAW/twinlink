@@ -33,13 +33,30 @@ import logging
 import math
 import sys
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+from ..task_sim import RobotSimSpec
 from .base import StateSink
 
 log = logging.getLogger("twinlink.mujoco")
+
+# Robot literals this sink used to hard-code (a UR5 CB3 + OnRobot RG6 +
+# wrist-mounted RealSense on the a200-0553 profile) before ``RobotSimSpec``
+# existed.  ``spec=None`` (the default -- see ``MujocoSink.__init__``) falls
+# back to these so every caller that predates the spec argument
+# (``octomap_explorer``, the spact-integration-demos scripts/notebooks, and
+# hrl's own dashboard) keeps today's rendering behaviour unchanged.  Passing a
+# ``RobotSimSpec`` (``twinlink.task_sim``) swaps them for another robot's
+# facts.
+_DEFAULT_MANIPULATOR_PREFIXES: Tuple[str, ...] = ("arm_0",)
+#: Exact body-name fallback for :meth:`MujocoSink._body_for_frame` when no
+#: spec is given -- the wrist camera's link, tried before the mount plate one
+#: URDF step further out.  Not derived from a prefix (unlike the two
+#: candidates above) because "camera_0" alone is not a distinguishing prefix
+#: without a spec to source it from.
+_DEFAULT_CAMERA_LINK_CANDIDATES: Tuple[str, ...] = ("camera_0_link", "camera_0_bottom_screw_frame")
 
 
 def _xyzw_to_wxyz(q: np.ndarray) -> np.ndarray:
@@ -68,6 +85,7 @@ class MujocoSink(StateSink):
         self,
         model,
         *,
+        spec: Optional[RobotSimSpec] = None,
         render: str = "offscreen",
         display: bool = True,
         width: int = 640,
@@ -98,6 +116,11 @@ class MujocoSink(StateSink):
     ) -> None:
         super().__init__()
         self._model_arg = model
+        #: Robot facts used to resolve body names this sink otherwise has to
+        #: guess (arm root for camera framing/ghost overlays, wrist-camera
+        #: link for obstacle-cloud placement).  ``None`` keeps the pre-spec
+        #: defaults (see the module-level ``_DEFAULT_*`` constants above).
+        self.spec = spec
         self.show_obstacles = show_obstacles
         self.obstacle_voxel = obstacle_voxel
         self.obstacle_max = obstacle_max
@@ -295,9 +318,30 @@ class MujocoSink(StateSink):
             lookat = self._guess_lookat(mujoco)
         self._mjcam.lookat[:] = lookat
 
+    def _manipulator_prefixes(self) -> Tuple[str, ...]:
+        """Body-name prefixes of the moving manipulator (arm ∪ hand ∪ gripper).
+
+        From ``spec`` when given, else the pre-spec default (see the
+        module-level ``_DEFAULT_MANIPULATOR_PREFIXES`` constant).
+        """
+        if self.spec is not None:
+            return self.spec.manipulator_prefixes
+        return _DEFAULT_MANIPULATOR_PREFIXES
+
     def _guess_lookat(self, mujoco) -> np.ndarray:
-        # Centre on the arm base if present, else the model centroid.
-        for cand in ("arm_0_base_link", "arm_0_base_link_inertia", "base_link"):
+        # Centre on the arm base if present, else the model centroid.  Each
+        # manipulator prefix's root body is conventionally named
+        # "<prefix>_base_link" (URDF->MJCF convention); "_inertia" is the
+        # variant some URDF->MJCF chains emit when the base link carries its
+        # own inertial frame as a child body.  "base_link" is the
+        # robot-independent last resort (every profile names its root that).
+        prefixes = self._manipulator_prefixes()
+        candidates = (
+            [f"{p}_base_link" for p in prefixes]
+            + [f"{p}_base_link_inertia" for p in prefixes]
+            + ["base_link"]
+        )
+        for cand in candidates:
             bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, cand)
             if bid >= 0:
                 return self.data.xpos[bid].copy() + np.array([0, 0, 0.2])
@@ -490,7 +534,7 @@ class MujocoSink(StateSink):
         sphere_size = np.array([0.04, 0.04, 0.04])
         for bid in range(self.model.nbody):
             bname = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_BODY, bid)
-            if not bname or not bname.startswith("arm_0"):
+            if not bname or not bname.startswith(self._manipulator_prefixes()):
                 continue
             pos = self.data.xpos[bid].copy()
             if scene.ngeom < scene.maxgeom:
@@ -521,7 +565,7 @@ class MujocoSink(StateSink):
         sphere_size = np.array([0.04, 0.04, 0.04])
         for bid in range(self.model.nbody):
             bname = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_BODY, bid)
-            if not bname or not bname.startswith("arm_0"):
+            if not bname or not bname.startswith(self._manipulator_prefixes()):
                 continue
             pos = self.data.xpos[bid].copy()
             if scene.ngeom < scene.maxgeom:
@@ -564,6 +608,24 @@ class MujocoSink(StateSink):
                 out[model_name] = float(np.interp(t, traj.times, traj.positions[:, j]))
         return out
 
+    def _camera_link_candidates(self) -> Tuple[str, ...]:
+        """Exact body-name fallbacks for the (usually wrist-mounted) camera.
+
+        ``spec.hand_prefixes`` is documented as "gripper + wrist-mounted
+        sensor" (see ``twinlink.task_sim.RobotSimSpec``), so it is the right
+        source for this -- tried as ``"<prefix>_link"`` then
+        ``"<prefix>_bottom_screw_frame"`` (the RealSense URDF's own link, one
+        mount step further out).  Without a spec, the pre-spec literal
+        default applies (see ``_DEFAULT_CAMERA_LINK_CANDIDATES``).
+        """
+        if self.spec is None:
+            return _DEFAULT_CAMERA_LINK_CANDIDATES
+        return tuple(
+            name
+            for prefix in self.spec.hand_prefixes
+            for name in (f"{prefix}_link", f"{prefix}_bottom_screw_frame")
+        )
+
     def _body_for_frame(self, mujoco, frame_id: str):
         """Return (body_id, optical_fix) for a cloud frame; -1 if none found.
 
@@ -576,7 +638,7 @@ class MujocoSink(StateSink):
         bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, name)
         optical_fix = False
         if bid < 0:  # optical frames are driver-only tf -> use the camera link + correct
-            for cand in ("camera_0_link", "camera_0_bottom_screw_frame"):
+            for cand in self._camera_link_candidates():
                 bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, cand)
                 if bid >= 0:
                     break
