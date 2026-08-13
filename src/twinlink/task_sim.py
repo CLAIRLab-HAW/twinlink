@@ -482,6 +482,14 @@ class TwinTaskSim:
         copy, this pool covers the twin (dashboard), the contact events and
         the client-side IK goal gate (:meth:`arm_config_collides`).
 
+        A slot is a PERCEPTION of the world, never a body in it: it must not
+        exert force on the objects it depicts (same reasoning as the
+        permeable gripper shells in :meth:`_setup_collision_masks`).  In sim
+        a perceived box lands exactly on the free-jointed body it was
+        perceived from -- with ordinary contacts the solver resolves that
+        overlap by ejecting the original out from under its own ghost, on the
+        first step after the sync and before the arm has moved.
+
         Returns the number of active slots.
         """
         boxes = list(boxes)
@@ -502,8 +510,15 @@ class TwinTaskSim:
                     np.cos(yaw / 2.0), 0.0, 0.0, np.sin(yaw / 2.0)
                 )
                 self._write_obstacle_geom(gid, half)
-                self.model.geom_contype[gid] = 1
-                self.model.geom_conaffinity[gid] = 1
+                # Masks (see _setup_collision_masks for the scheme): world and
+                # robot keep (1, 1), graspables get (2, 3), gripper shells
+                # (4, 1).  A slot gets (4, 5) -- permeable to graspables
+                # (4&3 = 2&5 = 0), still felt by the arm (1&5 = 1) and by the
+                # gripper shells (4&5 = 4), so the goal gate and the
+                # robot_obstacle_collision events keep seeing exactly the
+                # objects they exist for.
+                self.model.geom_contype[gid] = 4
+                self.model.geom_conaffinity[gid] = 5
                 self.model.geom_rgba[gid] = self._OBSTACLE_RGBA
             else:
                 self._park_obstacle_slot(i)
