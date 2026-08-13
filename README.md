@@ -137,8 +137,12 @@ Runnable examples and robot mapping configs live in the separate
 - **Lazy imports**: `import twinlink` pulls neither `rclpy` nor `mujoco`, so the
   core and the MCAP/MuJoCo example run on a laptop without ROS.
 - **MuJoCo from URDF**: `urdf_mujoco.py` strips `<gazebo>`/`<transmission>` and
-  optionally adds a ground plane and a free-joint base. Two subtleties bite real
-  robot descriptions and are handled here:
+  optionally adds a ground plane and a free-joint base. A welded base is also
+  *grounded*: mobile-robot root links sit above the floor, so the robot is
+  raised until its lowest geometry rests on `z=0` — the compiled model's
+  world frame is therefore ground-referenced, semantically `base_footprint`,
+  not the (elevated) URDF root link. Two subtleties bite real robot
+  descriptions and are handled here:
   - *`.dae` meshes*: MuJoCo can't read Collada, and `assimp` silently
     **re-orients** some files. `twinlink/collada.py` is a small reader that
     preserves the authored frame, so `--visual` meshes land upright. It also

@@ -22,7 +22,9 @@ descriptions; this helper papers over all of them so an arbitrary robot URDF
 7. A welded base is *grounded*: mobile-robot root links sit above the floor
    (the Husky's ``base_link`` is 0.132 m up), so welding them at the origin
    sinks the wheels into the ground plane.  The robot is raised so its lowest
-   geometry rests on z=0 instead.
+   geometry rests on z=0 instead -- the compiled model's world origin is
+   therefore ground-referenced, semantically ``base_footprint``, not the
+   (elevated) URDF root link.
 
 Nothing here is robot-specific; it is driven entirely by the URDF.
 """
