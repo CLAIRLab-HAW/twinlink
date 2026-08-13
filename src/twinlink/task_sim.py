@@ -971,9 +971,13 @@ class TwinTaskSim:
     ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
         """Forward-kinematics world pose of ``body`` for given arm joint angles.
 
-        Uses a scratch ``MjData`` (the model's base is welded at the world
-        origin = ``base_link`` frame, so the returned pose is in ``base_link``
-        coordinates).  Used by the real-hardware camera to resolve the wrist
+        Uses a scratch ``MjData``, so the pose comes back in MuJoCo world
+        coordinates -- and that origin is *ground-referenced*, not the URDF
+        root: the converter raises the welded base until the wheels rest on
+        z=0 (``urdf_mujoco``, step 7), which puts the world origin at
+        ``base_footprint``, 0.132 m below the Husky's ``base_link``.  A caller
+        that treats this as a ``base_link`` pose is off by exactly that much.
+        Used by the real-hardware camera to resolve the wrist
         RealSense pose from the *live* arm joint_states when the foxglove bridge
         does not relay the manipulator's static TF (the camera optical frame is
         driver-only tf, absent from the URDF/MuJoCo model anyway).
