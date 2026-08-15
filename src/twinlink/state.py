@@ -151,6 +151,25 @@ class PlannedTrajectory:
         return float(self.times[-1]) if len(self.times) else 0.0
 
 
+def _transform_matrix(tf: "Transform") -> np.ndarray:
+    """``Transform`` (xyzw quaternion) as a 4x4 homogeneous matrix."""
+    x, y, z, w = (float(v) for v in tf.rotation)
+    n = x * x + y * y + z * z + w * w
+    s = 0.0 if n < 1e-12 else 2.0 / n
+    xx, yy, zz = x * x * s, y * y * s, z * z * s
+    xy, xz, yz = x * y * s, x * z * s, y * z * s
+    wx, wy, wz = w * x * s, w * y * s, w * z * s
+
+    mat = np.eye(4)
+    mat[:3, :3] = np.array([
+        [1.0 - (yy + zz), xy - wz, xz + wy],
+        [xy + wz, 1.0 - (xx + zz), yz - wx],
+        [xz - wy, yz + wx, 1.0 - (xx + yy)],
+    ])
+    mat[:3, 3] = np.asarray(tf.translation, dtype=float)
+    return mat
+
+
 class RobotState:
     """Thread-safe, model-agnostic snapshot of a robot."""
 
@@ -305,6 +324,68 @@ class RobotState:
     def transforms(self) -> Dict[Tuple[str, str], Transform]:
         with self._lock:
             return dict(self._transforms)
+
+    def chain(self, source: str, target: str) -> Optional[np.ndarray]:
+        """4x4 matrix mapping points from ``source`` into ``target``.
+
+        ``transform()`` is a plain dict hit and therefore only answers for
+        edges that were published as such.  A camera's optical frame sits
+        several hops from the world frame, so back-projection needs the
+        composed chain.  Breadth-first over the undirected edge set, each
+        edge used forwards or inverted as required.
+
+        Returns ``None`` when the frames are not connected -- deliberately,
+        rather than an identity matrix: a silent identity would place every
+        obstacle at the robot's origin while still producing a plausible
+        looking point cloud.
+        """
+        if source == target:
+            return np.eye(4)
+
+        with self._lock:
+            edges = dict(self._transforms)
+
+        # Undirected adjacency: tf edges are stored as (parent, child) but a
+        # chain may traverse either way.
+        adjacency: Dict[str, List[str]] = {}
+        for (parent, child) in edges:
+            adjacency.setdefault(child, []).append(parent)
+            adjacency.setdefault(parent, []).append(child)
+
+        previous: Dict[str, str] = {}
+        queue: List[str] = [source]
+        seen = {source}
+        while queue:
+            node = queue.pop(0)
+            if node == target:
+                break
+            for neighbour in adjacency.get(node, ()):
+                if neighbour not in seen:
+                    seen.add(neighbour)
+                    previous[neighbour] = node
+                    queue.append(neighbour)
+        if target not in seen:
+            return None
+
+        path = [target]
+        while path[-1] != source:
+            path.append(previous[path[-1]])
+        path.reverse()  # source ... target
+
+        # A stored transform (parent, child) maps points from the CHILD frame
+        # into the PARENT frame -- the ROS convention.  Walking a -> b: if b
+        # is a's parent the stored matrix already points our way; if a is b's
+        # parent we need its inverse.  Deciding this from the edge dictionary
+        # rather than from a direction flag is what keeps the two cases from
+        # being swapped.
+        mat = np.eye(4)
+        for a, b in zip(path, path[1:]):
+            if (b, a) in edges:
+                step = _transform_matrix(edges[(b, a)])
+            else:
+                step = np.linalg.inv(_transform_matrix(edges[(a, b)]))
+            mat = step @ mat
+        return mat
 
     def camera(self, name: str) -> Optional[CameraFrame]:
         with self._lock:
