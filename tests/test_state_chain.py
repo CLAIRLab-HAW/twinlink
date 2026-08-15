@@ -55,3 +55,27 @@ def test_disconnected_frames_return_none_rather_than_identity():
     st = RobotState()
     st.set_transform(_tf("base", "arm", [1.0, 0.0, 0.0]))
     assert st.chain("cam", "base") is None
+
+
+def test_two_hops_with_rotation_pin_the_composition_order():
+    """Mehr-Hop MIT Drehung -- der einzige Fall, der die Reihenfolge faengt.
+
+    Reine Translationen kommutieren, deshalb besteht
+    ``test_two_hops_compose`` auch mit vertauschter Akkumulation.  Hier
+    liefert die richtige Reihenfolge [-1, 0, 0], die vertauschte [1, 2, 0].
+    """
+    q90 = np.array([0.0, 0.0, np.sin(np.pi / 4), np.cos(np.pi / 4)])
+    st = RobotState()
+    st.set_transform(_tf("base", "arm", [1.0, 0.0, 0.0], q90))
+    st.set_transform(_tf("arm", "cam", [0.0, 2.0, 0.0]))
+
+    M = st.chain("cam", "base")
+    assert np.allclose(M @ np.array([0.0, 0.0, 0.0, 1.0]),
+                       [-1.0, 0.0, 0.0, 1.0], atol=1e-9)
+
+
+def test_a_degenerate_quaternion_raises_instead_of_reading_as_no_rotation():
+    st = RobotState()
+    st.set_transform(_tf("base", "cam", [1.0, 0.0, 0.0], (0.0, 0.0, 0.0, 0.0)))
+    with pytest.raises(ValueError, match="degenerate quaternion"):
+        st.chain("cam", "base")

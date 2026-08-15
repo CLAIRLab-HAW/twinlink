@@ -155,7 +155,13 @@ def _transform_matrix(tf: "Transform") -> np.ndarray:
     """``Transform`` (xyzw quaternion) as a 4x4 homogeneous matrix."""
     x, y, z, w = (float(v) for v in tf.rotation)
     n = x * x + y * y + z * z + w * w
-    s = 0.0 if n < 1e-12 else 2.0 / n
+    if n < 1e-12:
+        raise ValueError(
+            f"degenerate quaternion {tuple(tf.rotation)!r} on edge "
+            f"{tf.frame_id!r} -> {tf.child_frame_id!r}: refusing to read it "
+            "as 'no rotation'."
+        )
+    s = 2.0 / n
     xx, yy, zz = x * x * s, y * y * s, z * z * s
     xy, xz, yz = x * y * s, x * z * s, y * z * s
     wx, wy, wz = w * x * s, w * y * s, w * z * s
