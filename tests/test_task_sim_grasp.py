@@ -210,3 +210,46 @@ def test_grasp_carry_release():
         assert sim.model.geom_contype[gid] != 0, "release must restore contacts"
     finally:
         sim.close()
+
+
+# --------------------------------------------------------------------- #
+# Greiferweite, oeffentlich lesbar
+#
+# Der Zwilling faehrt die Finger seit jeher auf die OBJEKTWEITE, wenn ein
+# Objekt gefasst ist (``command_gripper``: "the finger command corresponds
+# to the object width").  Diese Weite steckte bisher nur im privaten
+# ``_gripper_command``.  Wer sie an einen echten Greifer spiegeln will --
+# damit move_group dieselbe Hand prueft, die der Zwilling zeigt -- kann sie
+# nicht lesen, ohne in die Interna zu greifen.  Am 2026-08-16 im Container
+# gemessen: dessen RG6-Gelenke standen waehrend eines ganzen Zellenlaufs
+# konstant auf 0.0 (voll offen), waehrend der Zwilling zugriff -- zwei
+# verschiedene Haende, gegen die geprueft wurde.
+# --------------------------------------------------------------------- #
+def test_the_open_gripper_reports_the_full_stroke():
+    sim = _build()
+    sim.command_gripper(False)
+    assert sim.gripper_width_m() == pytest.approx(SPEC.gripper_stroke_m)
+
+
+def test_the_empty_closed_gripper_reports_zero_width():
+    sim = _build()
+    sim.command_gripper(True)   # nichts zu fassen -> ganz zu
+    assert sim.gripper_width_m() == pytest.approx(0.0, abs=1e-9)
+
+
+def test_a_grasped_object_sets_the_width_to_its_own_span():
+    """Die eine Zahl, um derentwillen der Zugang existiert.
+
+    Sie folgt dem OBJEKT, nicht einer Vorgabe: der Payload misst
+    0,04 x 0,03 x 0,04 m, die Pads schliessen ueber seine 0,03-m-Kante --
+    und NICHT auf ``default_span`` (0,04), das nur gilt, wo kein Objekt
+    vermessen wurde.  Genau diese Objektabhaengigkeit ist es, die an
+    einem Greifer mit fester Oeffnung verloren geht.
+    """
+    sim = _build()
+    _approach(sim)
+    sim.command_gripper(True)
+    assert sim.grasped_label() == "payload", "ohne Griff prueft der Test nichts"
+    assert sim.gripper_width_m() == pytest.approx(0.03, abs=2e-3)
+    assert sim.gripper_width_m() != pytest.approx(0.04, abs=2e-3), (
+        "die Weite haengt an der Vorgabe statt am Objekt -- dann misst sie nichts")

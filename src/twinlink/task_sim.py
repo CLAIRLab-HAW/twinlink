@@ -630,6 +630,30 @@ class TwinTaskSim:
     def gripper_closed(self) -> bool:
         return self._gripper_command >= self._gripper_closed / 2
 
+    def gripper_width_m(self) -> float:
+        """Commanded finger opening in METRES (0 = shut, stroke = wide).
+
+        The inverse of the linear stroke model :meth:`command_gripper`
+        drives the joints with, and the one number a caller needs to make
+        a REAL gripper hold the same posture as the twin: closing on an
+        object stops at that object's width, so this follows the grasped
+        object's span rather than a fixed open/shut pair.
+
+        Why it is public.  Without it the twin's aperture lives only in
+        ``_gripper_command``, and anyone mirroring the twin to real
+        hardware can only send binary open/shut.  Measured in the
+        husky-offboard container 2026-08-16: through a whole cell run the
+        RG6 joints stood at 0.0 -- wide open -- while the twin had closed
+        on a 10 cm block.  move_group was therefore collision-checking a
+        splayed hand that did not exist, on every rung and for every
+        object, and the aperture could not follow the object at all.
+        """
+        span = self._gripper_closed
+        if span <= 0.0:
+            return 0.0
+        fraction = 1.0 - float(self._gripper_command) / span
+        return max(0.0, min(1.0, fraction)) * float(self.spec.gripper_stroke_m)
+
     # ------------------------------------------------------------------ #
     # grasping (kinematic carry)
     # ------------------------------------------------------------------ #
