@@ -361,6 +361,27 @@ class TwinTaskSim:
     #: render pass (RGB *and* depth -- alpha tricks only work for RGB).
     _HIDDEN_GEOM_GROUP = 4
 
+    def _robot_geom_ids(self) -> List[int]:
+        """Geom ids of the robot's own kinematic tree.
+
+        Positively identified through ``body_rootid``: every body the URDF
+        contributed shares the robot's root body (the welded base link), while
+        each piece of scene furniture is its own world child and therefore its
+        own root.  Measured on the a200-0553 scene 2026-08-16: 45 of 58 bodies
+        under ``base_link``, every furniture body a root of its own.
+
+        The rule used to be the inverse one -- "everything that does NOT carry
+        the app's scene prefix is robot" -- and that made every body an app
+        placed under a name of its own invisible to RGB *and* depth, silently:
+        the cameras then see the surface behind it and a plausible-looking
+        point cloud comes back without the object in it.
+        """
+        root = int(self.model.body_rootid[self._tcp_body_id])
+        return [
+            gid for gid in range(self.model.ngeom)
+            if int(self.model.body_rootid[int(self.model.geom_bodyid[gid])]) == root
+        ]
+
     def _hide_robot_collision_geoms(self) -> None:
         """Exclude the robot's collision geometry from rendering.
 
@@ -371,31 +392,19 @@ class TwinTaskSim:
         only affects the RGB pass, while MuJoCo's depth pass rasterises
         transparent geoms too -- so we move the shells into a geom *group* that
         all render calls disable via ``MjvOption``.  Restricted to the robot
-        subtree -- the app's scene furniture has no separate visual geometry
-        and must stay visible.  Groups are visualisation-only; physics is
-        untouched.
+        subtree (:meth:`_robot_geom_ids`) -- everything else in the scene has
+        no separate visual geometry and must stay visible.  Groups are
+        visualisation-only; physics is untouched.
         """
-        mujoco = self._mujoco
-        robot_visuals = 0
-        for gid in range(self.model.ngeom):
-            bid = int(self.model.geom_bodyid[gid])
-            bname = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_BODY, bid) or ""
-            if (self._scene_prefix and bname.startswith(self._scene_prefix)) or int(
-                self.model.geom_type[gid]
-            ) == int(mujoco.mjtGeom.mjGEOM_PLANE):
-                continue
-            if self.model.geom_contype[gid] == 0 and self.model.geom_conaffinity[gid] == 0:
-                robot_visuals += 1
+        robot = self._robot_geom_ids()
+        robot_visuals = sum(
+            1 for gid in robot
+            if self.model.geom_contype[gid] == 0 and self.model.geom_conaffinity[gid] == 0
+        )
         if robot_visuals == 0:
             return  # nothing to fall back on -- keep collision geoms visible
         hidden = 0
-        for gid in range(self.model.ngeom):
-            bid = int(self.model.geom_bodyid[gid])
-            bname = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_BODY, bid) or ""
-            if (self._scene_prefix and bname.startswith(self._scene_prefix)) or int(
-                self.model.geom_type[gid]
-            ) == int(mujoco.mjtGeom.mjGEOM_PLANE):
-                continue
+        for gid in robot:
             if self.model.geom_contype[gid] != 0 or self.model.geom_conaffinity[gid] != 0:
                 self.model.geom_group[gid] = self._HIDDEN_GEOM_GROUP
                 hidden += 1
