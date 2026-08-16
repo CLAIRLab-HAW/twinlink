@@ -344,12 +344,20 @@ class RobotState:
         rather than an identity matrix: a silent identity would place every
         obstacle at the robot's origin while still producing a plausible
         looking point cloud.
-        """
-        if source == target:
-            return np.eye(4)
 
+        ``source == target`` is identity only for a frame the graph actually
+        KNOWS.  The shortcut used to run before any look-up, so
+        ``chain("nope", "nope")`` handed back ``eye(4)`` for a frame that
+        appears in no edge at all -- and a recording whose ``frame_id``
+        happens to equal the caller's world frame got exactly the silent
+        identity this docstring promises to refuse.
+        """
         with self._lock:
             edges = dict(self._transforms)
+
+        if source == target:
+            known = any(source in edge for edge in edges)
+            return np.eye(4) if known else None
 
         # Undirected adjacency: tf edges are stored as (parent, child) but a
         # chain may traverse either way.
