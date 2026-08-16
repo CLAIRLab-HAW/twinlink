@@ -121,6 +121,7 @@ class TwinTaskSim:
         gripper_closed: float,
         home_pose: Dict[str, float],
         render_size: Tuple[int, int] = (640, 480),
+        actuated_gripper: bool = False,
     ) -> None:
         import mujoco
 
@@ -159,10 +160,21 @@ class TwinTaskSim:
         self._gripper_closed = float(gripper_closed)
         self._home_pose: Dict[str, float] = dict(home_pose)
         self._render_size: Tuple[int, int] = (int(render_size[0]), int(render_size[1]))
+        #: Opt-in: drive the follower joints through the model's actuators
+        #: instead of pinning their qpos.  Off is the twin's normal regime --
+        #: everything commanded is held, and the gripper shells are permeable
+        #: to the objects (grasping is a kinematic capture).  On, the fingers
+        #: close against the object and a grip force exists; see
+        #: :meth:`_drive_gripper` and :meth:`_setup_collision_masks`.
+        self._actuated_gripper = bool(actuated_gripper)
+        #: follower joint -> actuator id, filled only in the actuated regime.
+        self._gripper_actuators: Dict[str, int] = {}
 
         self._joint_qpos: Dict[str, int] = {}
         self._joint_dof: Dict[str, int] = {}
         self._index_joints()
+        if self._actuated_gripper:
+            self._index_gripper_actuators()
         # (contype, conaffinity) per object geom, to suspend/restore contacts
         # while the object is carried (see _suspend_object_contacts).
         self._object_contact_masks: Dict[str, Dict[int, Tuple[int, int]]] = {}
@@ -224,6 +236,31 @@ class TwinTaskSim:
                 continue
             self._joint_qpos[name] = int(self.model.jnt_qposadr[jid])
             self._joint_dof[name] = int(self.model.jnt_dofadr[jid])
+
+    def _index_gripper_actuators(self) -> None:
+        """Map every follower joint onto the actuator that drives it.
+
+        Found through ``actuator_trnid``, not through a name convention: the
+        app authors the actuators and may call them whatever it likes.  A
+        follower without an actuator is a hard error -- the whole point of the
+        actuated regime is that a closing command produces a force, and
+        falling back to the kinematic hold for the missing ones would produce
+        the same green-but-forceless state the flag exists to end.
+        """
+        mujoco = self._mujoco
+        for aid in range(self.model.nu):
+            if int(self.model.actuator_trntype[aid]) != int(mujoco.mjtTrn.mjTRN_JOINT):
+                continue
+            jid = int(self.model.actuator_trnid[aid, 0])
+            jname = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_JOINT, jid)
+            if jname in self._gripper_follower_factors:
+                self._gripper_actuators[jname] = aid
+        missing = sorted(set(self._gripper_follower_factors) - set(self._gripper_actuators))
+        if missing:
+            raise RuntimeError(
+                "actuated_gripper=True, but the model has no actuator for "
+                f"{missing} -- the closing command could not reach them"
+            )
 
     def _free_joint_qpos(self, joint: str) -> int:
         mujoco = self._mujoco
@@ -339,6 +376,14 @@ class TwinTaskSim:
         permeable, NOT the whole ``hand_prefixes`` assembly: a wrist-mounted
         camera rides along with the hand but is not a jaw, and making it
         permeable would silently drop its obstacle-contact events.
+
+        ``actuated_gripper=True`` inverts the premise and therefore skips the
+        permeability: there the jaws are driven by servos and must MEET the
+        object -- a permeable jaw yields exactly zero finger contacts and zero
+        grip force, which is what the flag was measured doing before this.
+        The objects keep their (2, 3) mask either way, so the arm still
+        collides with them and the perceived-obstacle slots (4, 5) stay
+        permeable to them.
         """
         mujoco = self._mujoco
         graspable_geoms = {
@@ -351,7 +396,8 @@ class TwinTaskSim:
                 self.model.geom_contype[gid] = 2
                 self.model.geom_conaffinity[gid] = 3
             elif (
-                bname.startswith(self.spec.gripper_prefixes)
+                not self._actuated_gripper
+                and bname.startswith(self.spec.gripper_prefixes)
                 and self.model.geom_contype[gid] != 0
             ):
                 self.model.geom_contype[gid] = 4
@@ -833,21 +879,59 @@ class TwinTaskSim:
             joint: self._gripper_command * factor
             for joint, factor in self._gripper_follower_factors.items()
         }
-        for _ in range(int(n_ticks) * self.n_substeps):
-            for name, value in self._arm_command.items():
-                adr = self._joint_qpos.get(name)
-                if adr is not None:
-                    self.data.qpos[adr] = value
-                    self.data.qvel[self._joint_dof[name]] = 0.0
-            for name, value in gripper_targets.items():
-                adr = self._joint_qpos.get(name)
-                if adr is not None:
-                    self.data.qpos[adr] = value
-                    self.data.qvel[self._joint_dof[name]] = 0.0
-            self._carry_grasped()
-            mujoco.mj_step(self.model, self.data)
-            self._scan_contacts(events)
+        for _ in range(int(n_ticks)):
+            # Where the fingers stand as this tick begins -- the actuated
+            # regime ramps its setpoint from here (see _drive_gripper).
+            start = (
+                {j: float(self.data.qpos[self._joint_qpos[j]])
+                 for j in gripper_targets if j in self._joint_qpos}
+                if self._actuated_gripper else {}
+            )
+            for substep in range(self.n_substeps):
+                for name, value in self._arm_command.items():
+                    adr = self._joint_qpos.get(name)
+                    if adr is not None:
+                        self.data.qpos[adr] = value
+                        self.data.qvel[self._joint_dof[name]] = 0.0
+                if self._actuated_gripper:
+                    self._drive_gripper(
+                        start, gripper_targets, (substep + 1) / self.n_substeps
+                    )
+                else:
+                    for name, value in gripper_targets.items():
+                        adr = self._joint_qpos.get(name)
+                        if adr is not None:
+                            self.data.qpos[adr] = value
+                            self.data.qvel[self._joint_dof[name]] = 0.0
+                self._carry_grasped()
+                mujoco.mj_step(self.model, self.data)
+                self._scan_contacts(events)
         return events
+
+    def _drive_gripper(
+        self, start: Dict[str, float], targets: Dict[str, float], alpha: float
+    ) -> None:
+        """Write ``data.ctrl`` for the follower joints; do NOT pin their qpos.
+
+        Two halves, and the flag is worthless without either.  Writing ctrl is
+        the obvious one -- ``ctrl`` left at zero means the position servos hold
+        the OPEN angle, so a closing command was answered with a saturated
+        counter-torque (measured: 20 N.m on every follower).  Leaving qpos
+        alone is the other: a joint that is overwritten every substep cannot
+        stop at the object, so no contact force can build no matter what the
+        servo is told.
+
+        The setpoint is ramped across the substeps of a tick instead of
+        jumping: the command changes binary open<->closed, and a step of that
+        size drives the fingers through the object within one substep before
+        the contact solver ever sees them.
+        """
+        for joint, target in targets.items():
+            aid = self._gripper_actuators.get(joint)
+            if aid is None:
+                continue
+            begin = start.get(joint, target)
+            self.data.ctrl[aid] = begin + alpha * (target - begin)
 
     def _scan_contacts(self, events: SimEvents) -> None:
         for i in range(self.data.ncon):
