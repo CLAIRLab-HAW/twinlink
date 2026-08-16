@@ -345,3 +345,95 @@ def test_a_released_gripper_does_not_report_itself_closed():
     assert sim.gripper_closed() is True, "die geschlossene Hand muss zu melden"
     sim.command_gripper(False)
     assert sim.gripper_closed() is False
+
+
+# --------------------------------------------------------------------- #
+# Die Spanne kommt aus der Geometrie ZWISCHEN den Backen (2026-08-17)
+#
+# Sie kam bis hierher aus ``entry["half"]`` -- den Huellquader-Halbmassen
+# des ganzen Koerpers.  Fuer einen Wuerfel ist das dasselbe; fuer alles
+# andere ist es eine ABSTRAKTION, und zwar genau die groebste.  Gemessen
+# an der Suffizienz-Vorstudie: ein Deckel (180 mm Scheibe, 30 mm Knauf)
+# meldete auf ALLEN VIER Objektsprossen "kein schliessbares Flaechenpaar"
+# -- 180/180 mm gegen 156 mm Backengang, unabhaengig davon, wie fein das
+# Objekt modelliert war.
+#
+# Damit konnte alpha_obj auch ueber den GRIFF nicht binden: der Zwilling
+# las den Huellquader, gleichgueltig was zwischen den Backen wirklich
+# stand.  Zusammen mit der konvexen Silhouette (die beim Durchfahren
+# ohnehin nichts hergibt) erklaert das eine flache Messtabelle
+# vollstaendig -- und zwar als Eigenschaft des AUFBAUS, nicht der Sache.
+# --------------------------------------------------------------------- #
+WIDE_SCENE_XML = SCENE_XML.replace(
+    '<geom name="payload_geom" type="box" size="0.02 0.015 0.02"/>',
+    # Eine breite Scheibe UNTEN, ein schmaler Knauf OBEN -- der Deckel im
+    # Kleinen.  Die Backen stehen auf Hoehe des Knaufs.
+    '<geom name="payload_disc" type="box" size="0.09 0.09 0.008"'
+    ' pos="0 0 -0.042"/>'
+    '<geom name="payload_knob" type="box" size="0.015 0.015 0.042"'
+    ' pos="0 0 0.008"/>')
+
+
+class _WideSim(_GraspSim):
+    def register_graspables(self) -> None:
+        # Die Huelle ist die des ganzen Koerpers -- 180 mm breit.  Genau
+        # diese Zahl darf die Fangbedingung NICHT mehr benutzen.
+        self.register_graspable(
+            "payload", "payload_free", self._body_id("payload"),
+            np.array([0.09, 0.09, 0.05]),
+        )
+
+
+def _build_wide() -> _WideSim:
+    model = mujoco.MjModel.from_xml_string(WIDE_SCENE_XML)
+    return _WideSim(
+        model, SPEC, scene_prefix="", default_span=0.04,
+        gripper_follower_factors={}, gripper_linkage=StraightLinkage(),
+        home_pose={"arm_0_slide": 0.0},
+    )
+
+
+def test_a_narrow_feature_is_grasped_even_when_the_whole_body_is_wide():
+    """Der Knauf passt in die Backen, der Koerper nicht -- gegriffen wird
+    das, was zwischen den Backen steht."""
+    sim = _build_wide()
+    _approach(sim)
+    sim.command_gripper(close=True)
+    sim.step_physics(30)
+    assert sim.grasped_label() == "payload", (
+        "die Fangbedingung liest weiterhin den Huellquader")
+
+
+def test_the_captured_span_is_the_local_one_not_the_bounding_box():
+    """Die Backenweite beim Loslassen richtet sich nach dem Gegriffenen.
+
+    Mit der Huellquader-Spanne oeffnete der Greifer auf 180 mm -- weiter
+    als sein Gang, und weiter als noetig; genau die Beobachtung, aus der
+    am 2026-08-16 die Freigabeweite entstanden ist.
+    """
+    sim = _build_wide()
+    _approach(sim)
+    sim.command_gripper(close=True)
+    sim.step_physics(30)
+    assert sim._grasp_span == pytest.approx(0.030, abs=1e-3), (
+        f"Spanne {sim._grasp_span} -- erwartet der Knauf (30 mm)")
+
+
+def test_a_body_that_is_wide_everywhere_is_still_refused():
+    """Die Gegenprobe: ohne schmale Stelle bleibt es beim Nein.
+
+    Ohne sie koennte die Aenderung schlicht jede Pruefung abgeschafft
+    haben, und der Test darueber bestuende trotzdem.
+    """
+    xml = SCENE_XML.replace(
+        '<geom name="payload_geom" type="box" size="0.02 0.015 0.02"/>',
+        '<geom name="payload_geom" type="box" size="0.09 0.09 0.05"/>')
+    model = mujoco.MjModel.from_xml_string(xml)
+    sim = _WideSim(model, SPEC, scene_prefix="", default_span=0.04,
+                   gripper_follower_factors={},
+                   gripper_linkage=StraightLinkage(),
+                   home_pose={"arm_0_slide": 0.0})
+    _approach(sim)
+    sim.command_gripper(close=True)
+    sim.step_physics(30)
+    assert sim.grasped_label() is None

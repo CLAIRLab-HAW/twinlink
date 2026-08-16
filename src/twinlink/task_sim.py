@@ -778,6 +778,50 @@ class TwinTaskSim:
             "geoms": geoms,
         }
 
+    def _span_between_pads(self, entry, ref, obj_yaw):
+        """Breite des Koerpers auf Backenhoehe, entlang seiner beiden
+        waagerechten Achsen -- oder ``None``, wenn dort nichts steht.
+
+        Das Band der Hoehe ``default_span`` liegt um den GREIFPUNKT
+        (``ref``), nicht um den TCP: der steht beim Griff rund 45 mm
+        darueber (``DESCEND_OFFSET``), und ein Band um ihn laege
+        vollstaendig ueber dem Objekt -- gemessen am Deckel, der damit
+        weiter auf keiner Sprosse greifbar war.
+        Gezaehlt wird nur, was in dieses Band ragt: genau das muss zwischen
+        die Pads passen.  Ein Koerper, der weiter unten breit wird (die
+        Scheibe eines Deckels), geht die Fangbedingung nichts an -- dass er
+        SPAETER stoert, entscheidet die Kollision, nicht dieser Test.
+
+        ``None`` heisst "auf Backenhoehe steht kein Geom dieses Koerpers";
+        dann bleibt es beim Huellquader, statt einen Griff aus dem Nichts
+        zu erlauben.
+        """
+        band = float(self._default_span) / 2.0
+        lo_z, hi_z = float(ref[2]) - band, float(ref[2]) + band
+        c, s = float(np.cos(obj_yaw)), float(np.sin(obj_yaw))
+        achsen = (np.array([c, s, 0.0]), np.array([-s, c, 0.0]))
+        grenzen = [[np.inf, -np.inf], [np.inf, -np.inf]]
+        gefunden = False
+        for gid in range(self.model.ngeom):
+            if int(self.model.geom_bodyid[gid]) != int(entry["body"]):
+                continue
+            mitte_lokal = self.model.geom_aabb[gid][:3]
+            halb = self.model.geom_aabb[gid][3:]
+            R = self.data.geom_xmat[gid].reshape(3, 3)
+            basis = self.data.geom_xpos[gid] + R @ mitte_lokal
+            reichweite = np.abs(R) @ halb
+            if basis[2] + reichweite[2] < lo_z or basis[2] - reichweite[2] > hi_z:
+                continue                      # liegt nicht auf Backenhoehe
+            gefunden = True
+            for i, achse in enumerate(achsen):
+                mitte = float(basis @ achse)
+                weit = float(np.abs(R.T @ achse) @ halb)
+                grenzen[i][0] = min(grenzen[i][0], mitte - weit)
+                grenzen[i][1] = max(grenzen[i][1], mitte + weit)
+        if not gefunden:
+            return None
+        return (grenzen[0][1] - grenzen[0][0], grenzen[1][1] - grenzen[1][0])
+
     def _try_grasp(self) -> None:
         """Proximity capture over every graspable free body.
 
@@ -809,10 +853,23 @@ class TwinTaskSim:
             mat = self.data.xmat[entry["body"]].reshape(3, 3)
             obj_yaw = float(np.arctan2(mat[1, 0], mat[0, 0]))
             half = entry["half"]
+            # Die Spanne kommt aus der Geometrie ZWISCHEN den Backen, nicht
+            # aus der Huelle des ganzen Koerpers.  Fuer einen Wuerfel ist
+            # das dasselbe; fuer alles andere war es die groebste denkbare
+            # Abstraktion.  Gemessen an der Suffizienz-Vorstudie
+            # (2026-08-17): ein Deckel mit 180-mm-Scheibe und 30-mm-Knauf
+            # meldete auf ALLEN vier Objektsprossen "kein schliessbares
+            # Flaechenpaar", weil hier 180 mm gegen 156 mm Backengang
+            # standen -- unabhaengig davon, wie fein das Objekt modelliert
+            # war.  Damit konnte die Objektachse ueber den Griff gar nicht
+            # binden.
+            lokal = self._span_between_pads(entry, ref, obj_yaw)
+            spannen = (lokal if lokal is not None
+                       else (2.0 * float(half[0]), 2.0 * float(half[1])))
             candidates = []
             for axis_yaw, span in (
-                (obj_yaw, 2.0 * float(half[0])),
-                (obj_yaw + np.pi / 2.0, 2.0 * float(half[1])),
+                (obj_yaw, spannen[0]),
+                (obj_yaw + np.pi / 2.0, spannen[1]),
             ):
                 if span >= self.spec.gripper_stroke_m:
                     continue  # this face pair does not fit between the pads
