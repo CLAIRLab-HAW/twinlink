@@ -19,6 +19,7 @@ import pytest
 mujoco = pytest.importorskip("mujoco", reason="mujoco extra not installed")
 
 from twinlink.mjcf_scene import obstacle_body_name  # noqa: E402
+from twinlink.testing import StraightLinkage  # noqa: E402
 from twinlink.task_sim import RobotSimSpec, TwinTaskSim  # noqa: E402
 
 #: A slider "arm" carrying a gripper body, which in turn carries a wrist
@@ -71,8 +72,7 @@ def _build() -> TwinTaskSim:
         SPEC,
         scene_prefix="",
         gripper_follower_factors={},
-        gripper_open=0.0,
-        gripper_closed=0.6,
+        gripper_linkage=StraightLinkage(),
         home_pose={"arm_0_slide": 0.0},
     )
 
@@ -179,8 +179,7 @@ def _build_pool_sim() -> _PoolSim:
         POOL_SPEC,
         scene_prefix="",
         gripper_follower_factors={},
-        gripper_open=0.0,
-        gripper_closed=0.6,
+        gripper_linkage=StraightLinkage(),
         home_pose={"arm_0_slide": 0.0},
     )
 

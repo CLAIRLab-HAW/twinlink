@@ -21,6 +21,7 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco", reason="mujoco extra not installed")
 
+from twinlink.testing import StraightLinkage  # noqa: E402
 from twinlink.task_sim import (  # noqa: E402
     GRASP_MAX_MISALIGN_DEG,
     RobotSimSpec,
@@ -93,8 +94,7 @@ def _build() -> _GraspSim:
         scene_prefix="",
         default_span=0.04,
         gripper_follower_factors={},
-        gripper_open=0.0,
-        gripper_closed=0.6,
+        gripper_linkage=StraightLinkage(),
         home_pose={"arm_0_slide": 0.0},
     )
 
@@ -225,10 +225,41 @@ def test_grasp_carry_release():
 # konstant auf 0.0 (voll offen), waehrend der Zwilling zugriff -- zwei
 # verschiedene Haende, gegen die geprueft wurde.
 # --------------------------------------------------------------------- #
-def test_the_open_gripper_reports_the_full_stroke():
+def test_the_open_gripper_reports_what_the_linkage_can_open_to():
+    """Die offene Weite kommt aus dem GETRIEBE, nicht aus ``gripper_stroke_m``.
+
+    Bis 2026-08-16 rechnete die Sim die Weite aus ``gripper_stroke_m`` und
+    zwei Ankern zurueck, und dann fielen beide Zahlen zwangslaeufig zusammen.
+    Sie bedeuten aber Verschiedenes: ``gripper_stroke_m`` ist das Budget, an
+    dem sich eine Griffspanne misst (``GRASP_SPAN_FRACTION``), waehrend die
+    Oeffnung der Hand eine Eigenschaft des Getriebes ist -- am echten RG6
+    159,0 mm, wo die Sim-Spanne 156 mm fuehrt.  Sie hier gleichzusetzen war
+    genau die Verwechslung, die den Greiferfehler mitgetragen hat.
+    """
     sim = _build()
     sim.command_gripper(False)
-    assert sim.gripper_width_m() == pytest.approx(SPEC.gripper_stroke_m)
+    assert sim.gripper_width_m() == pytest.approx(StraightLinkage().max_width_m)
+    assert sim.gripper_width_m() != pytest.approx(SPEC.gripper_stroke_m)
+
+
+def test_a_grasp_drives_the_joint_the_linkage_asks_for_not_a_line_of_its_own():
+    """Der eigentliche Fehler, als Test.
+
+    Vorher rechnete ``command_gripper`` die Weite mit einer EIGENEN Geraden in
+    einen Gelenkwert um (``closed * (1 - width/stroke)``).  Von aussen fiel das
+    nicht auf, weil ``gripper_width_m`` dieselbe Gerade rueckwaerts ging und
+    den Fehler zudeckte -- sichtbar wurde er erst am Gelenk, also an dem, was
+    tatsaechlich ins Modell geschrieben wird und was move_group prueft.
+    """
+    linkage = StraightLinkage()
+    sim = _build()
+    _approach(sim)
+    sim.command_gripper(True, grasp=True)
+    span = sim.gripper_width_m()
+    assert sim.gripper_command_rad == pytest.approx(linkage.angle_from_width(span))
+    # Und die alte Gerade haette hier etwas anderes geliefert.
+    old_linear = linkage.closed_rad * (1.0 - span / SPEC.gripper_stroke_m)
+    assert sim.gripper_command_rad != pytest.approx(old_linear, abs=1e-3)
 
 
 def test_the_empty_closed_gripper_reports_zero_width():

@@ -18,7 +18,7 @@ from __future__ import annotations
 import contextlib
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Protocol, Tuple
 
 import numpy as np
 
@@ -32,6 +32,44 @@ from .mjcf_scene import (
 )
 
 log = logging.getLogger("twinlink.task_sim")
+
+
+class GripperLinkage(Protocol):
+    """Die Abbildung Greifweite <-> Treibergelenk -- HEREINGEREICHT, nie hier.
+
+    Dieses Modul beschreibt nur, was es von der Abbildung braucht; die Formel
+    selbst gehört dem Roboter, nicht der Sim.  ``husky_sdk.sim`` reicht dafür
+    ``profile.gripper.linkage`` durch, wo sie aus der Getriebegeometrie folgt.
+
+    Warum als Protokoll und nicht als eigene Klasse.  Bis 2026-08-16 bekam die
+    Sim statt der Abbildung zwei Anker (``gripper_open`` 0.0, ``gripper_closed``
+    0.6) und interpolierte selbst linear dazwischen -- die DRITTE Kopie
+    derselben Rechnung, neben ``plan_bridge.plan_server`` und dem
+    C++-Treiber ``rg6_control``.  Alle drei Anker-Paare waren falsch (die
+    offene Hand stand für 93,7 mm statt 159 mm), und weil jede Kopie für sich
+    gerundet rechnete, hätte das Korrigieren einer einzelnen die anderen erst
+    recht auseinandergetrieben.  Eine vierte Kopie hier wäre derselbe Fehler
+    noch einmal; ``twinlink`` hängt bewusst nicht an ``robot_contract``, also
+    wird die Abbildung übergeben.
+    """
+
+    @property
+    def open_rad(self) -> float:
+        """Treibergelenk der weitest offenen Hand."""
+
+    @property
+    def closed_rad(self) -> float:
+        """Treibergelenk der ganz geschlossenen Hand."""
+
+    @property
+    def max_width_m(self) -> float:
+        """Grösste lichte Weite, die das Getriebe hergibt."""
+
+    def width_from_angle(self, q: float) -> float:
+        """Lichte Weite [m] beim Treibergelenk ``q`` [rad]."""
+
+    def angle_from_width(self, width_m: float) -> float:
+        """Treibergelenk [rad] für die lichte Weite ``width_m`` [m]."""
 
 
 @dataclass(frozen=True)
@@ -117,8 +155,7 @@ class TwinTaskSim:
         n_obstacle_slots: int = OBSTACLE_POOL_SIZE,
         default_span: float = 0.045,
         gripper_follower_factors: Dict[str, float],
-        gripper_open: float,
-        gripper_closed: float,
+        gripper_linkage: GripperLinkage,
         home_pose: Dict[str, float],
         render_size: Tuple[int, int] = (640, 480),
         actuated_gripper: bool = False,
@@ -156,8 +193,12 @@ class TwinTaskSim:
         #: Closing span (m) assumed when nothing is captured (task object size).
         self._default_span = float(default_span)
         self._gripper_follower_factors: Dict[str, float] = dict(gripper_follower_factors)
-        self._gripper_open = float(gripper_open)
-        self._gripper_closed = float(gripper_closed)
+        #: Weite <-> Treibergelenk.  Siehe :class:`GripperLinkage`: die Formel
+        #: gehört dem Roboter und wird hereingereicht, damit sie nicht zum
+        #: vierten Mal im Stack steht.
+        self._linkage = gripper_linkage
+        self._gripper_open = float(gripper_linkage.open_rad)
+        self._gripper_closed = float(gripper_linkage.closed_rad)
         self._home_pose: Dict[str, float] = dict(home_pose)
         self._render_size: Tuple[int, int] = (int(render_size[0]), int(render_size[1]))
         #: Opt-in: drive the follower joints through the model's actuators
@@ -618,8 +659,13 @@ class TwinTaskSim:
                 span = (self._grasp_span if self._grasp_span is not None
                         else self._default_span)
                 width = min(span, self.spec.gripper_stroke_m)
-                fraction = 1.0 - width / self.spec.gripper_stroke_m
-                self._gripper_command = self._gripper_closed * fraction
+                # Weite -> Gelenk macht die Getriebekinematik, nicht diese
+                # Methode.  Vorher stand hier ``closed * (1 - width/stroke)``,
+                # eine Gerade zwischen zwei Ankern: für 50 mm ergab sie 0,43 rad,
+                # wo die Geometrie 0,32 rad verlangt -- die Backen des Zwillings
+                # standen also woanders als die des Modells, gegen das
+                # move_group plant.
+                self._gripper_command = self._linkage.angle_from_width(width)
             else:
                 self._gripper_command = self._gripper_closed
         else:
@@ -630,11 +676,25 @@ class TwinTaskSim:
     def gripper_closed(self) -> bool:
         return self._gripper_command >= self._gripper_closed / 2
 
+    @property
+    def gripper_command_rad(self) -> float:
+        """Der Treibergelenkwert, den die Sim gerade hält [rad].
+
+        Das ist die Grösse, die tatsächlich ins Modell geschrieben wird -- und
+        damit die, an der sich prüfen lässt, ob der Zwilling die Hand dort
+        stehen hat, wo die Getriebekinematik sie verlangt.  Bis 2026-08-16
+        rechnete :meth:`command_gripper` sie aus einer eigenen Geraden aus und
+        landete bei 50 mm Griffweite auf 0,43 statt 0,32 rad; sichtbar war das
+        von aussen nur, weil :meth:`gripper_width_m` dieselbe Gerade rückwärts
+        ging und den Fehler damit zudeckte.
+        """
+        return float(self._gripper_command)
+
     def gripper_width_m(self) -> float:
         """Commanded finger opening in METRES (0 = shut, stroke = wide).
 
-        The inverse of the linear stroke model :meth:`command_gripper`
-        drives the joints with, and the one number a caller needs to make
+        The inverse of the linkage :meth:`command_gripper` drives the joints
+        with, and the one number a caller needs to make
         a REAL gripper hold the same posture as the twin: closing on an
         object stops at that object's width, so this follows the grasped
         object's span rather than a fixed open/shut pair.
@@ -648,11 +708,7 @@ class TwinTaskSim:
         splayed hand that did not exist, on every rung and for every
         object, and the aperture could not follow the object at all.
         """
-        span = self._gripper_closed
-        if span <= 0.0:
-            return 0.0
-        fraction = 1.0 - float(self._gripper_command) / span
-        return max(0.0, min(1.0, fraction)) * float(self.spec.gripper_stroke_m)
+        return max(0.0, self._linkage.width_from_angle(self._gripper_command))
 
     # ------------------------------------------------------------------ #
     # grasping (kinematic carry)

@@ -18,6 +18,7 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco", reason="mujoco extra not installed")
 
+from twinlink.testing import StraightLinkage  # noqa: E402
 from twinlink.task_sim import RobotSimSpec, TwinTaskSim  # noqa: E402
 
 #: A slider "arm" that carries BOTH a collision shell and a visual-only mesh
@@ -81,8 +82,7 @@ def _build() -> _ProbeSim:
         SPEC,
         scene_prefix="hrl_",
         gripper_follower_factors={},
-        gripper_open=0.0,
-        gripper_closed=0.6,
+        gripper_linkage=StraightLinkage(),
         home_pose={"arm_0_slide": 0.0},
     )
 

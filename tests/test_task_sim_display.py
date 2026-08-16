@@ -19,6 +19,7 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco", reason="mujoco extra not installed")
 
+from twinlink.testing import StraightLinkage  # noqa: E402
 from twinlink.task_sim import RobotSimSpec, TwinTaskSim  # noqa: E402
 
 SCENE_XML = """
@@ -71,8 +72,7 @@ def _build() -> _DisplaySim:
         SPEC,
         scene_prefix="",
         gripper_follower_factors={},
-        gripper_open=0.0,
-        gripper_closed=0.6,
+        gripper_linkage=StraightLinkage(),
         home_pose={"arm_0_slide": 0.0},
     )
 

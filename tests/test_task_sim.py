@@ -4,6 +4,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from twinlink.testing import StraightLinkage  # noqa: E402
 from twinlink.task_sim import RobotSimSpec
 
 
@@ -144,8 +145,7 @@ def _classification_under_prefix(prefix: str) -> dict:
         _PROBE_SPEC,
         scene_prefix=prefix,
         gripper_follower_factors={},
-        gripper_open=0.0,
-        gripper_closed=0.6,
+        gripper_linkage=StraightLinkage(),
         home_pose={"arm_0_slide": 0.0},
     )
     try:
