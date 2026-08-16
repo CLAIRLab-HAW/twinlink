@@ -154,6 +154,7 @@ class TwinTaskSim:
         n_substeps: int = 10,
         n_obstacle_slots: int = OBSTACLE_POOL_SIZE,
         default_span: float = 0.045,
+        release_clearance: float = 0.005,
         gripper_follower_factors: Dict[str, float],
         gripper_linkage: GripperLinkage,
         home_pose: Dict[str, float],
@@ -192,6 +193,14 @@ class TwinTaskSim:
         self._distractor_body_prefix = f"{scene_prefix}distractor_"
         #: Closing span (m) assumed when nothing is captured (task object size).
         self._default_span = float(default_span)
+        #: Spiel je Seite (m), mit dem die Hand ein Objekt FREIGIBT.  Zum
+        #: Loslassen ganz aufzureissen ist eine Wahl, keine Notwendigkeit,
+        #: und sie kostet: am Container gemessen (2026-08-16) stand die
+        #: volle Hand nach dem Ablegen im vergroeberten Tor, und move_group
+        #: verweigerte den Rueckzug -- ``2 contact(s) detected : gate_0 -
+        #: rg6_right_inner_finger, gate_1 - rg6_left_inner_finger``.  Ein
+        #: echter RG6 oeffnet nur so weit, wie das Objekt es verlangt.
+        self._release_clearance = float(release_clearance)
         self._gripper_follower_factors: Dict[str, float] = dict(gripper_follower_factors)
         #: Weite <-> Treibergelenk.  Siehe :class:`GripperLinkage`: die Formel
         #: gehört dem Roboter und wird hereingereicht, damit sie nicht zum
@@ -232,6 +241,8 @@ class TwinTaskSim:
         # Commanded state (held every substep, twin-style).
         self._arm_command: Dict[str, float] = dict(self._home_pose)
         self._gripper_command: float = self._gripper_open
+        #: Ob die Hand ZU kommandiert ist -- siehe :meth:`gripper_closed`.
+        self._gripper_closing: bool = False
         # label -> (pos offset in TCP frame, quat offset) while carried.
         self._grasped: Optional[str] = None
         self._grasp_offset: Optional[Tuple[np.ndarray, np.ndarray]] = None
@@ -652,6 +663,7 @@ class TwinTaskSim:
         gripper's outcome (the real gripper is commanded separately and its
         feedback is what the skill trusts).
         """
+        self._gripper_closing = bool(close)
         if close:
             if grasp:
                 self._try_grasp()
@@ -669,12 +681,37 @@ class TwinTaskSim:
             else:
                 self._gripper_command = self._gripper_closed
         else:
-            self._gripper_command = self._gripper_open
+            # Nur so weit oeffnen, wie das GEHALTENE Objekt es verlangt --
+            # die Weite VOR dem Loslassen, denn ``_release`` vergisst die
+            # Spanne.  Haelt die Hand nichts, gibt es kein Mass, an dem
+            # "so weit wie noetig" sich messen liesse: dann geht sie ganz
+            # auf (das ist auch der Griff-Vorbereitungsfall, wo die Hand um
+            # das Objekt HERUM muss).
+            span = self._grasp_span if self._grasped is not None else None
+            if span is None:
+                self._gripper_command = self._gripper_open
+            else:
+                self._gripper_command = max(
+                    self._linkage.angle_from_width(
+                        span + 2.0 * self._release_clearance),
+                    self._gripper_open,
+                )
             if grasp:
                 self._release()
 
     def gripper_closed(self) -> bool:
-        return self._gripper_command >= self._gripper_closed / 2
+        """Ist die Hand ZU kommandiert?
+
+        Der zuletzt gegebene Befehl, kein geometrischer Schwellwert.  Bis
+        2026-08-16 stand hier ``command >= closed/2``, ein Vergleich mit der
+        halben Schliessstellung.  Der war schon immer schief -- eine Hand,
+        die ein 10-cm-Objekt haelt, steht weit unter der Schwelle und galt
+        als offen -- und wurde falsch, sobald die Hand zum Loslassen nur noch
+        auf Objektbreite plus Spiel oeffnet: mit dem echten Getriebe liegt
+        jede Spanne unter 40 mm danach WIEDER ueber der Schwelle, eine
+        gerade losgelassene Hand haette sich also als geschlossen gemeldet.
+        """
+        return self._gripper_closing
 
     @property
     def gripper_command_rad(self) -> float:
@@ -1134,6 +1171,7 @@ class TwinTaskSim:
         self._grasp_span = None
         self._arm_command = dict(self._home_pose)
         self._gripper_command = self._gripper_open
+        self._gripper_closing = False
         self._event_acc = SimEvents()
 
     # ------------------------------------------------------------------ #

@@ -284,3 +284,64 @@ def test_a_grasped_object_sets_the_width_to_its_own_span():
     assert sim.gripper_width_m() == pytest.approx(0.03, abs=2e-3)
     assert sim.gripper_width_m() != pytest.approx(0.04, abs=2e-3), (
         "die Weite haengt an der Vorgabe statt am Objekt -- dann misst sie nichts")
+
+
+# --------------------------------------------------------------------- #
+# Ablegen: nur so weit oeffnen wie noetig
+# --------------------------------------------------------------------- #
+def test_releasing_opens_only_as_far_as_the_object_needed():
+    """Zum Loslassen ganz aufzureissen ist eine Wahl, keine Notwendigkeit.
+
+    Am husky-offboard-Container am 2026-08-16 gemessen und vom Owner in
+    Foxglove gesehen: nach dem Ablegen stand die Hand auf voller Weite
+    MITTEN IM TOR, und move_group verweigerte daraufhin den Rueckzug --
+    ``2 contact(s) detected : gate_0 - rg6_right_inner_finger, gate_1 -
+    rg6_left_inner_finger``.  Ein echter RG6 oeffnet zum Loslassen nur so
+    weit, wie das Objekt es verlangt.
+
+    Der Payload misst 0,03 m ueber die geschlossene Kante; mit 0,005 m
+    Spiel je Seite sind das 0,04 m -- deutlich weniger als die 0,16 m,
+    die das Getriebe hergaebe.
+    """
+    sim = _build()
+    _approach(sim)
+    sim.command_gripper(True)
+    assert sim.grasped_label() == "payload", "ohne Griff prueft der Test nichts"
+
+    sim.command_gripper(False)
+    assert sim.grasped_label() is None, "das Objekt muss losgelassen sein"
+    assert sim.gripper_width_m() == pytest.approx(0.04, abs=2e-3)
+    assert sim.gripper_width_m() < StraightLinkage().max_width_m, (
+        "die Hand reisst beim Ablegen weiter auf, als das Objekt verlangt")
+
+
+def test_the_release_opening_is_clamped_to_what_the_linkage_can_do():
+    """Ein Spiel groesser als das Getriebe darf keinen Wert erfinden."""
+    model = mujoco.MjModel.from_xml_string(SCENE_XML)
+    sim = _GraspSim(
+        model, SPEC, scene_prefix="", default_span=0.04,
+        gripper_follower_factors={}, gripper_linkage=StraightLinkage(),
+        home_pose={"arm_0_slide": 0.0}, release_clearance=1.0,
+    )
+    _approach(sim)
+    sim.command_gripper(True)
+    sim.command_gripper(False)
+    assert sim.gripper_width_m() == pytest.approx(StraightLinkage().max_width_m)
+
+
+def test_a_released_gripper_does_not_report_itself_closed():
+    """Die Falle, die das enge Oeffnen aufreisst.
+
+    ``gripper_closed`` verglich den Gelenkwert mit der HALBEN
+    Schliessstellung.  Solange die Hand zum Loslassen ganz aufging, war das
+    unauffaellig; oeffnet sie nur noch auf Objektbreite plus Spiel, faellt
+    sie bei kleinen Objekten unter dieselbe Schwelle und meldete sich als
+    geschlossen -- mit dem echten Getriebe fuer jede Spanne unter 40 mm.
+    Ob die Hand zu ist, sagt der Befehl, nicht ein geometrischer Schwellwert.
+    """
+    sim = _build()
+    _approach(sim)
+    sim.command_gripper(True)
+    assert sim.gripper_closed() is True, "die geschlossene Hand muss zu melden"
+    sim.command_gripper(False)
+    assert sim.gripper_closed() is False
