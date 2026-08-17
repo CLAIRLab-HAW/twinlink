@@ -115,6 +115,38 @@ GRASP_RADIUS = 0.07
 #: flat rubber pads square the object up while closing (see ``_try_grasp``).
 GRASP_MAX_MISALIGN_DEG = 20.0
 
+#: Wieviel NEIGUNG die Pads beim Schliessen noch ausrichten koennen --
+#: darueber gibt es keinen Griff.
+#:
+#: Gilt bewusst NUR fuer die Neigung, nicht fuer den Gierwinkel.  Der
+#: Gierpfad ist alt, durch Golden-Spuren gepinnt (der Wuerfelturm bricht
+#: sofort, wenn man ihn enger zieht -- am 2026-08-17 mit 15 Grad probiert:
+#: sieben Bestandstests rot) und in der Studie mit hoechstens 2,1 Grad
+#: gemessen.  Die NEIGUNG dagegen wurde erst an diesem Tag eingefuehrt
+#: und hatte GAR KEINE Grenze: sie schnappte auf die naechste
+#: achsparallele Lage, wie schief der Koerper auch stand.
+#:
+#: Warum es diese Grenze gibt (Owner-Frage 2026-08-17): "das Anpassen der
+#: Orientierung in moveit fuehrt zu einer Anpassung in mujoco, dieser Loop
+#: ist fuer die Studie gefaehrlich".  Er ist es.  Glaube -> Handlung ->
+#: Weltaenderung -> wird als "Wahrheit" zurueckgelesen -> Glaube.  Kausal
+#: legitim (ein echter Greifer richtet einen Stift beim Zupacken wirklich
+#: auf), aber der Zwilling modellierte es als KOSTENLOSEN Schnapp: alles
+#: bis :data:`GRASP_MAX_MISALIGN_DEG` wurde umsonst korrigiert, ohne
+#: Fehlerfall.  Damit verwandelt er Abstraktionsfehler in nichts -- und
+#: eine grobe Sprosse sieht ausreichend aus, weil der Zwilling die Folge
+#: ihrer Grobheit selbst repariert hat.
+#:
+#: Nachgiebigkeit ist echt, aber begrenzt: flache Pads richten einen
+#: leicht schiefen Koerper aus, ein stark schiefer rutscht ab.
+#:
+#: DER WERT IST EINE MODELLENTSCHEIDUNG, kein Messergebnis, und
+#: ausdruecklich ein Regler.  Die gemessene Verteilung ueber 68
+#: Container-Laeufe reicht von 0,0 bis 2,1 Grad -- die Grenze bindet
+#: heute NIRGENDS.  Sie ist eine Wache gegen einen Fehlermodus, keine
+#: Korrektur eines Ergebnisses.
+PAD_SQUARE_LIMIT_DEG = 15.0
+
 #: Robot-vs-table/ground contacts shallower than this are not collision
 #: events: the finger collision envelope is the union over the whole finger
 #: sweep and overstates fingertip depth by up to ~15 mm during a tabletop
@@ -985,7 +1017,10 @@ class TwinTaskSim:
             )
             mujoco = self._mujoco
             mujoco.mj_forward(self.model, self.data)
-        self._square_tilt(adr)
+        if not self._square_tilt(adr):
+            log.debug("%s zu stark geneigt -- die Pads koennen das nicht "
+                      "ausrichten", label)
+            return
         obj_pos = self.data.qpos[adr : adr + 3].copy()
         obj_quat = self.data.qpos[adr + 3 : adr + 7].copy()  # wxyz
         # Offset of the object in the TCP frame, reapplied while carrying.
@@ -1008,7 +1043,7 @@ class TwinTaskSim:
             label, best_dist, np.degrees(best_misalign), span * 1e3,
         )
 
-    def _square_tilt(self, adr: int) -> None:
+    def _square_tilt(self, adr: int) -> bool:
         """Pad-Squaring fuer die NEIGUNG -- das Gegenstueck zum Gierwinkel.
 
         Flache Backen, die sich um einen Koerper schliessen, richten ihn
@@ -1034,67 +1069,33 @@ class TwinTaskSim:
         R = np.zeros(9)
         self._mujoco.mju_quat2Mat(R, q)
         R = R.reshape(3, 3)
-        # Jede Spalte auf die naechste Weltachse schnappen, danach wieder
-        # orthonormalisieren (Gram-Schmidt), damit eine gueltige Drehung
-        # herauskommt und keine Scherung.
-        ziel = np.zeros((3, 3))
-        frei = [0, 1, 2]
-        for spalte in np.argsort([-abs(R[:, k]).max() for k in range(3)]):
-            achse = max(frei, key=lambda a: abs(R[a, spalte]))
-            ziel[achse, spalte] = np.sign(R[achse, spalte]) or 1.0
-            frei.remove(achse)
-        if np.linalg.det(ziel) < 0:
-            ziel[:, 2] *= -1.0
-        self.data.qpos[adr + 3 : adr + 7] = self._mat_to_quat(ziel)
+        # NUR die Neigung entfernen, den Gierwinkel behalten.  Der erste
+        # Entwurf (2026-08-17 frueh) schnappte auf die naechste
+        # WELTachsenparallele Lage und machte damit die Pad-Ausrichtung
+        # kaputt, die der Gier-Schnapp gerade hergestellt hatte -- fuer
+        # die Wuerfel des Turms eine Drehung von ueber 15 Grad, also
+        # genau die kostenlose Grosskorrektur, gegen die dieser Riegel
+        # gebaut ist.
+        #
+        # Gesucht ist die kleinste Drehung, die die koerpereigene Achse,
+        # die der Senkrechten am naechsten liegt, AUF die Senkrechte
+        # bringt.  Ein liegender Koerper bleibt liegen: dort ist die
+        # naechste Achse eine andere, und die Drehung ist wieder klein.
+        k = int(np.argmax(np.abs(R[2, :])))
+        achse = R[:, k] * (1.0 if R[2, k] >= 0 else -1.0)
+        ziel = np.array([0.0, 0.0, 1.0])
+        winkel = float(np.arccos(np.clip(float(achse @ ziel), -1.0, 1.0)))
+        if np.degrees(winkel) > PAD_SQUARE_LIMIT_DEG:
+            return False
+        if winkel < 1e-9:
+            return True
+        dreh = np.cross(achse, ziel)
+        dreh /= np.linalg.norm(dreh)
+        korrektur = np.array([np.cos(winkel / 2.0),
+                              *(np.sin(winkel / 2.0) * dreh)])
+        self.data.qpos[adr + 3 : adr + 7] = self._quat_mul(korrektur, q)
         self._mujoco.mj_forward(self.model, self.data)
-
-    def grasp_misalign_deg(self):
-        """Wie schief das Objekt beim Zupacken stand (Grad), oder ``None``.
-
-        Die Pads richten ein leicht schiefes Objekt beim Schliessen aus --
-        bis zu :data:`GRASP_MAX_MISALIGN_DEG`.  Diese Drehung fand bisher
-        stillschweigend statt: die Zahl wurde berechnet, angewandt, auf
-        Debug-Ebene geloggt und verworfen.
-
-        Fuer eine Suffizienzmessung ist sie aber DER Fehler, den ein
-        grobes Modell erzeugt: der Roboter zielt nach seinem Quader, der
-        echte Koerper steht anders, und die Grosszuegigkeit des Fangs
-        buegelt es aus.  Am 2026-08-17 vom Owner in Foxglove gesehen --
-        "der Quader stand schief zum Greifer, moveit lehnt nicht ab,
-        sollte es aber".  move_group KANN dort nicht ablehnen: der
-        Backenkontakt ist beim Griff ausdruecklich freigegeben, sonst
-        waere jeder Griff ein Startzustand in Kollision.  Also muss die
-        Zahl hier heraus.
-
-        Auch :meth:`grasp_gap` verdeckt sie: der Spalt wird NACH dem
-        Ausrichten gemessen und sieht deshalb sauber aus.
-        """
-        if self._grasped is None or self._grasp_misalign is None:
-            return None
-        return float(np.degrees(self._grasp_misalign))
-
-    def grasp_gap(self):
-        """Kleinster Abstand Greifer<->gegriffener Koerper (m), oder ``None``.
-
-        Die PRUEFUNG zum Modell: ``_try_grasp`` entscheidet ueber Abstand,
-        Ausrichtung und Spanne und schweisst dann -- ob die Backen den
-        Koerper wirklich beruehren, stand nirgends.  Fuer eine
-        Suffizienzmessung ist genau das der Kern: der Roboter zielt nach
-        einem GROBEN Modell und trifft auf die WIRKLICHKEIT, und ob der
-        Griff dann noch sitzt, darf nicht von der Grosszuegigkeit der
-        Fangbedingung verdeckt werden (7 cm Radius, 20 Grad Toleranz).
-
-        Lesart: ``< 0`` DURCHDRINGUNG, ``~ 0`` Beruehrung, deutlich ``> 0``
-        die Backen greifen ins Leere.  ``None`` heisst "kein Griff, keine
-        Aussage" -- nicht "in Ordnung".
-
-        Gerechnet mit ``mj_geomDistance``, einer reinen Abstandsabfrage.
-        Die Kontakte des getragenen Koerpers sind aus gutem Grund
-        abgeschaltet (siehe ``_suspend_object_contacts``); eine Abfrage
-        stoert davon nichts.  Dass der Koerper ZWISCHEN den Backen liegt
-        und nicht daneben, beantwortet die Spannenpruefung im Fang.
-        """
-        return self._grasp_gap0
+        return True
 
     def _fingers_settled(self, tol: float = 0.02) -> bool:
         """Haben die Finger ihre kommandierte Weite erreicht?
@@ -1115,6 +1116,40 @@ class TwinTaskSim:
             if abs(ist - soll) > tol:
                 return False
         return True
+
+    def grasp_misalign_deg(self):
+        """Wie schief das Objekt beim Zupacken stand (Grad), oder ``None``.
+
+        Die Pads richten ein leicht schiefes Objekt beim Schliessen aus.
+        Diese Drehung fand bisher stillschweigend statt: die Zahl wurde
+        berechnet, angewandt, auf Debug-Ebene geloggt und verworfen.
+
+        Fuer eine Suffizienzmessung ist sie aber DER Fehler, den ein
+        grobes Modell erzeugt: der Roboter zielt nach seinem Quader, der
+        echte Koerper steht anders, und die Grosszuegigkeit des Fangs
+        buegelt es aus.  move_group kann das nicht melden -- der
+        Backenkontakt ist beim Griff ausdruecklich freigegeben, sonst
+        waere jeder Griff ein Startzustand in Kollision.
+        """
+        if self._grasped is None or self._grasp_misalign is None:
+            return None
+        return float(np.degrees(self._grasp_misalign))
+
+    def grasp_gap(self):
+        """Kleinster Abstand Greifer<->gegriffener Koerper (m), oder ``None``.
+
+        Die PRUEFUNG zum Modell: der Fang entscheidet ueber Abstand,
+        Ausrichtung und Spanne und schweisst dann -- ob die Backen den
+        Koerper wirklich beruehren, stand nirgends.  Gemessen wird, sobald
+        die Finger ihre Weite erreicht haben (:meth:`_fingers_settled`):
+        im Moment des Fangs stehen sie noch offen (+80 mm), nach dem Hub
+        ueberlappt der getragene Koerper die Handbaugruppe (-13 mm).
+
+        Lesart: ``< 0`` Durchdringung, ``~ 0`` Beruehrung, deutlich
+        ``> 0`` die Backen greifen ins Leere.  ``None`` heisst "kein
+        Griff, keine Aussage" -- nicht "in Ordnung".
+        """
+        return self._grasp_gap0
 
     def _measure_gap(self, entry) -> Optional[float]:
         """Kleinster Abstand Hand<->Koerper JETZT (m), oder ``None``."""

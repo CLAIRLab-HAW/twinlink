@@ -689,3 +689,80 @@ def test_a_tipped_object_offers_the_axes_it_really_has():
     _set_payload_tilt(sim, np.radians(90.0))
     gekippt = sim._horizontal_axes(sim._graspable["payload"])
     assert len(gekippt) == 2, f"{len(gekippt)} Achsen bei gekipptem Koerper"
+
+
+# --------------------------------------------------------------------- #
+# Das Ausrichten hat eine GRENZE statt einer Reparatur (Owner 2026-08-17)
+#
+# "jetzt fuehrt das Anpassen der Orientierung in moveit zu einer Anpassung
+# in mujoco, dieser Loop ist fuer die Studie gefaehrlich oder nicht?"
+#
+# Ja.  Glaube -> Handlung -> Weltaenderung -> wird als "Wahrheit"
+# zurueckgelesen -> Glaube.  Kausal ist das legitim (ein echter Greifer
+# richtet einen Stift beim Zupacken wirklich auf), aber der Zwilling
+# modellierte es als KOSTENLOSEN Schnapp: alles bis 20 Grad wurde umsonst
+# korrigiert, ohne Fehlerfall.  Damit verwandelt er Abstraktionsfehler in
+# nichts, und die grobe Sprosse sieht ausreichend aus, weil der Zwilling
+# die Folge ihrer Grobheit selbst repariert hat.
+#
+# Nachgiebigkeit ist echt, aber begrenzt: flache Pads richten einen leicht
+# schiefen Koerper aus, ein stark schiefer rutscht ab.  Der Riegel
+# unterscheidet beides.
+#
+# EHRLICH DAZU: die gemessene Verteilung ueber 68 Container-Laeufe reicht
+# von 0,0 bis 2,1 Grad -- die Grenze bindet heute NIRGENDS.  Sie ist eine
+# Wache gegen einen Fehlermodus, keine Korrektur eines Ergebnisses.  Der
+# Wert ist eine Modellentscheidung und ausdruecklich ein Regler.
+# --------------------------------------------------------------------- #
+def test_a_slightly_tipped_object_is_still_squared_and_grasped():
+    from twinlink.task_sim import PAD_SQUARE_LIMIT_DEG
+
+    sim = _build()
+    _set_payload_tilt(sim, np.radians(PAD_SQUARE_LIMIT_DEG - 5.0))
+    _approach(sim)
+    sim.command_gripper(close=True)
+    sim.step_physics(30)
+    assert sim.grasped_label() == "payload", (
+        "leichte Neigung muss weiter ausgeglichen werden -- "
+        "Nachgiebigkeit ist echt")
+
+
+def test_the_limit_stays_inside_the_geometric_capture_window():
+    """Ein Riegel ausserhalb des Fangfensters waere wirkungslos."""
+    from twinlink.task_sim import GRASP_MAX_MISALIGN_DEG, PAD_SQUARE_LIMIT_DEG
+
+    assert PAD_SQUARE_LIMIT_DEG < GRASP_MAX_MISALIGN_DEG
+
+
+def test_the_yaw_path_keeps_its_long_standing_tolerance():
+    """Der GIERWINKEL bleibt, wie er war -- und zwar mit Grund.
+
+    Am 2026-08-17 mit 15 Grad probiert: sieben Bestandstests rot,
+    darunter die Golden-Spur des Wuerfelturms.  Der Pfad ist alt,
+    gepinnt und in der Studie mit hoechstens 2,1 Grad gemessen; ihn
+    enger zu ziehen aenderte Ergebnisse aus einem Grund, der mit der
+    Frage nichts zu tun hat.  Begrenzt wird der NEUE Pfad, der gar keine
+    Grenze hatte.
+    """
+    from twinlink.task_sim import GRASP_MAX_MISALIGN_DEG
+
+    sim = _build()
+    _set_payload_yaw(sim, np.radians(GRASP_MAX_MISALIGN_DEG - 2.0))
+    _approach(sim)
+    sim.command_gripper(close=True)
+    sim.step_physics(30)
+    assert sim.grasped_label() == "payload"
+
+
+def test_a_badly_tipped_object_is_refused_too():
+    """Die Neigung ist der weitere Weg -- sie wurde ganz ohne Grenze
+    auf die naechste achsparallele Lage geschnappt."""
+    from twinlink.task_sim import PAD_SQUARE_LIMIT_DEG
+
+    sim = _build()
+    _set_payload_tilt(sim, np.radians(PAD_SQUARE_LIMIT_DEG + 10.0))
+    _approach(sim)
+    sim.command_gripper(close=True)
+    sim.step_physics(30)
+    assert sim.grasped_label() is None, (
+        f"{PAD_SQUARE_LIMIT_DEG + 10:.0f} Grad Neigung wurden weggeschnappt")
