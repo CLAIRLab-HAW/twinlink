@@ -952,6 +952,40 @@ class TwinTaskSim:
         self.data.qpos[adr + 3 : adr + 7] = self._mat_to_quat(ziel)
         self._mujoco.mj_forward(self.model, self.data)
 
+    def grasp_gap(self):
+        """Kleinster Abstand Greifer<->gegriffener Koerper (m), oder ``None``.
+
+        Die PRUEFUNG zum Modell: ``_try_grasp`` entscheidet ueber Abstand,
+        Ausrichtung und Spanne und schweisst dann -- ob die Backen den
+        Koerper wirklich beruehren, stand nirgends.  Fuer eine
+        Suffizienzmessung ist genau das der Kern: der Roboter zielt nach
+        einem GROBEN Modell und trifft auf die WIRKLICHKEIT, und ob der
+        Griff dann noch sitzt, darf nicht von der Grosszuegigkeit der
+        Fangbedingung verdeckt werden (7 cm Radius, 20 Grad Toleranz).
+
+        Lesart: ``< 0`` DURCHDRINGUNG, ``~ 0`` Beruehrung, deutlich ``> 0``
+        die Backen greifen ins Leere.  ``None`` heisst "kein Griff, keine
+        Aussage" -- nicht "in Ordnung".
+
+        Gerechnet mit ``mj_geomDistance``, einer reinen Abstandsabfrage.
+        Die Kontakte des getragenen Koerpers sind aus gutem Grund
+        abgeschaltet (siehe ``_suspend_object_contacts``); eine Abfrage
+        stoert davon nichts.  Dass der Koerper ZWISCHEN den Backen liegt
+        und nicht daneben, beantwortet die Spannenpruefung im Fang.
+        """
+        if self._grasped is None:
+            return None
+        entry = self._graspable.get(self._grasped)
+        if entry is None or not self._hand_geoms:
+            return None
+        kleinster = float("inf")
+        for hand in self._hand_geoms:
+            for gid in entry["geoms"]:
+                d = float(self._mujoco.mj_geomDistance(
+                    self.model, self.data, int(hand), int(gid), 1.0, None))
+                kleinster = min(kleinster, d)
+        return None if not np.isfinite(kleinster) else kleinster
+
     def _release(self) -> None:
         if self._grasped is None:
             return

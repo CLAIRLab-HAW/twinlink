@@ -499,3 +499,60 @@ def test_squaring_snaps_to_the_NEAREST_axis_not_to_upright():
     assert sim.grasped_label() == "payload"
     assert _tilt_of(sim) > 89.0, (
         f"der liegende Koerper wurde auf {_tilt_of(sim):.1f} Grad gedreht")
+
+
+# --------------------------------------------------------------------- #
+# Der Griff wird GEPRUEFT, nicht nur modelliert (Owner 2026-08-17)
+#
+# ``_try_grasp`` ist ein MODELL: Abstand, Ausrichtung, Spanne -- danach
+# wird geschweisst.  Ob die Pads den Koerper wirklich beruehren, ob sie
+# ihn durchdringen oder ob sie danebengreifen, hat niemand geprueft.  Fuer
+# die Suffizienz-Studie ist das der entscheidende Punkt: dort zielt der
+# Roboter nach einem GROBEN Modell und trifft auf die WIRKLICHKEIT -- ob
+# der Griff dann noch sitzt, ist genau die Frage und darf nicht durch die
+# Grosszuegigkeit der Fangbedingung (7 cm Radius, 20 Grad) verdeckt
+# werden.
+#
+# Geprueft wird ueber ``mj_geomDistance`` -- eine reine Abstandsabfrage,
+# ohne Physik.  Die Kontakte des getragenen Koerpers sind aus gutem Grund
+# abgeschaltet (der Loeser kaempft sonst gegen die kinematische Klammer);
+# eine Abfrage stoert davon nichts.
+# --------------------------------------------------------------------- #
+def test_a_sound_grasp_has_both_pads_at_the_object():
+    sim = _build()
+    _approach(sim)
+    sim.command_gripper(close=True)
+    sim.step_physics(30)
+    assert sim.grasped_label() == "payload"
+    spalt = sim.grasp_gap()
+    assert spalt is not None, "kein Griff, also kein Spalt"
+    assert spalt < 0.01, (
+        f"Abstand {spalt*1000:.1f} mm -- die Backen beruehren den Koerper "
+        f"nicht wirklich")
+
+
+def test_without_a_grasp_there_is_no_gap_to_report():
+    """``None`` heisst "keine Aussage", nicht "alles in Ordnung"."""
+    sim = _build()
+    assert sim.grasp_gap() is None
+
+
+def test_the_check_sees_a_body_the_pads_pass_through():
+    """Die eigentliche Zusicherung: Durchdringung faellt auf.
+
+    Ohne sie meldete ein Griff, bei dem die Pads mitten IM Koerper
+    stehen, denselben Spalt wie ein sauberer -- und die Studie zaehlte
+    ihn als Erfolg.
+    """
+    sim = _build()
+    _approach(sim)
+    sim.command_gripper(close=True)
+    sim.step_physics(30)
+    # Den Koerper kuenstlich in die Pads schieben.
+    adr = sim._graspable["payload"]["qpos"]
+    sim.data.qpos[adr + 1] += 0.02
+    sim._mujoco.mj_forward(sim.model, sim.data)
+    spalt = sim.grasp_gap()
+    assert spalt < 0.0, (
+        f"Abstand {spalt*1000:+.1f} mm -- eine Durchdringung muss negativ "
+        f"sein")
