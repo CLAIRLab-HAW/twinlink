@@ -26,6 +26,7 @@ from twinlink.task_sim import (  # noqa: E402
     GRASP_MAX_MISALIGN_DEG,
     RobotSimSpec,
     TwinTaskSim,
+    _wrap_half,
     _wrap_quarter,
 )
 
@@ -604,3 +605,87 @@ def test_a_square_grasp_reports_nearly_zero():
 def test_without_a_grasp_there_is_no_misalignment_to_report():
     sim = _build()
     assert sim.grasp_misalign_deg() is None
+
+
+# --------------------------------------------------------------------- #
+# Die Greifhoehe folgt dem KOERPER, nicht seiner aufrecht gedachten Huelle
+# (Owner 2026-08-17: "sichtbarer Spalt zwischen Greifer und Marker")
+#
+# Gemessen: marker/pick meldete Erfolg mit einem Spalt von +12 bis
+# +14 mm -- die Backen standen ueber einen Zentimeter neben dem Stift.
+#
+# Ursache: der Greifpunkt wurde aus ``entry["half"][2]`` gerechnet, der
+# halben Hoehe der AABB IM KOERPERFRAME.  Der Marker LIEGT, seine wahre
+# Oberkante ist rund 13 mm ueber seiner Mitte statt 70.  Das Pruefband lag
+# damit ueber dem Objekt, ``_span_between_pads`` fand dort kein Geom und
+# fiel auf die Huelle zurueck (26 mm statt 18 mm Schaft) -- die Backen
+# schlossen auf 26 mm und beruehrten nichts.
+# --------------------------------------------------------------------- #
+def test_the_grip_reference_follows_the_real_body_not_its_upright_hull():
+    """Der Greifpunkt kommt aus der WELT, nicht aus der Koerperframe-AABB.
+
+    Gemessen an der Studie: ``marker/pick`` meldete Erfolg mit einem
+    Spalt von +12 bis +14 mm -- die Backen standen ueber einen Zentimeter
+    neben dem Stift.  Der Greifpunkt wurde aus ``entry["half"][2]``
+    gerechnet, der halben Hoehe der AABB IM KOERPERFRAME.  Der Marker
+    LIEGT: seine wahre Oberkante ist rund 13 mm ueber seiner Mitte statt
+    70.  Das Pruefband lag damit ueber dem Objekt,
+    ``_span_between_pads`` fand dort kein Geom und fiel auf die Huelle
+    zurueck (26 mm statt 18 mm Schaft) -- die Backen schlossen auf 26 mm
+    und beruehrten nichts.
+
+    Geprueft wird der Bezugspunkt selbst: der synthetische Aufbau hier
+    hat keine Backen, die auf eine Weite stoppen, und kann den Spalt
+    deshalb nicht zeigen.
+    """
+    xml = SCENE_XML.replace(
+        '<geom name="payload_geom" type="box" size="0.02 0.015 0.02"/>',
+        '<geom name="payload_geom" type="box" size="0.02 0.015 0.005"/>')
+    model = mujoco.MjModel.from_xml_string(xml)
+
+    class _FlachSim(_GraspSim):
+        def register_graspables(self) -> None:
+            # Die Huelle behauptet 7 cm halbe Hoehe, der Koerper hat
+            # 0,5 cm -- genau die Lage des LIEGENDEN Markers, dessen AABB
+            # im Koerperframe seine Laenge als Hoehe fuehrt.
+            self.register_graspable(
+                "payload", "payload_free", self._body_id("payload"),
+                np.array([0.02, 0.015, 0.07]))
+
+    sim = _FlachSim(model, SPEC, scene_prefix="", default_span=0.04,
+                    gripper_follower_factors={},
+                    gripper_linkage=StraightLinkage(),
+                    home_pose={"arm_0_slide": 0.0})
+    entry = sim._graspable["payload"]
+    ref = sim._grip_reference(entry)
+    oben = float(sim.data.xpos[entry["body"]][2]) + 0.005
+    # Der Bezugspunkt muss in der Naehe des Koerpers liegen, nicht 50 mm
+    # darueber -- so weit wanderte er, als er aus der aufrechten Huelle
+    # (halbe Hoehe 70 mm) gerechnet wurde.
+    assert abs(float(ref[2]) - oben) < 0.03, (
+        f"Greifpunkt bei {float(ref[2]):.3f}, echte Oberkante {oben:.3f} -- "
+        f"er folgt der aufrechten Huelle statt dem Koerper")
+    # ...und dann findet die Spannenmessung dort auch etwas.
+    assert sim._span_between_pads(entry, ref, 0.0) is not None
+
+
+def test_a_tipped_object_offers_the_axes_it_really_has():
+    """Die Greifachsen kommen aus den waagerechten Koerperachsen.
+
+    ``_try_grasp`` bildete sie aus ``obj_yaw`` und ``obj_yaw + 90 Grad``
+    -- das setzt voraus, dass die z-Achse des Koerpers SENKRECHT steht.
+    Beim liegenden Marker liegt seine Laenge waagerecht, und beide
+    Kandidaten zeigen dann an der greifbaren Richtung vorbei.  Fuer einen
+    aufrecht stehenden Koerper faellt die Rechnung mit der alten
+    zusammen, der Wuerfelturm bewegt sich also nicht.
+    """
+    sim = _build()
+    # aufrecht: x und y sind waagerecht -> genau die alten zwei Achsen
+    achsen = sim._horizontal_axes(sim._graspable["payload"])
+    assert len(achsen) == 2
+    assert min(abs(_wrap_half(a)) for a in achsen) < 1e-6
+
+    # 90 Grad um x gekippt: jetzt sind x und z waagerecht
+    _set_payload_tilt(sim, np.radians(90.0))
+    gekippt = sim._horizontal_axes(sim._graspable["payload"])
+    assert len(gekippt) == 2, f"{len(gekippt)} Achsen bei gekipptem Koerper"

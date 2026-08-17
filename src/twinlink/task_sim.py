@@ -781,6 +781,86 @@ class TwinTaskSim:
             "geoms": geoms,
         }
 
+    def _horizontal_axes(self, entry) -> list:
+        """Gierwinkel der waagerechten Koerperachsen -- hoechstens zwei.
+
+        ``_try_grasp`` bildete die Greifachsen aus ``obj_yaw`` und
+        ``obj_yaw + 90 Grad``.  Das setzt voraus, dass die z-Achse des
+        Koerpers SENKRECHT steht: nur dann sind x und y die waagerechten.
+        Beim LIEGENDEN Marker liegt seine Laenge waagerecht, und beide
+        Kandidaten zeigen an der greifbaren Richtung vorbei -- der Fang
+        fiel auf die Huelle zurueck und griff aus 12-14 mm Entfernung
+        (2026-08-17, vom Owner in Foxglove gesehen).
+
+        Genommen werden die Koerperachsen, die WIRKLICH waagerecht liegen
+        (Neigung unter 30 Grad), und dazu je die Senkrechte in der Ebene.
+        Fuer einen aufrecht stehenden Koerper sind das genau x und y --
+        die alte Rechnung, unveraendert.
+        """
+        R = self.data.xmat[entry["body"]].reshape(3, 3)
+        winkel = []
+        for k in range(3):
+            achse = R[:, k]
+            if abs(float(achse[2])) > np.cos(np.radians(60.0)):
+                continue                        # steht zu steil
+            winkel.append(float(np.arctan2(achse[1], achse[0])))
+        if not winkel:
+            return [float(np.arctan2(R[1, 0], R[0, 0]))]
+        # Zwei Achsen genuegen: die dritte ist die Senkrechte der ersten.
+        gewaehlt = [winkel[0]]
+        for w in winkel[1:]:
+            if all(abs(_wrap_half(w - g - np.pi / 2.0)) > 1e-3
+                   and abs(_wrap_half(w - g)) > 1e-3 for g in gewaehlt):
+                gewaehlt.append(w)
+        if len(gewaehlt) == 1:
+            gewaehlt.append(gewaehlt[0] + np.pi / 2.0)
+        return gewaehlt[:2]
+
+    def _grip_reference(self, entry) -> np.ndarray:
+        """Wo die Backen den Koerper fassen -- aus der WELT, nicht der Huelle.
+
+        Objekte werden an ihrer OBERSEITE gegriffen (die Greif-Skills
+        senken auf ``Oberkante - Spanne/2``).  Die Oberkante muss aus der
+        tatsaechlichen Lage kommen: ``entry["half"]`` ist die AABB IM
+        KOERPERFRAME und fuehrt bei einem liegenden Stift dessen LAENGE
+        als Hoehe.
+
+        Am 2026-08-17 in der Studie gemessen, nachdem der Owner den Spalt
+        gesehen hatte: ``marker/pick`` meldete Erfolg mit +12 bis +14 mm
+        Abstand zwischen Backen und Stift.  Der Bezugspunkt lag rund
+        57 mm ueber dem liegenden Koerper, :meth:`_span_between_pads`
+        fand dort kein Geom und fiel auf die Huelle zurueck (26 mm statt
+        18 mm Schaft) -- die Backen schlossen auf 26 mm und beruehrten
+        nichts.
+
+        Fuer einen aufrecht stehenden Koerper faellt beides zusammen; der
+        Wuerfelturm bewegt sich also nicht.
+        """
+        pos = self.data.xpos[entry["body"]].copy()
+        ref = pos.copy()
+        # Wo die Backen WIRKLICH sind.  Ein konstruierter Punkt ("Oberkante
+        # minus halbe Spanne") war die Quelle von drei Fehlern in Folge:
+        # er unterstellt, dass die Aufgabe genau dorthin faehrt.  Sie tut
+        # es nicht -- bei einem flachen Objekt hebt ihre Untergrenze
+        # (Tisch + Spanne/2) die Backen an, und der Fang mass dann
+        # 71,6 mm gegen seinen 70-mm-Radius und lehnte um 1,6 mm ab
+        # (gemessen 2026-08-17 am liegenden Marker).
+        hoehen = [float(self.data.geom_xpos[g][2]) for g in self._hand_geoms]
+        if hoehen:
+            ref[2] = float(np.mean(hoehen))
+            return ref
+        oben = -np.inf
+        for gid in entry["geoms"]:
+            mitte = self.model.geom_aabb[gid][:3]
+            halb = self.model.geom_aabb[gid][3:]
+            R = self.data.geom_xmat[gid].reshape(3, 3)
+            basis = self.data.geom_xpos[gid] + R @ mitte
+            oben = max(oben, float(basis[2] + (np.abs(R) @ halb)[2]))
+        if not np.isfinite(oben):
+            oben = float(pos[2]) + float(entry["half"][2])
+        ref[2] = oben - self._default_span / 2.0
+        return ref
+
     def _span_between_pads(self, entry, ref, obj_yaw):
         """Breite des Koerpers auf Backenhoehe, entlang seiner beiden
         waagerechten Achsen -- oder ``None``, wenn dort nichts steht.
@@ -848,8 +928,7 @@ class TwinTaskSim:
             # measured there, not at the body centre.  For a default-sized
             # object the two coincide (half height == span/2) -- classic
             # behaviour kept.
-            ref = pos.copy()
-            ref[2] = pos[2] + float(entry["half"][2]) - self._default_span / 2.0
+            ref = self._grip_reference(entry)
             dist = float(np.linalg.norm(ref - tcp_pos))
             if dist >= (best[1] if best is not None else GRASP_RADIUS):
                 continue
@@ -866,13 +945,14 @@ class TwinTaskSim:
             # standen -- unabhaengig davon, wie fein das Objekt modelliert
             # war.  Damit konnte die Objektachse ueber den Griff gar nicht
             # binden.
-            lokal = self._span_between_pads(entry, ref, obj_yaw)
+            achsen = self._horizontal_axes(entry)
+            lokal = self._span_between_pads(entry, ref, achsen[0])
             spannen = (lokal if lokal is not None
                        else (2.0 * float(half[0]), 2.0 * float(half[1])))
             candidates = []
             for axis_yaw, span in (
-                (obj_yaw, spannen[0]),
-                (obj_yaw + np.pi / 2.0, spannen[1]),
+                (achsen[0], spannen[0]),
+                (achsen[1], spannen[1]),
             ):
                 if span >= self.spec.gripper_stroke_m:
                     continue  # this face pair does not fit between the pads
