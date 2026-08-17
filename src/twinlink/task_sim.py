@@ -281,6 +281,10 @@ class TwinTaskSim:
         self._object_contact_masks: Dict[str, Dict[int, Tuple[int, int]]] = {}
         # Scratch MjData for goal-state collision checks (lazily created).
         self._collision_scratch = None
+        #: Scratch fuer die Backenhoehe an geschlossener Hand (s.
+        #: :meth:`_pad_heights`) -- getrennt vom Kollisions-Scratch,
+        #: damit die beiden sich nicht gegenseitig ueberschreiben.
+        self._pad_scratch = None
         self._tcp_body_id = self._body_id(spec.tcp_body)
         self._graspable: Dict[str, Dict] = {}
         self.register_graspables()
@@ -881,6 +885,34 @@ class TwinTaskSim:
             gewaehlt.append(gewaehlt[0] + np.pi / 2.0)
         return gewaehlt[:2]
 
+    def _pad_heights(self) -> List[float]:
+        """Welt-z der Handgeome an der GESCHLOSSENEN Backenstellung.
+
+        Auf einem Scratch gerechnet, damit die laufende Szene unberuehrt
+        bleibt -- dasselbe Verfahren, das
+        :meth:`arm_config_collides` fuer Zielzustaende benutzt.
+
+        Genommen wird ``_gripper_closed`` und nicht die Weite, die das
+        Objekt spaeter verlangt: die ist erst bekannt, wenn der Fang
+        entschieden ist, und der Fang haengt an dieser Hoehe.  Die
+        geschlossene Stellung ist das, wohin die Pads fahren, wenn sie
+        nichts fangen -- eine Vorhersage ohne Zirkel.
+        """
+        mujoco = self._mujoco
+        if not self._hand_geoms:
+            return []
+        if self._pad_scratch is None:
+            self._pad_scratch = mujoco.MjData(self.model)
+        scratch = self._pad_scratch
+        scratch.qpos[:] = self.data.qpos
+        scratch.qvel[:] = 0.0
+        for joint, factor in self._gripper_follower_factors.items():
+            adr = self._joint_qpos.get(joint)
+            if adr is not None:
+                scratch.qpos[adr] = self._gripper_closed * float(factor)
+        mujoco.mj_forward(self.model, scratch)
+        return sorted(float(scratch.geom_xpos[g][2]) for g in self._hand_geoms)
+
     def _grip_reference(self, entry) -> np.ndarray:
         """Wo die Backen den Koerper fassen -- aus der WELT, nicht der Huelle.
 
@@ -913,8 +945,20 @@ class TwinTaskSim:
         # Die BACKEN sind die untersten Teile der Hand -- ein Mittelwert
         # ueber die ganze Baugruppe liegt beim RG6 rund 9 cm hoeher, also
         # im Handgelenk (gemessen 2026-08-17: Geoms von 0,363 bis 0,517).
-        hoehen = sorted(float(self.data.geom_xpos[g][2])
-                        for g in self._hand_geoms)
+        #
+        # Gemessen wird an der GESCHLOSSENEN Backenstellung, nicht an der
+        # augenblicklichen: der RG6-Finger schwenkt, und ``_try_grasp``
+        # laeuft, waehrend die Hand noch offen steht.  Offen sitzt sein
+        # Geom rund 41 mm UEBER dem TCP, geschlossen 38 mm darunter -- der
+        # Bezug wanderte dadurch um 57 mm, und das Backenband lag dort, wo
+        # die Pads GERADE sind, statt dort, wo sie zupacken werden.
+        #
+        # Am Deckel am 2026-08-17 aufgelaufen: Band 0,3432..0,3882 gegen
+        # einen Deckel bei 0,1998..0,2998, also 43 mm daneben.
+        # :meth:`_span_between_pads` fand dort nichts, der Fang fiel auf den
+        # HUELLQUADER zurueck (180 mm gegen 156 mm Backengang) und meldete
+        # "kein schliessbares Flaechenpaar" -- an einem Knauf von 36 mm.
+        hoehen = self._pad_heights()
         if hoehen:
             unten = hoehen[:max(1, len(hoehen) // 3)]
             ref[2] = float(np.mean(unten))
