@@ -252,6 +252,8 @@ class TwinTaskSim:
         #: Wie weit der Fang das Objekt beim Zupacken drehen musste (rad).
         #: Siehe :meth:`grasp_misalign_deg`.
         self._grasp_misalign: Optional[float] = None
+        #: Spalt im Moment des Fangs (m).  Siehe :meth:`grasp_gap`.
+        self._grasp_gap0: Optional[float] = None
         # Events raised outside step_physics (grasp/release on command) are
         # accumulated here and drained by the next step_physics call.
         self._event_acc = SimEvents()
@@ -845,9 +847,14 @@ class TwinTaskSim:
         # (Tisch + Spanne/2) die Backen an, und der Fang mass dann
         # 71,6 mm gegen seinen 70-mm-Radius und lehnte um 1,6 mm ab
         # (gemessen 2026-08-17 am liegenden Marker).
-        hoehen = [float(self.data.geom_xpos[g][2]) for g in self._hand_geoms]
+        # Die BACKEN sind die untersten Teile der Hand -- ein Mittelwert
+        # ueber die ganze Baugruppe liegt beim RG6 rund 9 cm hoeher, also
+        # im Handgelenk (gemessen 2026-08-17: Geoms von 0,363 bis 0,517).
+        hoehen = sorted(float(self.data.geom_xpos[g][2])
+                        for g in self._hand_geoms)
         if hoehen:
-            ref[2] = float(np.mean(hoehen))
+            unten = hoehen[:max(1, len(hoehen) // 3)]
+            ref[2] = float(np.mean(unten))
             return ref
         oben = -np.inf
         for gid in entry["geoms"]:
@@ -989,6 +996,11 @@ class TwinTaskSim:
         self._grasp_offset = (rel_pos, rel_quat)
         self._grasp_span = span
         self._grasp_misalign = float(best_misalign)
+        # Den Spalt JETZT festhalten -- im Moment des Zupackens.  Eine
+        # spaetere Abfrage misst den TRAGEzustand: dort ist das Objekt
+        # kinematisch angeschweisst und die Handbaugruppe ueberlappt es
+        # zwangslaeufig (gemessen 2026-08-17 am Marker: -13,3 mm, was wie
+        # eine Durchdringung beim Griff aussah und keine war).
         self._suspend_object_contacts(label)
         self._event_acc.grasp_acquired = label
         log.debug(
@@ -1082,9 +1094,30 @@ class TwinTaskSim:
         stoert davon nichts.  Dass der Koerper ZWISCHEN den Backen liegt
         und nicht daneben, beantwortet die Spannenpruefung im Fang.
         """
-        if self._grasped is None:
-            return None
-        entry = self._graspable.get(self._grasped)
+        return self._grasp_gap0
+
+    def _fingers_settled(self, tol: float = 0.02) -> bool:
+        """Haben die Finger ihre kommandierte Weite erreicht?
+
+        Der Griffspalt darf erst DANN gemessen werden.  Im Moment des
+        Fangs stehen die Backen noch offen (gemessen +80 mm), nach dem
+        Hub ueberlappt der getragene Koerper die Handbaugruppe (-13 mm) --
+        beide Zahlen sahen aus wie Aussagen ueber die Griffguete und
+        waren keine.
+        """
+        for joint, factor in self._gripper_follower_factors.items():
+            jid = self._mujoco.mj_name2id(
+                self.model, self._mujoco.mjtObj.mjOBJ_JOINT, joint)
+            if jid < 0:
+                continue
+            ist = float(self.data.qpos[self.model.jnt_qposadr[jid]])
+            soll = float(self._gripper_command) * float(factor)
+            if abs(ist - soll) > tol:
+                return False
+        return True
+
+    def _measure_gap(self, entry) -> Optional[float]:
+        """Kleinster Abstand Hand<->Koerper JETZT (m), oder ``None``."""
         if entry is None or not self._hand_geoms:
             return None
         kleinster = float("inf")
@@ -1103,6 +1136,7 @@ class TwinTaskSim:
         self._grasp_offset = None
         self._grasp_span = None
         self._grasp_misalign = None
+        self._grasp_gap0 = None
         # Hand the object back to physics at rest: restore its contacts and
         # clear any residual solver velocity accumulated while pinned.
         self._restore_object_contacts(label)
@@ -1234,6 +1268,16 @@ class TwinTaskSim:
         events = SimEvents()
         events.merge(self._event_acc)
         self._event_acc = SimEvents()
+        # Den Griffspalt messen, sobald die FINGER IHRE WEITE ERREICHT
+        # haben -- nicht im Moment des Fangs (da stehen sie noch offen,
+        # gemessen +80 mm) und nicht nach dem Hub (da ueberlappt der
+        # getragene 140-mm-Stift die Handbaugruppe, gemessen -13,3 mm).
+        # Beide Zeitpunkte sahen aus wie Aussagen ueber die Griffguete und
+        # waren keine.
+        if (self._grasped is not None and self._grasp_gap0 is None
+                and self._gripper_closing and self._fingers_settled()):
+            self._grasp_gap0 = self._measure_gap(
+                self._graspable.get(self._grasped))
         gripper_targets = {
             joint: self._gripper_command * factor
             for joint, factor in self._gripper_follower_factors.items()
