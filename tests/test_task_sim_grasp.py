@@ -833,3 +833,30 @@ def test_a_carried_object_driven_into_the_world_reports_no_gap_left():
 def test_without_a_carry_there_is_nothing_to_report():
     sim = _build()
     assert sim.carried_world_gap() is None
+
+
+def test_the_worst_moment_of_the_carry_is_remembered():
+    """Ein Abstand am Ende sagt nichts ueber die Fahrt dazwischen.
+
+    Der getragene Koerper kann mitten auf dem Weg durch ein Hindernis
+    gefahren sein und am Ziel wieder frei stehen -- gemeldet werden muss
+    der SCHLECHTESTE Moment, nicht der letzte.
+    """
+    sim = _mit_wand(0.80)
+    _approach(sim)
+    sim.command_gripper(close=True)
+    sim.step_physics(30)
+    assert sim.grasped_label() == "payload"
+    sim.set_arm_command({"arm_0_slide": 0.63})     # durch die Wand
+    sim.step_physics(60)
+    sim.set_arm_command({"arm_0_slide": 0.2})      # wieder heraus
+    sim.step_physics(60)
+    assert sim.carried_world_gap() > 0.0, "am Ende steht er frei"
+    assert sim.carried_world_gap_min() <= 0.0, (
+        f"schlechtester Moment {sim.carried_world_gap_min()} -- die Fahrt "
+        f"durch die Wand ist vergessen")
+
+
+def test_without_a_carry_there_is_no_worst_moment():
+    sim = _build()
+    assert sim.carried_world_gap_min() is None

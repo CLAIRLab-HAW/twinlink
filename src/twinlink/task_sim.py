@@ -286,6 +286,18 @@ class TwinTaskSim:
         self._grasp_misalign: Optional[float] = None
         #: Spalt im Moment des Fangs (m).  Siehe :meth:`grasp_gap`.
         self._grasp_gap0: Optional[float] = None
+        #: Schlechtester Abstand des getragenen Koerpers zur echten Welt
+        #: waehrend der ganzen Fahrt.  Siehe :meth:`carried_world_gap_min`.
+        self._carry_gap_min: Optional[float] = None
+        self._carry_tick: int = 0
+        #: Hat der getragene Koerper die Auflage schon verlassen?  Erst ab
+        #: dann ist ein Abstand eine Aussage ueber die FAHRT.
+        self._carry_airborne: bool = False
+        #: WAS dem getragenen Koerper am naechsten kam.  Eine Zahl ohne
+        #: Namen ist nicht handlungsfaehig: "0,0 mm" sagt nicht, ob das
+        #: der Tisch beim Absetzen war oder ein Torpfeiler auf halbem Weg.
+        self._carry_gap_who: str = ""
+        self._carry_gap_min_who: str = ""
         # Events raised outside step_physics (grasp/release on command) are
         # accumulated here and drained by the next step_physics call.
         self._event_acc = SimEvents()
@@ -1031,6 +1043,8 @@ class TwinTaskSim:
         self._grasp_offset = (rel_pos, rel_quat)
         self._grasp_span = span
         self._grasp_misalign = float(best_misalign)
+        self._carry_gap_min = None       # neue Fahrt, neuer schlechtester Moment
+        self._carry_airborne = False
         # Den Spalt JETZT festhalten -- im Moment des Zupackens.  Eine
         # spaetere Abfrage misst den TRAGEzustand: dort ist das Objekt
         # kinematisch angeschweisst und die Handbaugruppe ueberlappt es
@@ -1180,6 +1194,7 @@ class TwinTaskSim:
             return None
         eigene = set(entry["geoms"])
         kleinster = float("inf")
+        naechster = ""
         for gid in range(self.model.ngeom):
             if gid in eigene or gid in self._hand_geoms:
                 continue
@@ -1190,11 +1205,35 @@ class TwinTaskSim:
             if "ground" in name or int(self.model.geom_type[gid]) == int(
                     self._mujoco.mjtGeom.mjGEOM_PLANE):
                 continue
+            # Die AUFLAGE bleibt draussen.  Beim Aufnehmen liegt das Objekt
+            # noch darauf und beim Ablegen setzt es wieder auf -- beides
+            # bestimmungsgemaess.  Ohne diese Zeile stand das Minimum jeder
+            # Zelle auf 0 und die Zahl sagte nichts (gemessen 2026-08-17).
+            if name in self.support_geom_names():
+                continue
             for own in eigene:
                 d = float(self._mujoco.mj_geomDistance(
                     self.model, self.data, int(gid), int(own), 1.0, None))
-                kleinster = min(kleinster, d)
+                if d < kleinster:
+                    kleinster, naechster = d, name
+        self._carry_gap_who = naechster
         return None if not np.isfinite(kleinster) else kleinster
+
+    def carried_world_gap_min(self):
+        """Schlechtester Abstand des getragenen Koerpers zur echten Welt (m).
+
+        :meth:`carried_world_gap` misst JETZT; diese Zahl haelt den
+        schlechtesten Moment der ganzen Fahrt fest.  Ein Abstand am Ziel
+        sagt nichts ueber den Weg: der Koerper kann mitten durch ein
+        Hindernis gefahren und am Ziel wieder frei sein -- und genau das
+        bemerkt sonst niemand, weil seine Kontakte abgeschaltet sind und
+        move_group nur den GEGLAUBTEN Koerper geprueft hat.
+        """
+        return self._carry_gap_min
+
+    def carried_world_gap_who(self) -> str:
+        """Name des Geoms, das dem getragenen Koerper am naechsten kam."""
+        return self._carry_gap_min_who
 
     def _robot_bodies(self) -> set:
         """Body-Ids des Roboters -- gegen ihn wird hier nicht geprueft."""
@@ -1229,6 +1268,10 @@ class TwinTaskSim:
         self._grasp_span = None
         self._grasp_misalign = None
         self._grasp_gap0 = None
+        # ``_carry_gap_min`` wird hier NICHT geloescht: es beschreibt die
+        # gerade beendete Fahrt, und abgeholt wird es nach dem Ablegen.
+        # Geloescht wird beim naechsten Griff.
+        self._carry_tick = 0
         # Hand the object back to physics at rest: restore its contacts and
         # clear any residual solver velocity accumulated while pinned.
         self._restore_object_contacts(label)
@@ -1370,6 +1413,28 @@ class TwinTaskSim:
                 and self._gripper_closing and self._fingers_settled()):
             self._grasp_gap0 = self._measure_gap(
                 self._graspable.get(self._grasped))
+        # Den SCHLECHTESTEN Moment der Fahrt festhalten: ein Abstand am
+        # Ziel sagt nichts ueber den Weg dorthin, und genau dort faehrt
+        # ein getragener Koerper ungehindert durch echtes Zeug (seine
+        # Kontakte sind aus).  Gemessen wird je AUFRUF: die Bewegungs-
+        # schicht ruft ``step_physics(1)`` je Wegpunkt, das ist die
+        # natuerliche Koernung.  (Ein Modulo auf Takte waere hier falsch --
+        # der Block laeuft einmal je Aufruf, nicht je Takt.)
+        if self._grasped is not None:
+            self._carry_tick += 1
+            jetzt = self.carried_world_gap()
+            if jetzt is not None:
+                # Erst zaehlen, wenn der Koerper die Auflage verlassen hat.
+                # Direkt nach dem Griff liegt er noch auf dem Tisch, und ein
+                # Abstand von null ist dort KEINE Aussage ueber die Fahrt --
+                # er wuerde das Minimum jeder Zelle auf 0 nageln.
+                if not self._carry_airborne:
+                    if jetzt > 0.005:
+                        self._carry_airborne = True
+                elif (self._carry_gap_min is None
+                      or jetzt < self._carry_gap_min):
+                    self._carry_gap_min = jetzt
+                    self._carry_gap_min_who = self._carry_gap_who
         gripper_targets = {
             joint: self._gripper_command * factor
             for joint, factor in self._gripper_follower_factors.items()
