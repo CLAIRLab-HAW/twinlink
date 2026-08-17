@@ -1029,7 +1029,7 @@ class TwinTaskSim:
             )
             mujoco = self._mujoco
             mujoco.mj_forward(self.model, self.data)
-        if not self._square_tilt(adr):
+        if not self._square_tilt(adr, self._graspable[label]):
             log.debug("%s zu stark geneigt -- die Pads koennen das nicht "
                       "ausrichten", label)
             return
@@ -1057,7 +1057,39 @@ class TwinTaskSim:
             label, best_dist, np.degrees(best_misalign), span * 1e3,
         )
 
-    def _square_tilt(self, adr: int) -> bool:
+    def _symmetry_axis(self, entry) -> Optional[np.ndarray]:
+        """Achse im KOERPERFRAME, um die der Koerper rotationssymmetrisch
+        ist -- oder ``None``, wenn er es um keine ist.
+
+        Ein Rotationskoerper hat um seine Achse keine LAGE: ein liegender
+        Stift, der um 39 Grad um sich selbst gerollt ist, ist von einem
+        ungerollten nicht zu unterscheiden.  :meth:`_square_tilt` las
+        bis 2026-08-17 die diskreten Koerperachsen, was fuer einen Quader
+        richtig ist und hier eine Schieflage erfindet, die es nicht gibt.
+
+        Streng: JEDES Geom muss mitspielen.  Der Henkel eines Bechers ist
+        eine Kapsel quer zur Bechertachse -- damit ist der Becher nicht
+        symmetrisch, und die Funktion sagt das (``None``).
+        """
+        mujoco = self._mujoco
+        achse = None
+        for gid in entry.get("geoms", ()):  # type: ignore[union-attr]
+            typ = int(self.model.geom_type[gid])
+            if typ == int(mujoco.mjtGeom.mjGEOM_SPHERE):
+                continue                       # um jede Achse symmetrisch
+            if typ not in (int(mujoco.mjtGeom.mjGEOM_CYLINDER),
+                           int(mujoco.mjtGeom.mjGEOM_CAPSULE)):
+                return None
+            R = np.zeros(9)
+            mujoco.mju_quat2Mat(R, self.model.geom_quat[gid])
+            eigen = R.reshape(3, 3)[:, 2]      # lokale z ist die Achse
+            if achse is None:
+                achse = eigen
+            elif abs(float(achse @ eigen)) < 0.999:
+                return None                    # zwei Achsen, keine Symmetrie
+        return achse
+
+    def _square_tilt(self, adr: int, entry=None) -> bool:
         """Pad-Squaring fuer die NEIGUNG -- das Gegenstueck zum Gierwinkel.
 
         Flache Backen, die sich um einen Koerper schliessen, richten ihn
@@ -1095,16 +1127,45 @@ class TwinTaskSim:
         # die der Senkrechten am naechsten liegt, AUF die Senkrechte
         # bringt.  Ein liegender Koerper bleibt liegen: dort ist die
         # naechste Achse eine andere, und die Drehung ist wieder klein.
+        sym = self._symmetry_axis(entry) if entry is not None else None
+        if sym is not None:
+            # Nur die Lage DIESER Achse zaehlt.  Ideal ist sie senkrecht
+            # (stehend) oder waagerecht (liegend) -- welches von beidem,
+            # entscheidet die kleinere Drehung.  Der Roll um sie herum ist
+            # keine Lage und wird nicht angefasst.
+            achse = R @ sym
+            hoch = float(np.clip(abs(achse[2]), 0.0, 1.0))
+            steh, lieg = float(np.arccos(hoch)), float(np.arcsin(hoch))
+            if min(steh, lieg) > np.radians(PAD_SQUARE_LIMIT_DEG):
+                return False
+            if steh <= lieg:
+                ziel = np.array([0.0, 0.0, 1.0 if achse[2] >= 0 else -1.0])
+            else:
+                flach = np.array([achse[0], achse[1], 0.0])
+                norm = float(np.linalg.norm(flach))
+                if norm < 1e-9:
+                    return True            # entartet: nichts auszurichten
+                ziel = flach / norm
+            winkel = min(steh, lieg)
+            return self._tilt_onto(adr, q, achse, ziel, winkel)
+
         k = int(np.argmax(np.abs(R[2, :])))
         achse = R[:, k] * (1.0 if R[2, k] >= 0 else -1.0)
         ziel = np.array([0.0, 0.0, 1.0])
         winkel = float(np.arccos(np.clip(float(achse @ ziel), -1.0, 1.0)))
         if np.degrees(winkel) > PAD_SQUARE_LIMIT_DEG:
             return False
+        return self._tilt_onto(adr, q, achse, ziel, winkel)
+
+    def _tilt_onto(self, adr: int, q, achse, ziel, winkel: float) -> bool:
+        """``achse`` auf ``ziel`` kippen -- die kleinstmoegliche Drehung."""
         if winkel < 1e-9:
             return True
         dreh = np.cross(achse, ziel)
-        dreh /= np.linalg.norm(dreh)
+        norm = float(np.linalg.norm(dreh))
+        if norm < 1e-9:
+            return True                    # parallel oder antiparallel
+        dreh = dreh / norm
         korrektur = np.array([np.cos(winkel / 2.0),
                               *(np.sin(winkel / 2.0) * dreh)])
         self.data.qpos[adr + 3 : adr + 7] = self._quat_mul(korrektur, q)

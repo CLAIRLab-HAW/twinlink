@@ -860,3 +860,62 @@ def test_the_worst_moment_of_the_carry_is_remembered():
 def test_without_a_carry_there_is_no_worst_moment():
     sim = _build()
     assert sim.carried_world_gap_min() is None
+
+
+# --------------------------------------------------------------------- #
+# Rotationssymmetrie: ein Roll um die eigene Achse ist KEINE Schieflage
+# --------------------------------------------------------------------- #
+ZYLINDER_XML = SCENE_XML.replace(
+    '<geom name="payload_geom" type="box" size="0.02 0.015 0.02"/>',
+    # ``zaxis`` legt die Zylinderachse auf die Welt-y -- der Koerper LIEGT.
+    # ``euler`` waere hier eine Falle: MuJoCo liest es in GRAD, "1.5708"
+    # haette den Zylinder um 1,6 Grad gekippt statt ihn hinzulegen.
+    '<geom name="payload_geom" type="cylinder" size="0.015 0.05"'
+    ' zaxis="0 1 0"/>',
+)
+
+
+class _ZylinderSim(TwinTaskSim):
+    def register_graspables(self) -> None:
+        self.register_graspable(
+            "payload", "payload_free", self._body_id("payload"),
+            np.array([0.015, 0.05, 0.015]),
+        )
+
+
+def _zylinder() -> _ZylinderSim:
+    model = mujoco.MjModel.from_xml_string(ZYLINDER_XML)
+    return _ZylinderSim(
+        model, SPEC, scene_prefix="", default_span=0.04,
+        gripper_follower_factors={}, gripper_linkage=StraightLinkage(),
+        home_pose={"arm_0_slide": 0.0},
+    )
+
+
+def _rollen(sim, grad: float) -> None:
+    """Den LIEGENDEN Zylinder um seine EIGENE Achse drehen (Welt-y)."""
+    w = np.radians(grad) / 2.0
+    adr = sim._graspable["payload"]["qpos"]
+    sim.data.qpos[adr + 3 : adr + 7] = np.array(
+        [np.cos(w), 0.0, np.sin(w), 0.0])
+    sim._mujoco.mj_forward(sim.model, sim.data)
+
+
+def test_a_lying_cylinder_rolled_about_its_own_axis_is_still_graspable():
+    """Ein Rotationskoerper hat um seine Achse keine Lage.
+
+    Gemessen am 2026-08-17 in der Suffizienz-Vorstudie: ``marker/pick``
+    scheiterte auf ALLEN Objektsprossen mit "zu stark geneigt".  Der
+    Marker lag korrekt (Zylinderachse waagerecht, Weltanteil 0,012),
+    war aber um 39,3 Grad um seine EIGENE Achse gerollt -- eine
+    Symmetrie, keine Schieflage.  ``_square_tilt`` las die diskreten
+    Koerperachsen, was fuer einen Quader richtig ist und fuer einen
+    Zylinder bedeutungslos.
+    """
+    sim = _zylinder()
+    adr = sim._graspable["payload"]["qpos"]
+    for grad in (0.0, 39.3, 75.0):
+        _rollen(sim, grad)
+        assert sim._square_tilt(adr, sim._graspable["payload"]), (
+            f"Roll um {grad} Grad um die eigene Achse als Schieflage "
+            f"abgelehnt -- der Koerper ist darum symmetrisch")
