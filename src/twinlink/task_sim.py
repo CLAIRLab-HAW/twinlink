@@ -249,6 +249,9 @@ class TwinTaskSim:
         # Closing span (m) of the captured face pair -- drives the finger
         # command width; None falls back to the default span.
         self._grasp_span: Optional[float] = None
+        #: Wie weit der Fang das Objekt beim Zupacken drehen musste (rad).
+        #: Siehe :meth:`grasp_misalign_deg`.
+        self._grasp_misalign: Optional[float] = None
         # Events raised outside step_physics (grasp/release on command) are
         # accumulated here and drained by the next step_physics call.
         self._event_acc = SimEvents()
@@ -905,6 +908,7 @@ class TwinTaskSim:
         self._grasped = label
         self._grasp_offset = (rel_pos, rel_quat)
         self._grasp_span = span
+        self._grasp_misalign = float(best_misalign)
         self._suspend_object_contacts(label)
         self._event_acc.grasp_acquired = label
         log.debug(
@@ -952,6 +956,31 @@ class TwinTaskSim:
         self.data.qpos[adr + 3 : adr + 7] = self._mat_to_quat(ziel)
         self._mujoco.mj_forward(self.model, self.data)
 
+    def grasp_misalign_deg(self):
+        """Wie schief das Objekt beim Zupacken stand (Grad), oder ``None``.
+
+        Die Pads richten ein leicht schiefes Objekt beim Schliessen aus --
+        bis zu :data:`GRASP_MAX_MISALIGN_DEG`.  Diese Drehung fand bisher
+        stillschweigend statt: die Zahl wurde berechnet, angewandt, auf
+        Debug-Ebene geloggt und verworfen.
+
+        Fuer eine Suffizienzmessung ist sie aber DER Fehler, den ein
+        grobes Modell erzeugt: der Roboter zielt nach seinem Quader, der
+        echte Koerper steht anders, und die Grosszuegigkeit des Fangs
+        buegelt es aus.  Am 2026-08-17 vom Owner in Foxglove gesehen --
+        "der Quader stand schief zum Greifer, moveit lehnt nicht ab,
+        sollte es aber".  move_group KANN dort nicht ablehnen: der
+        Backenkontakt ist beim Griff ausdruecklich freigegeben, sonst
+        waere jeder Griff ein Startzustand in Kollision.  Also muss die
+        Zahl hier heraus.
+
+        Auch :meth:`grasp_gap` verdeckt sie: der Spalt wird NACH dem
+        Ausrichten gemessen und sieht deshalb sauber aus.
+        """
+        if self._grasped is None or self._grasp_misalign is None:
+            return None
+        return float(np.degrees(self._grasp_misalign))
+
     def grasp_gap(self):
         """Kleinster Abstand Greifer<->gegriffener Koerper (m), oder ``None``.
 
@@ -993,6 +1022,7 @@ class TwinTaskSim:
         self._grasped = None
         self._grasp_offset = None
         self._grasp_span = None
+        self._grasp_misalign = None
         # Hand the object back to physics at rest: restore its contacts and
         # clear any residual solver velocity accumulated while pinned.
         self._restore_object_contacts(label)

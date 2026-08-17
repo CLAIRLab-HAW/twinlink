@@ -556,3 +556,51 @@ def test_the_check_sees_a_body_the_pads_pass_through():
     assert spalt < 0.0, (
         f"Abstand {spalt*1000:+.1f} mm -- eine Durchdringung muss negativ "
         f"sein")
+
+
+# --------------------------------------------------------------------- #
+# Die SCHIEFLAGE beim Fangen wird gemeldet, nicht nur weggeschnappt
+# (Owner 2026-08-17)
+#
+# "in mug/transport wird beim ersten abstrahierten Quader der Transport
+# positiv gemeldet, aber der Quader stand schief zum Greifer in moveit,
+# also lehnt moveit nicht ab -- sollte es aber, weil die Greiferbacken
+# dort nicht sauber greifen."
+#
+# Beides stimmt, und zusammen ergeben sie eine Luecke:
+#   * move_group KANN nicht ablehnen -- der Backenkontakt ist beim Griff
+#     ausdruecklich freigegeben (``_target_touchable``), sonst waere jeder
+#     Griff ein Startzustand in Kollision.
+#   * Der Zwilling SIEHT die Schieflage (``best_misalign``), schnappt sie
+#     weg und wirft die Zahl fort.  Der Griffspalt misst danach und sieht
+#     deshalb sauber aus.
+#
+# Damit war ausgerechnet der Fehler unsichtbar, den ein grobes Modell
+# erzeugt: der Roboter zielt nach dem Quader, der echte Koerper steht
+# anders, und die Grosszuegigkeit des Fangs (20 Grad) buegelt es aus.
+# Die Zahl muss heraus.
+# --------------------------------------------------------------------- #
+def test_the_capture_reports_how_far_it_had_to_square_the_object():
+    sim = _build()
+    _set_payload_yaw(sim, np.radians(12.0))
+    _approach(sim)
+    sim.command_gripper(close=True)
+    sim.step_physics(30)
+    assert sim.grasped_label() == "payload"
+    schief = sim.grasp_misalign_deg()
+    assert schief is not None
+    assert abs(schief) == pytest.approx(12.0, abs=1.5), (
+        f"gemeldet {schief} Grad -- der Fang musste 12 Grad ausbuegeln")
+
+
+def test_a_square_grasp_reports_nearly_zero():
+    sim = _build()
+    _approach(sim)
+    sim.command_gripper(close=True)
+    sim.step_physics(30)
+    assert abs(sim.grasp_misalign_deg()) < 1.0
+
+
+def test_without_a_grasp_there_is_no_misalignment_to_report():
+    sim = _build()
+    assert sim.grasp_misalign_deg() is None
