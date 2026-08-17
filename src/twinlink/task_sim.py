@@ -1151,6 +1151,63 @@ class TwinTaskSim:
         """
         return self._grasp_gap0
 
+    def carried_world_gap(self):
+        """Kleinster Abstand des GETRAGENEN Koerpers zur echten Welt (m).
+
+        Die Realitaetspruefung fuer den TRANSPORT.  Sie fehlte: der
+        getragene Koerper hat keine Kontakte (aus gutem Grund, siehe
+        :meth:`_suspend_object_contacts`), move_group prueft den
+        GEGLAUBTEN Koerper, und der ECHTE faehrt ungehindert durch die
+        echte Welt.  Die Richtung ist die gefaehrliche -- es wird nicht
+        "Wirklichkeit verbietet, was der Glaube erlaubt" gemeldet,
+        sondern als ERFOLG gezaehlt (Owner-Frage 2026-08-17 zum Aufbau).
+
+        Gezaehlt wird gegen alles, was weder zum Roboter noch zum
+        getragenen Koerper selbst gehoert: Tisch, Moebel, Hindernisse.
+        Der Boden bleibt draussen -- ihn beruehrt ein abgesetztes Objekt
+        bestimmungsgemaess.
+
+        ``< 0`` heisst: der echte Koerper steckt in echtem Zeug.
+        ``None`` heisst "nichts getragen, keine Aussage".
+
+        ``mj_geomDistance`` ist eine reine Abstandsabfrage und braucht die
+        abgeschalteten Kontakte nicht.
+        """
+        if self._grasped is None:
+            return None
+        entry = self._graspable.get(self._grasped)
+        if entry is None:
+            return None
+        eigene = set(entry["geoms"])
+        kleinster = float("inf")
+        for gid in range(self.model.ngeom):
+            if gid in eigene or gid in self._hand_geoms:
+                continue
+            if int(self.model.geom_bodyid[gid]) in self._robot_bodies():
+                continue
+            name = self._mujoco.mj_id2name(
+                self.model, self._mujoco.mjtObj.mjOBJ_GEOM, gid) or ""
+            if "ground" in name or int(self.model.geom_type[gid]) == int(
+                    self._mujoco.mjtGeom.mjGEOM_PLANE):
+                continue
+            for own in eigene:
+                d = float(self._mujoco.mj_geomDistance(
+                    self.model, self.data, int(gid), int(own), 1.0, None))
+                kleinster = min(kleinster, d)
+        return None if not np.isfinite(kleinster) else kleinster
+
+    def _robot_bodies(self) -> set:
+        """Body-Ids des Roboters -- gegen ihn wird hier nicht geprueft."""
+        if getattr(self, "_robot_body_cache", None) is None:
+            ids = set()
+            for bid in range(self.model.nbody):
+                bname = self._mujoco.mj_id2name(
+                    self.model, self._mujoco.mjtObj.mjOBJ_BODY, bid) or ""
+                if bname.startswith(self.spec.manipulator_prefixes):
+                    ids.add(bid)
+            self._robot_body_cache = ids
+        return self._robot_body_cache
+
     def _measure_gap(self, entry) -> Optional[float]:
         """Kleinster Abstand Hand<->Koerper JETZT (m), oder ``None``."""
         if entry is None or not self._hand_geoms:

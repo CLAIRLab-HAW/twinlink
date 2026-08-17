@@ -766,3 +766,70 @@ def test_a_badly_tipped_object_is_refused_too():
     sim.step_physics(30)
     assert sim.grasped_label() is None, (
         f"{PAD_SQUARE_LIMIT_DEG + 10:.0f} Grad Neigung wurden weggeschnappt")
+
+
+# --------------------------------------------------------------------- #
+# Der TRANSPORT wird gegen die Wirklichkeit geprueft (Owner 2026-08-17)
+#
+# "in mujoco laeuft die physik und es wird geprueft ob griff, transport
+# etc. tatsaechlich funktioniert haben" -- fuer den Transport stimmte das
+# nicht: der getragene Koerper hat keine Kontakte (aus gutem Grund, siehe
+# ``_suspend_object_contacts``), MoveIt prueft den GEGLAUBTEN Koerper,
+# und der ECHTE faehrt ungehindert durch die echte Welt.
+#
+# Die Richtung ist die gefaehrliche: es wird nicht "Wirklichkeit verbietet,
+# was der Glaube erlaubt" gemeldet, sondern als ERFOLG gezaehlt.
+#
+# Geprueft wird wie beim Griff -- ``mj_geomDistance``, eine reine
+# Abstandsabfrage, die die abgeschalteten Kontakte nicht braucht.
+# --------------------------------------------------------------------- #
+def _mit_wand(x: float):
+    xml = SCENE_XML.replace(
+        '</worldbody>',
+        f'<body name="wand" pos="{x} 0 0.08">'
+        '<geom name="wand_geom" type="box" size="0.05 0.05 0.05"/>'
+        '</body></worldbody>')
+    model = mujoco.MjModel.from_xml_string(xml)
+    return _GraspSim(model, SPEC, scene_prefix="", default_span=0.04,
+                     gripper_follower_factors={},
+                     gripper_linkage=StraightLinkage(),
+                     home_pose={"arm_0_slide": 0.0})
+
+
+def test_a_carried_object_clear_of_the_world_reports_a_positive_gap():
+    sim = _mit_wand(1.4)                      # weit weg
+    _approach(sim)
+    sim.command_gripper(close=True)
+    sim.step_physics(30)
+    assert sim.grasped_label() == "payload"
+    spalt = sim.carried_world_gap()
+    assert spalt is not None and spalt > 0.0, (
+        f"frei getragen, aber Abstand {spalt} -- die Pruefung sieht die "
+        f"Welt nicht")
+
+
+def test_a_carried_object_driven_into_the_world_reports_no_gap_left():
+    """Der eigentliche Fall: der echte Koerper faehrt durch echtes Zeug.
+
+    Ohne diese Zusicherung koennte die Pruefung schlicht immer positiv
+    melden, und der Test darueber bestuende trotzdem.
+    """
+    # Die Wand steht ABSEITS -- zwei ueberlappende Koerper stiessen sich
+    # vor dem Griff sonst physikalisch ab, und der Aufbau waere
+    # unphysikalisch.  Hineingefahren wird erst der GETRAGENE Koerper,
+    # dessen Kontakte aus sind: genau der Fall, den niemand bemerkt.
+    sim = _mit_wand(0.80)
+    _approach(sim)
+    sim.command_gripper(close=True)
+    sim.step_physics(30)
+    assert sim.grasped_label() == "payload"
+    sim.set_arm_command({"arm_0_slide": 0.63})   # TCP -> 0.80, in die Wand
+    sim.step_physics(60)
+    assert sim.carried_world_gap() <= 0.0, (
+        "der getragene Koerper steckt in der Wand und die Pruefung "
+        "meldet freien Raum")
+
+
+def test_without_a_carry_there_is_nothing_to_report():
+    sim = _build()
+    assert sim.carried_world_gap() is None
