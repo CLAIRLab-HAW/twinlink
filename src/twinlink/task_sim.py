@@ -895,6 +895,7 @@ class TwinTaskSim:
             )
             mujoco = self._mujoco
             mujoco.mj_forward(self.model, self.data)
+        self._square_tilt(adr)
         obj_pos = self.data.qpos[adr : adr + 3].copy()
         obj_quat = self.data.qpos[adr + 3 : adr + 7].copy()  # wxyz
         # Offset of the object in the TCP frame, reapplied while carrying.
@@ -910,6 +911,46 @@ class TwinTaskSim:
             "grasped %s (dist %.3f m, squared %.0f deg, span %.0f mm)",
             label, best_dist, np.degrees(best_misalign), span * 1e3,
         )
+
+    def _square_tilt(self, adr: int) -> None:
+        """Pad-Squaring fuer die NEIGUNG -- das Gegenstueck zum Gierwinkel.
+
+        Flache Backen, die sich um einen Koerper schliessen, richten ihn
+        aus: seine beruehrten Flaechen legen sich flach an die Pads.  Fuer
+        den GIERWINKEL tut das der Schnapp darueber seit jeher; die
+        Neigung blieb, wie sie war, und das Objekt wurde SCHIEF getragen.
+
+        Am 2026-08-17 in der Suffizienz-Vorstudie aufgelaufen (Owner sah es
+        in Foxglove: "der griff sieht aus als sei der greifer nicht genug
+        geschlossen"): ein Stift lehnt im Koecher 6 Grad, wurde 6 Grad
+        schief getragen und passte danach in keinen Becher mehr -- move_group
+        meldete ``RRTConnect: Unable to sample any valid states for goal
+        tree``.  Die Geometrie war richtig, nur die Mechanik unvollstaendig.
+
+        Geschnappt wird auf die NAECHSTE achsparallele Lage, nicht stur auf
+        senkrecht: ein liegender Koerper bleibt sonst nicht liegen, sondern
+        wuerde beim Griff aufgestellt -- eine Bewegung, die es nicht gibt.
+        Die Drehung ist damit immer die kleinstmoegliche, und fuer einen
+        Wuerfel, der ohnehin achsparallel steht, ist sie null (der
+        Wuerfelturm bewegt sich nicht).
+        """
+        q = self.data.qpos[adr + 3 : adr + 7].copy()
+        R = np.zeros(9)
+        self._mujoco.mju_quat2Mat(R, q)
+        R = R.reshape(3, 3)
+        # Jede Spalte auf die naechste Weltachse schnappen, danach wieder
+        # orthonormalisieren (Gram-Schmidt), damit eine gueltige Drehung
+        # herauskommt und keine Scherung.
+        ziel = np.zeros((3, 3))
+        frei = [0, 1, 2]
+        for spalte in np.argsort([-abs(R[:, k]).max() for k in range(3)]):
+            achse = max(frei, key=lambda a: abs(R[a, spalte]))
+            ziel[achse, spalte] = np.sign(R[achse, spalte]) or 1.0
+            frei.remove(achse)
+        if np.linalg.det(ziel) < 0:
+            ziel[:, 2] *= -1.0
+        self.data.qpos[adr + 3 : adr + 7] = self._mat_to_quat(ziel)
+        self._mujoco.mj_forward(self.model, self.data)
 
     def _release(self) -> None:
         if self._grasped is None:

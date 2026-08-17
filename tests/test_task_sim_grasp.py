@@ -437,3 +437,65 @@ def test_a_body_that_is_wide_everywhere_is_still_refused():
     sim.command_gripper(close=True)
     sim.step_physics(30)
     assert sim.grasped_label() is None
+
+
+# --------------------------------------------------------------------- #
+# Pad-Squaring auch fuer die NEIGUNG (Owner-Befund 2026-08-17)
+#
+# "der griff sieht bei moveit so aus als sei der greifer nicht genug
+# geschlossen ... die pads machen den stift beim schliessen automatisch
+# senkrecht gerade."  Genau das tat der Zwilling bisher nur fuer den
+# GIERWINKEL: er schweisste das Objekt in der Neigung fest, in der er es
+# fing.  Ein Stift, der im Koecher 6 Grad lehnt, wurde also 6 Grad schief
+# GETRAGEN -- und passte in move_group in keinen Becher mehr
+# (``RRTConnect: Unable to sample any valid states for goal tree``).
+#
+# Flache Backen, die sich um einen schlanken Koerper schliessen, richten
+# ihn auf.  Das ist dieselbe Mechanik wie beim Gierwinkel, nur um eine
+# andere Achse -- und es gehoert in den Zwilling, weil DER die Wahrheit
+# haelt und move_group sie uebernimmt.
+# --------------------------------------------------------------------- #
+def _set_payload_tilt(sim, tilt_rad: float) -> None:
+    """Kippt die Nutzlast um die x-Achse (aus der Senkrechten)."""
+    adr = sim._graspable["payload"]["qpos"]
+    sim.data.qpos[adr + 3 : adr + 7] = np.array(
+        [np.cos(tilt_rad / 2), np.sin(tilt_rad / 2), 0.0, 0.0])
+    sim._mujoco.mj_forward(sim.model, sim.data)
+
+
+def _tilt_of(sim) -> float:
+    adr = sim._graspable["payload"]["qpos"]
+    w, x, y, z = sim.data.qpos[adr + 3 : adr + 7]
+    # Winkel der Koerper-z-Achse gegen die Welt-z-Achse.
+    zz = 1 - 2 * (x * x + y * y)
+    return float(np.degrees(np.arccos(min(1.0, abs(zz)))))
+
+
+def test_the_pads_square_a_tilted_object_upright():
+    sim = _build()
+    _set_payload_tilt(sim, np.radians(8.0))
+    assert _tilt_of(sim) == pytest.approx(8.0, abs=0.5)
+    _approach(sim)
+    sim.command_gripper(close=True)
+    sim.step_physics(30)
+    assert sim.grasped_label() == "payload"
+    assert _tilt_of(sim) < 1.0, (
+        f"nach dem Griff noch {_tilt_of(sim):.1f} Grad schief -- die Backen "
+        f"richten den Koerper nicht auf")
+
+
+def test_squaring_snaps_to_the_NEAREST_axis_not_to_upright():
+    """Ein LIEGENDER Koerper bleibt liegen.
+
+    Wer stur auf senkrecht schnappt, stellt einen liegenden Stift beim
+    Griff auf -- eine Bewegung, die es nicht gibt, und der Marker der
+    Vorstudie liegt in zwei von drei Zellen.
+    """
+    sim = _build()
+    _set_payload_tilt(sim, np.radians(88.0))     # fast waagerecht
+    _approach(sim)
+    sim.command_gripper(close=True)
+    sim.step_physics(30)
+    assert sim.grasped_label() == "payload"
+    assert _tilt_of(sim) > 89.0, (
+        f"der liegende Koerper wurde auf {_tilt_of(sim):.1f} Grad gedreht")
