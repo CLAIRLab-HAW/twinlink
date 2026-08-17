@@ -192,6 +192,7 @@ class TwinTaskSim:
         home_pose: Dict[str, float],
         render_size: Tuple[int, int] = (640, 480),
         actuated_gripper: bool = False,
+        gripper_ramp_ticks: int = 0,
     ) -> None:
         import mujoco
 
@@ -251,6 +252,24 @@ class TwinTaskSim:
         self._actuated_gripper = bool(actuated_gripper)
         #: follower joint -> actuator id, filled only in the actuated regime.
         self._gripper_actuators: Dict[str, int] = {}
+        #: Ueber wie viele Takte das Zufahren im nicht-aktuierten Regime
+        #: SICHTBAR laeuft.  ``0`` = aus, der Bestandsweg: die Gelenke
+        #: stehen im ersten Substep auf dem Ziel, im Bild springt die Hand
+        #: binaer auf und zu.
+        #:
+        #: Nur der WEG aendert sich, nie das Ziel -- und die Vorgabe bleibt
+        #: aus, weil eine laengere Schliessbewegung Zeitverhalten und damit
+        #: Messwerte verschiebt.  Fuer Aufnahmen ausdruecklich einschalten
+        #: (``scripts/suffizienz/video_run.py``).
+        self._gripper_ramp_ticks = max(0, int(gripper_ramp_ticks))
+        #: Winkel, bei dem die laufende Rampe begonnen hat, und wie viele
+        #: Takte ihr noch fehlen.
+        self._gripper_ramp_from: float = 0.0
+        self._gripper_ramp_left: int = 0
+        self._gripper_ramp_goal: Optional[float] = None
+        #: Der Winkel, der in diesem Takt WIRKLICH geschrieben wurde -- das,
+        #: was der Renderer zeigt.  Ohne Rampe immer der Befehl.
+        self._gripper_applied: float = float(self._gripper_open)
 
         self._joint_qpos: Dict[str, int] = {}
         self._joint_dof: Dict[str, int] = {}
@@ -1496,11 +1515,15 @@ class TwinTaskSim:
                       or jetzt < self._carry_gap_min):
                     self._carry_gap_min = jetzt
                     self._carry_gap_min_who = self._carry_gap_who
-        gripper_targets = {
-            joint: self._gripper_command * factor
-            for joint, factor in self._gripper_follower_factors.items()
-        }
         for _ in range(int(n_ticks)):
+            # EINMAL je Takt, nicht je Gelenk: die Rampe ist ein Zustand,
+            # der weiterlaeuft, und die Follower muessen denselben Winkel
+            # sehen -- sonst stehen die beiden Backen verschieden weit.
+            winkel = self._gripper_tick_angle()
+            gripper_targets = {
+                joint: winkel * factor
+                for joint, factor in self._gripper_follower_factors.items()
+            }
             # Where the fingers stand as this tick begins -- the actuated
             # regime ramps its setpoint from here (see _drive_gripper).
             start = (
@@ -1528,6 +1551,40 @@ class TwinTaskSim:
                 mujoco.mj_step(self.model, self.data)
                 self._scan_contacts(events)
         return events
+
+    def gripper_angle_applied(self) -> float:
+        """Der Winkel, der zuletzt WIRKLICH geschrieben wurde.
+
+        Nicht dasselbe wie :meth:`gripper_angle`: das ist der BEFEHL.
+        Waehrend einer sichtbaren Rampe laufen die beiden auseinander,
+        und was man im Bild sieht, ist dieser hier.
+        """
+        return float(self._gripper_applied)
+
+    def _gripper_tick_angle(self) -> float:
+        """Den Greiferwinkel dieses Takts liefern und die Rampe fortschreiben.
+
+        Ohne Rampe (Vorgabe) ist das schlicht der Befehl -- byte-identisch
+        zum Bestandsweg.  Mit Rampe wandert der Winkel ueber
+        ``gripper_ramp_ticks`` Takte vom Stand beim Befehlswechsel zum
+        Ziel; das Ziel selbst aendert sich nie.
+        """
+        ziel = float(self._gripper_command)
+        if self._actuated_gripper or not self._gripper_ramp_ticks:
+            self._gripper_applied = ziel
+            return ziel
+        if self._gripper_ramp_goal is None or ziel != self._gripper_ramp_goal:
+            # Neuer Befehl: von dort losfahren, wo die Finger STEHEN.
+            self._gripper_ramp_from = float(self._gripper_applied)
+            self._gripper_ramp_goal = ziel
+            self._gripper_ramp_left = self._gripper_ramp_ticks
+        if self._gripper_ramp_left <= 0:
+            self._gripper_applied = ziel
+            return ziel
+        self._gripper_ramp_left -= 1
+        rest = self._gripper_ramp_left / float(self._gripper_ramp_ticks)
+        self._gripper_applied = ziel + rest * (self._gripper_ramp_from - ziel)
+        return self._gripper_applied
 
     def _drive_gripper(
         self, start: Dict[str, float], targets: Dict[str, float], alpha: float

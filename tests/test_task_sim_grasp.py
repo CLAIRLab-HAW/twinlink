@@ -919,3 +919,46 @@ def test_a_lying_cylinder_rolled_about_its_own_axis_is_still_graspable():
         assert sim._square_tilt(adr, sim._graspable["payload"]), (
             f"Roll um {grad} Grad um die eigene Achse als Schieflage "
             f"abgelehnt -- der Koerper ist darum symmetrisch")
+
+
+# --------------------------------------------------------------------- #
+# Sichtbare Greiferrampe (fuer Aufnahmen, nicht fuer die Messung)
+# --------------------------------------------------------------------- #
+def _mit_rampe(takte: int):
+    model = mujoco.MjModel.from_xml_string(SCENE_XML)
+    return _GraspSim(
+        model, SPEC, scene_prefix="", default_span=0.04,
+        gripper_follower_factors={}, gripper_linkage=StraightLinkage(),
+        home_pose={"arm_0_slide": 0.0}, gripper_ramp_ticks=takte,
+    )
+
+
+def test_without_a_ramp_the_fingers_are_at_their_target_after_one_tick():
+    """Der Bestandsweg -- jede Messung der Studie haengt daran."""
+    sim = _mit_rampe(0)
+    sim.command_gripper(close=True)
+    sim.step_physics(1)
+    assert sim.gripper_angle_applied() == pytest.approx(sim._gripper_command)
+
+
+def test_a_ramp_moves_the_fingers_through_intermediate_angles():
+    """Fuer ein Video muss das Zufahren SICHTBAR sein.
+
+    Ohne Rampe schreibt ``step_physics`` die Greifergelenke im ersten
+    Substep auf den Zielwert -- im Bild springt die Hand binaer auf und
+    zu.  Die Rampe aendert nur den WEG, nicht das Ziel.
+    """
+    sim = _mit_rampe(10)
+    offen = sim.gripper_angle_applied()
+    sim.command_gripper(close=True)
+    ziel = sim._gripper_command
+    zwischen = []
+    for _ in range(5):
+        sim.step_physics(1)
+        zwischen.append(sim.gripper_angle_applied())
+    assert all(min(offen, ziel) <= w <= max(offen, ziel) for w in zwischen)
+    assert len(set(round(w, 6) for w in zwischen)) > 1, (
+        f"Winkel bleibt stehen: {zwischen} -- keine sichtbare Bewegung")
+    assert zwischen[-1] != pytest.approx(ziel), "nach der halben Rampe schon da"
+    sim.step_physics(6)
+    assert sim.gripper_angle_applied() == pytest.approx(ziel), "Ziel nicht erreicht"
