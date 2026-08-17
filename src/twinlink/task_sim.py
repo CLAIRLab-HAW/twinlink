@@ -285,6 +285,7 @@ class TwinTaskSim:
         #: :meth:`_pad_heights`) -- getrennt vom Kollisions-Scratch,
         #: damit die beiden sich nicht gegenseitig ueberschreiben.
         self._pad_scratch = None
+        self._pad_breite = None
         self._tcp_body_id = self._body_id(spec.tcp_body)
         self._graspable: Dict[str, Dict] = {}
         self.register_graspables()
@@ -975,7 +976,26 @@ class TwinTaskSim:
         ref[2] = oben - self._default_span / 2.0
         return ref
 
-    def _span_between_pads(self, entry, ref, obj_yaw):
+    def _pad_half_width(self) -> float:
+        """Halbe Breite eines Pads QUER zur Schliessrichtung (m).
+
+        Am kompilierten Modell gemessen statt gepflegt: 12,9 mm fuer den
+        RG6 (``rg6_*_inner_finger`` an geschlossener Hand).  Sie ist die
+        Toleranz, mit der die TCP-Achse ein Geom noch trifft.
+        """
+        if self._pad_breite is not None:
+            return self._pad_breite
+        _pos, mat = self.tcp_pose()
+        quer = mat[:, 0]
+        breiten = []
+        for gid in self._hand_geoms:
+            halb = self.model.geom_aabb[gid][3:]
+            R = self.data.geom_xmat[gid].reshape(3, 3)
+            breiten.append(float(np.abs(R.T @ quer) @ halb))
+        self._pad_breite = float(np.median(breiten)) if breiten else 0.0
+        return self._pad_breite
+
+    def _span_between_pads(self, entry, ref, obj_yaw, tcp_xy=None):
         """Breite des Koerpers auf Backenhoehe, entlang seiner beiden
         waagerechten Achsen -- oder ``None``, wenn dort nichts steht.
 
@@ -1009,6 +1029,25 @@ class TwinTaskSim:
             reichweite = np.abs(R) @ halb
             if basis[2] + reichweite[2] < lo_z or basis[2] - reichweite[2] > hi_z:
                 continue                      # liegt nicht auf Backenhoehe
+            if tcp_xy is not None:
+                # ...und es muss WAAGERECHT zwischen den Backen liegen.
+                # Ohne diese Pruefung zaehlte jedes Geom des Koerpers, das
+                # zufaellig auf Backenhoehe steht -- auch eines 50 mm
+                # daneben, das die Pads gar nicht erreichen.  Genau daran
+                # gelang der Deckel mit aussermittigem Knauf noch auf der
+                # groebsten Sprosse (gemessen 2026-08-17): die Backen
+                # standen ueber der nackten Scheibe und der Fang mass den
+                # Knauf.
+                tol = self._pad_half_width()
+                daneben = False
+                for i, achse in enumerate(achsen):
+                    d = abs(float((basis - np.array(
+                        [tcp_xy[0], tcp_xy[1], basis[2]])) @ achse))
+                    if d > float(np.abs(R.T @ achse) @ halb) + tol:
+                        daneben = True
+                        break
+                if daneben:
+                    continue
             gefunden = True
             for i, achse in enumerate(achsen):
                 mitte = float(basis @ achse)
@@ -1060,7 +1099,8 @@ class TwinTaskSim:
             # war.  Damit konnte die Objektachse ueber den Griff gar nicht
             # binden.
             achsen = self._horizontal_axes(entry)
-            lokal = self._span_between_pads(entry, ref, achsen[0])
+            lokal = self._span_between_pads(entry, ref, achsen[0],
+                                            tcp_xy=tcp_pos[:2])
             spannen = (lokal if lokal is not None
                        else (2.0 * float(half[0]), 2.0 * float(half[1])))
             candidates = []
