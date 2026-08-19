@@ -1,8 +1,8 @@
 """Mirror perceived beliefs into the MuJoCo twin (real mode, display only).
 
-Aus ``hrl.env.belief_mirror`` extrahiert (2026-07-31): die Mechanik ist
-roboter- und task-agnostisch, nur *welches* Weltmodell die Zustände liefert
-bleibt bei der App-Schicht (siehe ``hrl.env.belief_mirror.CubeTwinMirror``).
+Die Mechanik ist roboter- und task-agnostisch; nur *welches* Weltmodell die
+Zustände liefert, bleibt bei der App-Schicht (siehe
+``hrl.env.belief_mirror.CubeTwinMirror``).
 
 In ``--real`` runs the sim's object bodies are *not* physics ground truth --
 the real objects in the real world are.  Historically the sim bodies simply

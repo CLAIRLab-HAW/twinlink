@@ -361,7 +361,7 @@ class ZenohUplink:
     pinned in a robot_contract profile from ``ros2 topic info --verbose``.
 
         uplink = ZenohUplink("tcp/10.42.42.159:7447")
-        pub = uplink.publisher("/twin/plan_goal", "sensor_msgs/msg/JointState").start()
+        pub = uplink.publisher("/twin/arm_cmd", "std_msgs/msg/String").start()
         pub.publish(msg)          # rosbags message object, CDR on the wire
     """
 

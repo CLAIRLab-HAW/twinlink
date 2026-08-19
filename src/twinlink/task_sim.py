@@ -1,7 +1,7 @@
 """Task-Simulation auf dem kompilierten Robotermodell (roboter-agnostisch).
 
-Aus ``hrl.env.sim`` extrahiert (2026-07-31).  Das Ausführungsmodell ist das
-von :class:`twinlink.sinks.mujoco_sink.MujocoSink` mit ``physics=True``:
+Das Ausführungsmodell ist das von
+:class:`twinlink.sinks.mujoco_sink.MujocoSink` mit ``physics=True``:
 *kommandierte Gelenke werden in qpos geschrieben und jeden Substep gehalten
 (qvel=0), während alles andere der Physik gehorcht*.
 
@@ -41,13 +41,12 @@ class GripperLinkage(Protocol):
     selbst gehört dem Roboter, nicht der Sim.  ``husky_sdk.sim`` reicht dafür
     ``profile.gripper.linkage`` durch, wo sie aus der Getriebegeometrie folgt.
 
-    Warum als Protokoll und nicht als eigene Klasse.  Bis 2026-08-16 bekam die
-    Sim statt der Abbildung zwei Anker (``gripper_open`` 0.0, ``gripper_closed``
-    0.6) und interpolierte selbst linear dazwischen -- die DRITTE Kopie
-    derselben Rechnung, neben ``plan_bridge.plan_server`` und dem
-    C++-Treiber ``rg6_control``.  Alle drei Anker-Paare waren falsch (die
-    offene Hand stand für 93,7 mm statt 159 mm), und weil jede Kopie für sich
-    gerundet rechnete, hätte das Korrigieren einer einzelnen die anderen erst
+    Warum die Abbildung und nicht zwei Anker.  Bekäme die Sim statt der
+    Abbildung nur ``gripper_open``/``gripper_closed`` und interpolierte linear
+    dazwischen, wäre das eine weitere Kopie derselben Rechnung neben
+    ``plan_bridge.plan_server``.  Geschätzte Anker-Paare liegen daneben (die
+    offene Hand stünde für 93,7 mm statt 159 mm), und weil jede Kopie für sich
+    gerundet rechnet, würde das Korrigieren einer einzelnen die anderen erst
     recht auseinandergetrieben.  Eine vierte Kopie hier wäre derselbe Fehler
     noch einmal; ``twinlink`` hängt bewusst nicht an ``robot_contract``, also
     wird die Abbildung übergeben.
@@ -100,7 +99,7 @@ class RobotSimSpec:
     #: Die halbe Padbreite wird nur ueber sie gemessen: am 2026-08-19 lag der
     #: Median ueber die ganze Hand auf einem Hebel (39,2 mm statt 6,8 mm), und
     #: die Fangtoleranz war damit dreimal zu gross.  Leer = nicht konfiguriert
-    #: (dann faellt die Messung auf die Hand zurueck, wie frueher).
+    #: (dann faellt die Messung auf die ganze Hand zurueck).
     #: Körper, dessen Pose als TCP gilt.
     tcp_body: str
     #: Gelenke der Planungsgruppe, in SRDF-Reihenfolge.
@@ -174,7 +173,7 @@ def _wrap_quarter(angle: float) -> float:
 class TwinTaskSim:
     """MuJoCo scene + twin execution semantics for a manipulation task.
 
-    The generic half of what used to be ``hrl.env.sim.StackCubesSim``: joint
+    The generic half of a task sim: joint
     indexing, contact classification, the perceived-obstacle pool, kinematic
     grasping, stepping, the goal-state collision gate and the render/camera
     plumbing.  Task knowledge enters through exactly two hooks
@@ -220,10 +219,10 @@ class TwinTaskSim:
         #: Präfix abgeleitet, den der Konstruktor bekommen hat -- nicht aus den
         #: Modulkonstanten ``OBSTACLE_BODY_PREFIX`` / ``DISTRACTOR_BODY_PREFIX``
         #: (die sind auf ``hrl_`` festgenagelt und existieren nur noch für
-        #: Altkonsumenten, die sie direkt importieren).  Bis 2026-08-01 war der
-        #: Präfix nur halb verdrahtet: Render-Trennung folgte ihm, Klassifikation
-        #: und Pool-Indizierung nicht -- eine zweite App wäre still blind für
-        #: die gesamte Hindernisklasse gewesen (siehe
+        #: Altkonsumenten, die sie direkt importieren).  Der Präfix muss GANZ
+        #: verdrahtet sein: folgte ihm nur die Render-Trennung, nicht aber
+        #: Klassifikation und Pool-Indizierung, wäre eine zweite App still
+        #: blind für die gesamte Hindernisklasse (siehe
         #: ``tests/test_task_sim.py::test_scene_prefix_drives_classification``).
         #: Anders als bei der Render-Trennung ist ``scene_prefix=""`` hier
         #: harmlos: die abgeleiteten Werte (``"obstacle_"`` / ``"distractor_"``)
@@ -563,9 +562,9 @@ class TwinTaskSim:
         own root.  Measured on the a200-0553 scene 2026-08-16: 45 of 58 bodies
         under ``base_link``, every furniture body a root of its own.
 
-        The rule used to be the inverse one -- "everything that does NOT carry
-        the app's scene prefix is robot" -- and that made every body an app
-        placed under a name of its own invisible to RGB *and* depth, silently:
+        Deliberately not the inverse rule -- "everything that does NOT carry
+        the app's scene prefix is robot" -- which makes every body an app
+        places under a name of its own invisible to RGB *and* depth, silently:
         the cameras then see the surface behind it and a plausible-looking
         point cloud comes back without the object in it.
         """
@@ -814,10 +813,10 @@ class TwinTaskSim:
 
         Das ist die Grösse, die tatsächlich ins Modell geschrieben wird -- und
         damit die, an der sich prüfen lässt, ob der Zwilling die Hand dort
-        stehen hat, wo die Getriebekinematik sie verlangt.  Bis 2026-08-16
-        rechnete :meth:`command_gripper` sie aus einer eigenen Geraden aus und
-        landete bei 50 mm Griffweite auf 0,43 statt 0,32 rad; sichtbar war das
-        von aussen nur, weil :meth:`gripper_width_m` dieselbe Gerade rückwärts
+        stehen hat, wo die Getriebekinematik sie verlangt.  Rechnete
+        :meth:`command_gripper` sie aus einer eigenen Geraden, landete sie bei
+        50 mm Griffweite auf 0,43 statt 0,32 rad; von aussen unsichtbar, weil
+        :meth:`gripper_width_m` dieselbe Gerade rückwärts
         ging und den Fehler damit zudeckte.
         """
         return float(self._gripper_command)
@@ -1007,9 +1006,9 @@ class TwinTaskSim:
 
         Gemessen wird ueber ``_pad_geoms``, NICHT ueber die ganze Hand: dort
         liegen auch Gehaeuse (41,8 mm), Bracket (76,3 mm) und die Hebel
-        (39,2 mm), und der Median landete nach dem Modelltausch auf einem
-        Hebel.  Bis 2026-08-19 stand hier 12,9 mm -- ein Wert, den die
-        Geom-Mischung des alten Modells zufaellig hergab.
+        (39,2 mm), ueber die ganze Hand landet der Median auf einem Hebel.
+        Ein so gewonnener Wert (12,9 mm) ist ein Artefakt der Geom-Mischung,
+        keine Padbreite.
         """
         if self._pad_breite is not None:
             return self._pad_breite

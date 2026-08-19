@@ -4,9 +4,9 @@ Feeds on recorded ``tf2_msgs/TFMessage`` data (rosbags/MCAP replay, foxglove
 captures) and answers "map points from frame A into frame B at time t" —
 including multi-hop chains and linear/slerp interpolation between samples.
 
-Extracted from ``apps/octomap_explorer`` in the Phase-6 refactor (its local
-copy now imports from here) and rewritten scipy-free to keep twinlink's core
-dependency-light (numpy only).
+Deliberately scipy-free to keep twinlink's core dependency-light (numpy
+only); ``apps/octomap_explorer`` imports it from here rather than keeping a
+copy.
 
 Note the complement in :class:`twinlink.RobotState`: the state keeps only the
 *latest* transform per edge (live-twin use); this buffer keeps *time series*

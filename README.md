@@ -112,6 +112,13 @@ twinlink/
                     camera intrinsics/extrinsics) for task twins
   tf_buffer.py      offline TF tree with BFS path lookup + time interpolation
                     (rosbags/MCAP/foxglove captures; numpy-only, no ROS)
+  task_sim.py       TwinTaskSim — MuJoCo scene + twin execution semantics for a
+                    manipulation task (joint indexing, contact classification,
+                    perceived-obstacle pool, kinematic grasping, goal-state
+                    collision gate, render/camera plumbing)
+  display_mirror.py mirror perceived beliefs into the twin (real mode, display
+                    only — the real world stays ground truth)
+  testing.py        fixtures and helpers for tests that need a twin
   sources/
     ros2.py         live ROS 2 (lazy rclpy; subclass for other middleware)
     foxglove.py     live via foxglove_bridge WebSocket (FoxgloveSource; no ROS, CDR)
@@ -131,6 +138,19 @@ Runnable examples and robot mapping configs live in the separate
 
 ## Design notes
 
+- **Grasping is kinematic, and judged at the pads.** `TwinTaskSim` closes the
+  gripper over several ticks and decides a grasp from what is actually between
+  the **gripping surfaces** (`pad_geoms`, the RG6's `flex_finger`), not from
+  the whole hand: a median over every gripper geom lands on a lever (39.2 mm
+  instead of 6.8 mm of half pad width) and makes the catch tolerance three
+  times too large. Tilted objects are squared by the closing pads only as far
+  as the pads can align them, and the carried object is checked against the
+  real world rather than assumed to follow the hand.
+- **The width↔joint mapping is not twinlink's to invent.** The sim takes the
+  robot's own mapping through `profile.gripper.linkage` (a generated gear
+  table) and reports the commanded finger opening in metres, so a real gripper
+  can hold what the twin holds. A locally interpolated pair of anchors would be
+  another copy of a calculation that must exist exactly once.
 - **Threading**: sources run in background threads and only *write* state; sinks
   are ticked from the main thread (OpenGL / macOS windowing must be on the main
   thread). State access is guarded by a single re-entrant lock.

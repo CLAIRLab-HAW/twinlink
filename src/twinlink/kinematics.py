@@ -1,8 +1,7 @@
 """Kinematics utilities over a twin MuJoCo model (robot-agnostic).
 
-Extracted from ``hrl.planning.ik`` (task-refactor 2026-07-23) so every task
-app can turn Cartesian TCP targets into joint-space goals for the established
-MoveIt interface.  The class is a *kinematics utility only*: it never produces
+Turns Cartesian TCP targets into joint-space goals for the MoveIt interface,
+for any task app.  The class is a *kinematics utility only*: it never produces
 trajectories -- the collision-free path between configurations remains
 MoveIt's job.
 

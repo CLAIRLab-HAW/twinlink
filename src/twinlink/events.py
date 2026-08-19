@@ -1,7 +1,6 @@
 """Twin physics events -- the record every task app reads its rewards from.
 
-Extracted verbatim from ``hrl.env.sim`` (task-refactor 2026-07-23): the event
-record is twin-layer vocabulary (what happened inside the simulated mirror of
+The event record is twin-layer vocabulary (what happened inside the simulated mirror of
 the robot), not task vocabulary -- every manipulation app that steps a twin
 wants exactly these fields.  ``grasp_acquired``/``grasp_lost`` carry the
 *object identifier* the task layer uses (hrl: the cube colour).

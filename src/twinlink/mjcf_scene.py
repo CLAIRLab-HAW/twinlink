@@ -1,8 +1,7 @@
 """Reusable MJCF scene building blocks for task twins (robot-agnostic).
 
-Extracted from ``hrl.env.scene`` (task-refactor 2026-07-23): every task app
-that augments the compiled robot model via the save-XML-and-recompile
-round-trip needs the same primitives --
+Every task app that augments the compiled robot model via the
+save-XML-and-recompile round-trip needs the same primitives --
 
 * :func:`add_obstacle_pool` -- pre-allocated, runtime-mutated collision boxes
   for *perceived* obstacles (MuJoCo models cannot grow after compilation),
@@ -35,7 +34,7 @@ DEFAULT_SCENE_PREFIX = "hrl_"
 #: Kept for backward compatibility: the exact prefixes existing consumers may
 #: already import and compare against directly (unchanged values).
 #: NICHT in twinlink selbst verwenden: ``TwinTaskSim`` leitet seine beiden
-#: Hindernis-Präfixe seit 2026-08-01 aus dem Konstruktor-``scene_prefix`` ab.
+#: Hindernis-Präfixe aus dem Konstruktor-``scene_prefix`` ab.
 #: Wer hier wieder vergleicht, nagelt die Bibliothek auf ``hrl_`` fest und
 #: macht jede zweite App still blind für ihre Hindernisse.
 OBSTACLE_BODY_PREFIX = f"{DEFAULT_SCENE_PREFIX}obstacle_"
