@@ -7,6 +7,17 @@ die Versionierung [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+- **`_matrix_to_quat` gegen die Drift abgesichert.** Die Funktion steht Zeile
+  für Zeile ein zweites Mal im Workspace
+  (`robot_contract.twin_protocol.mat_to_quat_xyzw`). Das ist der Preis der
+  Schichtentscheidung, dass twinlink nicht an `robot_contract` hängt — die
+  Entscheidung bleibt, die stille Drift nicht: `tests/
+  test_quat_parity_with_robot_contract.py` vergleicht beide Fassungen an den
+  Zweigen, die die Verzweigung über die größte Diagonale wirklich treffen
+  (180° um x/y/z, Top-Down-Greifpose, kleinwinklig). Der Test überspringt sich
+  sauber, wenn `robot_contract` fehlt — in twinlinks eigener CI der Normalfall
+  und gerade der Punkt der Schichtentscheidung.
+
 ## [0.2.0] - 2026-08-19 (Doku-Abgleich)
 
 - **Die README kannte `TwinTaskSim` nicht.** Die Paketübersicht listete elf

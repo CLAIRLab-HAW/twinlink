@@ -39,7 +39,15 @@ def _quat_to_matrix(q: np.ndarray) -> np.ndarray:
 
 
 def _matrix_to_quat(m: np.ndarray) -> np.ndarray:
-    """3x3 rotation matrix -> xyzw quaternion (Shepperd's method)."""
+    """3x3 rotation matrix -> xyzw quaternion (Shepperd's method).
+
+    Diese Funktion gibt es ein zweites Mal, Zeile fuer Zeile gleich:
+    ``robot_contract.twin_protocol.mat_to_quat_xyzw``.  Das ist der Preis der
+    Schichtentscheidung, dass ``twinlink`` nicht an ``robot_contract`` haengt
+    (s. ``task_sim.py``).  Damit die beiden nicht driften, vergleicht
+    ``tests/test_quat_parity_with_robot_contract.py`` sie an den heiklen
+    Zweigen -- wer hier etwas aendert, aendert es dort mit.
+    """
     trace = float(np.trace(m))
     if trace > 0.0:
         s = np.sqrt(trace + 1.0) * 2.0
