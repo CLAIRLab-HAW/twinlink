@@ -42,12 +42,12 @@ from .base import StateSink
 
 log = logging.getLogger("twinlink.mujoco")
 
-# Robot literals this sink used to hard-code (a UR5 CB3 + OnRobot RG6 +
-# wrist-mounted RealSense on the a200-0553 profile) before ``RobotSimSpec``
-# existed.  ``spec=None`` (the default -- see ``MujocoSink.__init__``) falls
-# back to these so every caller that predates the spec argument
-# (``octomap_explorer``, the spact-integration-demos scripts/notebooks, and
-# hrl's own dashboard) keeps today's rendering behaviour unchanged.  Passing a
+# Fallback robot literals (a UR5 CB3 + OnRobot RG6 + wrist-mounted RealSense
+# on the a200-0553 profile).  ``spec=None`` (the default -- see
+# ``MujocoSink.__init__``) falls back to these so every caller that passes no
+# ``RobotSimSpec`` (``octomap_explorer``, the spact-integration-demos
+# scripts/notebooks, and hrl's own dashboard) keeps this rendering
+# behaviour.  Passing a
 # ``RobotSimSpec`` (``twinlink.task_sim``) swaps them for another robot's
 # facts.
 _DEFAULT_MANIPULATOR_PREFIXES: Tuple[str, ...] = ("arm_0",)

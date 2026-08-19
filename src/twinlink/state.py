@@ -346,11 +346,11 @@ class RobotState:
         looking point cloud.
 
         ``source == target`` is identity only for a frame the graph actually
-        KNOWS.  The shortcut used to run before any look-up, so
-        ``chain("nope", "nope")`` handed back ``eye(4)`` for a frame that
-        appears in no edge at all -- and a recording whose ``frame_id``
-        happens to equal the caller's world frame got exactly the silent
-        identity this docstring promises to refuse.
+        KNOWS -- the shortcut must NOT run before the look-up.  Taken early,
+        ``chain("nope", "nope")`` hands back ``eye(4)`` for a frame that
+        appears in no edge at all, and a recording whose ``frame_id`` happens
+        to equal the caller's world frame gets exactly the silent identity
+        this docstring promises to refuse.
         """
         with self._lock:
             edges = dict(self._transforms)

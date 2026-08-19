@@ -20,6 +20,9 @@ Was sich wann geändert hat. Der aktuelle Stand steht in der [README](README.md)
   Die Begründungen bleiben, im Konjunktiv statt in der Vergangenheit: aus „bis
   2026-08-19 stand hier 12,9 mm" wird „ein so gewonnener Wert ist ein Artefakt
   der Geom-Mischung, keine Padbreite". Gemessene Zahlen behalten ihr Datum.
+- Zwei weitere Stellen nachgezogen: `sinks/mujoco_sink.py` („literals this
+  sink used to hard-code … before RobotSimSpec existed") und `state.py` („the
+  shortcut used to run before any look-up").
 - `sources/zenoh_source.py` zeigte im Docstring-Beispiel einen Publisher auf
   `/twin/plan_goal` — ein Kanal, der seit Protokoll v2 stillgelegt ist
   (`RETIRED_CHANNEL_IDS`).
