@@ -2,7 +2,12 @@
 
 Was sich wann geändert hat. Der aktuelle Stand steht in der [README](README.md).
 
-## 2026-08-19 (Doku-Abgleich)
+Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
+die Versionierung [Semantic Versioning](https://semver.org/lang/de/).
+
+## [Unreleased]
+
+## [0.2.0] - 2026-08-19 (Doku-Abgleich)
 
 - **Die README kannte `TwinTaskSim` nicht.** Die Paketübersicht listete elf
   Module und ließ `task_sim.py`, `display_mirror.py` und `testing.py` aus —
@@ -27,6 +32,19 @@ Was sich wann geändert hat. Der aktuelle Stand steht in der [README](README.md)
   `/twin/plan_goal` — ein Kanal, der seit Protokoll v2 stillgelegt ist
   (`RETIRED_CHANNEL_IDS`).
 
+---
+
+**Vor der Einführung von SemVer (2026-08-19)** wurde nach Datum
+geführt. Die Abschnitte darunter behalten ihre Datumsüberschrift — ihnen
+nachträglich Versionsnummern zu geben, würde eine Release-Historie
+erfinden, die es nicht gab.
+- **SemVer eingeführt.** Version auf `0.2.0`, dieses Changelog folgt
+  [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Tag `v0.2.0`.
+  Ältere Abschnitte behalten ihre Datumsüberschrift — ihnen nachträglich
+  Versionsnummern zu geben, würde eine Release-Historie erfinden.
+- **README nach dem Workspace-Schema** (readme.so): Features · Tech Stack ·
+  Installation · Usage · Running Tests · Related · Versioning · License. Die
+  vorhandene Prosa ist erhalten und unter den passenden Abschnitt gewandert.
 ## 2026-08-13 bis 2026-08-19 (Greifermodell)
 
 Nachgetragen, weil es zwischen dem 2026-08-15 und dem 2026-08-19 in rund

@@ -29,7 +29,31 @@ The same mapping and state model drive both **live** and **mock** modes
 unchanged, because `rclpy` and the MCAP reader expose messages through the same
 interface.
 
-## Modes
+## Features
+
+- **One in-memory `RobotState`** mirroring joints, TF, base pose and cameras —
+  thread-safe, the twin's ground truth.
+- **Sources for every situation**: live ROS 2, foxglove WebSocket, native Zenoh,
+  MCAP/rosbag2 replay, or a bare URDF. Live and mock modes run the *same*
+  mapping and state model.
+- **One robot-specific file**: a YAML `RobotMapping` from topics to state.
+  Nothing else in the library knows your robot.
+- **MuJoCo from any URDF** (`urdf_mujoco.py`), mesh cache included; a welded
+  base is grounded, so the compiled world frame is semantically
+  `base_footprint`.
+- **`TwinTaskSim`** — MuJoCo scene plus twin execution semantics for a
+  manipulation task: contact classification, perceived-obstacle pool, kinematic
+  grasping judged at the pads, goal-state collision gate.
+- **Offline TF** (`tf_buffer.py`) with BFS path lookup and time interpolation,
+  numpy-only.
+- **Lazy imports**: `import twinlink` pulls neither `rclpy` nor `mujoco`.
+
+## Tech Stack
+
+Python ≥ 3.10, `numpy`. Optional per source/sink: `rclpy` (ROS 2),
+`mujoco`, `rosbags` (MCAP), `zenoh`, `websockets` (foxglove).
+
+### Modes
 
 | Mode | Source | Needs ROS? | Use |
 |------|--------|-----------|-----|
@@ -44,7 +68,7 @@ interface.
 (`_init_node` / `_subscribe` / `_spin`), so a different transport (e.g. BabyROS)
 is a small subclass — the state/mapping/decoder layers are reused.
 
-## Install
+## Installation
 
 The package itself is dependency-light (`numpy`, `pyyaml`). Pick the extras for
 what you want to run:
@@ -61,7 +85,7 @@ pip install -e .[all]       # everything except rclpy (that comes from ROS 2)
 > On this workstation the **system `python3`** already has `mujoco`, `rosbags`
 > and `opencv`, so the demos run out of the box with `python3`.
 
-## Examples
+## Usage
 
 Runnable examples live in the sibling **[spact-integration-demos](http://github.com/CLAIRLab-HAW/spact-integration-demos)**
 project, which depends on this package — see its README to run them:
@@ -74,7 +98,7 @@ project, which depends on this package — see its README to run them:
   spawned above the ground and `MujocoSink(physics=True, spawn_height=…)` steps
   the simulation so it falls under gravity and parks on its wheels.
 
-## Adapting to another robot
+### Adapting to another robot
 
 Usually **no code** — copy a mapping config (e.g. the demos'
 `configs/a200_0553.yaml`) and edit the topic names:
@@ -95,7 +119,7 @@ The decoders in `mapping.py` handle the standard `sensor_msgs` / `nav_msgs` /
 `tf2_msgs` types, so any robot publishing those works. `MujocoSink` matches
 state joints to model joints **by name**; `joint_remap` covers the rest.
 
-## Package layout
+### Package layout
 
 ```
 twinlink/
@@ -136,7 +160,7 @@ twinlink/
 Runnable examples and robot mapping configs live in the separate
 [spact-integration-demos](http://github.com/CLAIRLab-HAW/spact-integration-demos) project.
 
-## Design notes
+### Design notes
 
 - **Grasping is kinematic, and judged at the pads.** `TwinTaskSim` closes the
   gripper over several ticks and decides a grasp from what is actually between
@@ -174,3 +198,26 @@ Runnable examples and robot mapping configs live in the separate
     wear the Husky's chassis). Every mesh is cached under a **globally unique**
     name to prevent this. Degenerate (zero-volume) meshes are detected and
     dropped, falling back to collision geometry per link.
+
+## Running Tests
+
+```bash
+uv run pytest libs/twinlink        # from the workspace root
+```
+
+## Related
+
+- [perception](../perception/README.md) — cameras and obstacles that read a
+  `RobotState`.
+- [husky-sdk](../../sdk/husky-sdk/README.md) — the motion client that drives the
+  twin.
+- Runnable examples and robot mapping configs:
+  [spact-integration-demos](../../apps/spact-integration-demos/README.md).
+
+## Versioning
+
+[Semantic Versioning](https://semver.org/); see [CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+See workspace root.
