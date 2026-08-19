@@ -96,10 +96,16 @@ class RobotSimSpec:
     far_arm_bodies: Tuple[str, ...]
     #: Backengang des Greifermodells (m) bei offener Hand.
     gripper_stroke_m: float
+    #: Die GREIFFLAECHEN, namentlich -- nicht "alles mit Greiferpraefix".
+    #: Die halbe Padbreite wird nur ueber sie gemessen: am 2026-08-19 lag der
+    #: Median ueber die ganze Hand auf einem Hebel (39,2 mm statt 6,8 mm), und
+    #: die Fangtoleranz war damit dreimal zu gross.  Leer = nicht konfiguriert
+    #: (dann faellt die Messung auf die Hand zurueck, wie frueher).
     #: Körper, dessen Pose als TCP gilt.
     tcp_body: str
     #: Gelenke der Planungsgruppe, in SRDF-Reihenfolge.
     arm_joints: Tuple[str, ...]
+    pad_bodies: Tuple[str, ...] = ()
 
 
 #: TCP proximity (m) within which a closing gripper captures an object.  The
@@ -458,14 +464,29 @@ class TwinTaskSim:
         # (the class of state MoveIt rejects as robot self-collision).
         self._hand_geoms: set = set()
         self._armfar_geoms: set = set()
+        #: NUR die Greifflaechen.  Getrennt von _hand_geoms, weil "die Hand"
+        #: auch Gehaeuse und Hebel enthaelt: am 2026-08-19 lag der Median der
+        #: Handbreiten auf dem moment_arm (39,2 mm) statt auf einem Pad
+        #: (6,8 mm), und die Fangtoleranz war damit dreimal zu gross.  Beim
+        #: alten Greifermodell traf der Median zufaellig einen Finger.
+        self._pad_geoms: set = set()
         armfar_bodies = set(self.spec.far_arm_bodies)
+        pad_bodies = set(getattr(self.spec, "pad_bodies", ()) or ())
         for gid in self._robot_geoms:
             bid = int(self.model.geom_bodyid[gid])
             bname = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_BODY, bid) or ""
             if bname.startswith(self.spec.hand_prefixes):
                 self._hand_geoms.add(gid)
+                if bname in pad_bodies:
+                    self._pad_geoms.add(gid)
             elif bname in armfar_bodies:
                 self._armfar_geoms.add(gid)
+        if pad_bodies and not self._pad_geoms:
+            # Laut scheitern statt still auf die ganze Hand zurueckfallen --
+            # genau dieser stille Rueckfall hat die Toleranz verdreifacht.
+            raise RuntimeError(
+                f"pad_bodies {sorted(pad_bodies)} kommen im Modell nicht vor -- "
+                "Greifflaechen nicht klassifizierbar")
         # Registered graspables that are ALSO classified as obstacles (pool
         # slots or authored clutter the task promoted to a target) stay
         # obstacles for the validity and settling questions: the arm must plan
@@ -979,16 +1000,22 @@ class TwinTaskSim:
     def _pad_half_width(self) -> float:
         """Halbe Breite eines Pads QUER zur Schliessrichtung (m).
 
-        Am kompilierten Modell gemessen statt gepflegt: 12,9 mm fuer den
-        RG6 (``rg6_*_inner_finger`` an geschlossener Hand).  Sie ist die
-        Toleranz, mit der die TCP-Achse ein Geom noch trifft.
+        Am kompilierten Modell gemessen statt gepflegt: 6,8 mm fuer den RG6
+        (``flex_finger``, die Greifflaechen).  Sie ist die Toleranz, mit der
+        die TCP-Achse ein Geom noch trifft.
+
+        Gemessen wird ueber ``_pad_geoms``, NICHT ueber die ganze Hand: dort
+        liegen auch Gehaeuse (41,8 mm), Bracket (76,3 mm) und die Hebel
+        (39,2 mm), und der Median landete nach dem Modelltausch auf einem
+        Hebel.  Bis 2026-08-19 stand hier 12,9 mm -- ein Wert, den die
+        Geom-Mischung des alten Modells zufaellig hergab.
         """
         if self._pad_breite is not None:
             return self._pad_breite
         _pos, mat = self.tcp_pose()
         quer = mat[:, 0]
         breiten = []
-        for gid in self._hand_geoms:
+        for gid in (self._pad_geoms or self._hand_geoms):
             halb = self.model.geom_aabb[gid][3:]
             R = self.data.geom_xmat[gid].reshape(3, 3)
             breiten.append(float(np.abs(R.T @ quer) @ halb))
