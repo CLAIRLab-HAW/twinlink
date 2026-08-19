@@ -296,8 +296,8 @@ def test_releasing_opens_only_as_far_as_the_object_needed():
     Am husky-offboard-Container am 2026-08-16 gemessen und vom Owner in
     Foxglove gesehen: nach dem Ablegen stand die Hand auf voller Weite
     MITTEN IM TOR, und move_group verweigerte daraufhin den Rueckzug --
-    ``2 contact(s) detected : gate_0 - rg6_right_inner_finger, gate_1 -
-    rg6_left_inner_finger``.  Ein echter RG6 oeffnet zum Loslassen nur so
+    ``2 contact(s) detected : gate_0 - rg6_gripper_finger_2_flex_finger,
+    gate_1 - rg6_gripper_finger_1_flex_finger``.  Ein echter RG6 oeffnet zum Loslassen nur so
     weit, wie das Objekt es verlangt.
 
     Der Payload misst 0,03 m ueber die geschlossene Kante; mit 0,005 m

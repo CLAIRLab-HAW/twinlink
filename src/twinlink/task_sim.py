@@ -237,7 +237,8 @@ class TwinTaskSim:
         #: und sie kostet: am Container gemessen (2026-08-16) stand die
         #: volle Hand nach dem Ablegen im vergroeberten Tor, und move_group
         #: verweigerte den Rueckzug -- ``2 contact(s) detected : gate_0 -
-        #: rg6_right_inner_finger, gate_1 - rg6_left_inner_finger``.  Ein
+        #: rg6_gripper_finger_2_flex_finger, gate_1 -
+        #: rg6_gripper_finger_1_flex_finger``.  Ein
         #: echter RG6 oeffnet nur so weit, wie das Objekt es verlangt.
         self._release_clearance = float(release_clearance)
         self._gripper_follower_factors: Dict[str, float] = dict(gripper_follower_factors)
