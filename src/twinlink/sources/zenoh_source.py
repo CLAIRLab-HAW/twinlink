@@ -26,6 +26,7 @@ source timestamp, gid) — **a sample without it is dropped** by the subscriber
 (``rmw_subscription_data.cpp``).
 
 Caveats (verify at the robot):
+
 * the client's **zenoh protocol version must match** the robot's rmw_zenoh zenoh
   version, or the session won't connect;
 * the keyexpr/attachment/liveliness layouts are rmw_zenoh *internals* (stable on
