@@ -21,7 +21,7 @@ class SimEvents:
     robot_obstacle_collision: bool = False
     grasp_acquired: Optional[str] = None  # object id captured this step
     grasp_lost: Optional[str] = None  # object released/dropped this step
-    #: Objekt-Id, deren Griff NICHT FESTSTELLBAR war (Tool-DI0 lieferte
+    #: Objekt-Id, deren Griff NICHT FESTSTELLBAR war (die Greiferbruecke lieferte
     #: nichts).  Dritter Zustand neben acquired/lost -- „unbekannt" darf
     #: nicht als „nicht gegriffen" verbucht werden.
     grasp_unknown: Optional[str] = None

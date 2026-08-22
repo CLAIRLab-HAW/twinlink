@@ -38,18 +38,16 @@ class GripperLinkage(Protocol):
     """Die Abbildung Greifweite <-> Treibergelenk -- HEREINGEREICHT, nie hier.
 
     Dieses Modul beschreibt nur, was es von der Abbildung braucht; die Formel
-    selbst gehört dem Roboter, nicht der Sim.  ``husky_sdk.sim`` reicht dafür
-    ``profile.gripper.linkage`` durch, wo sie aus der Getriebegeometrie folgt.
+    selbst gehört dem Roboter, nicht der Sim. ``husky_sdk.sim`` reicht dafür
+    ``profile.gripper.linkage`` durch.
 
-    Warum die Abbildung und nicht zwei Anker.  Bekäme die Sim statt der
-    Abbildung nur ``gripper_open``/``gripper_closed`` und interpolierte linear
-    dazwischen, wäre das eine weitere Kopie derselben Rechnung neben
-    ``plan_bridge.plan_server``.  Geschätzte Anker-Paare liegen daneben (die
-    offene Hand stünde für 93,7 mm statt 159 mm), und weil jede Kopie für sich
-    gerundet rechnet, würde das Korrigieren einer einzelnen die anderen erst
-    recht auseinandergetrieben.  Eine vierte Kopie hier wäre derselbe Fehler
-    noch einmal; ``twinlink`` hängt bewusst nicht an ``robot_contract``, also
-    wird die Abbildung übergeben.
+    Warum die Abbildung und nicht zwei Anker: bekäme die Sim nur
+    ``gripper_open``/``gripper_closed`` und interpolierte linear, wäre das eine
+    weitere Kopie derselben Rechnung neben ``plan_bridge.plan_server``.
+    Geschätzte Anker-Paare liegen daneben (die offene Hand stünde für 93,7 mm
+    statt 159 mm), und weil jede Kopie für sich rundet, triebe das Korrigieren
+    einer einzelnen die anderen erst recht auseinander. ``twinlink`` hängt
+    bewusst nicht an ``robot_contract``, also wird die Abbildung übergeben.
     """
 
     @property
@@ -123,33 +121,24 @@ GRASP_MAX_MISALIGN_DEG = 20.0
 #: Wieviel NEIGUNG die Pads beim Schliessen noch ausrichten koennen --
 #: darueber gibt es keinen Griff.
 #:
-#: Gilt bewusst NUR fuer die Neigung, nicht fuer den Gierwinkel.  Der
-#: Gierpfad ist alt, durch Golden-Spuren gepinnt (der Wuerfelturm bricht
-#: sofort, wenn man ihn enger zieht -- am 2026-08-17 mit 15 Grad probiert:
-#: sieben Bestandstests rot) und in der Studie mit hoechstens 2,1 Grad
-#: gemessen.  Die NEIGUNG dagegen wurde erst an diesem Tag eingefuehrt
-#: und hatte GAR KEINE Grenze: sie schnappte auf die naechste
-#: achsparallele Lage, wie schief der Koerper auch stand.
+#: Gilt bewusst NUR fuer die Neigung, nicht fuer den Gierwinkel: der Gierpfad
+#: ist durch Golden-Spuren gepinnt (enger gezogen bricht der Wuerfelturm
+#: sofort) und in der Studie mit hoechstens 2,1 Grad gemessen.
 #:
-#: Warum es diese Grenze gibt (Owner-Frage 2026-08-17): "das Anpassen der
-#: Orientierung in moveit fuehrt zu einer Anpassung in mujoco, dieser Loop
-#: ist fuer die Studie gefaehrlich".  Er ist es.  Glaube -> Handlung ->
-#: Weltaenderung -> wird als "Wahrheit" zurueckgelesen -> Glaube.  Kausal
-#: legitim (ein echter Greifer richtet einen Stift beim Zupacken wirklich
-#: auf), aber der Zwilling modellierte es als KOSTENLOSEN Schnapp: alles
-#: bis :data:`GRASP_MAX_MISALIGN_DEG` wurde umsonst korrigiert, ohne
-#: Fehlerfall.  Damit verwandelt er Abstraktionsfehler in nichts -- und
-#: eine grobe Sprosse sieht ausreichend aus, weil der Zwilling die Folge
-#: ihrer Grobheit selbst repariert hat.
+#: Warum es die Grenze gibt: Glaube -> Handlung -> Weltaenderung -> wird als
+#: "Wahrheit" zurueckgelesen -> Glaube.  Kausal legitim (ein echter Greifer
+#: richtet einen Stift beim Zupacken wirklich auf), aber ohne Grenze
+#: modelliert der Zwilling es als KOSTENLOSEN Schnapp: alles bis
+#: :data:`GRASP_MAX_MISALIGN_DEG` wird umsonst korrigiert, ohne Fehlerfall.
+#: Damit verwandelt er Abstraktionsfehler in nichts -- und eine grobe Sprosse
+#: sieht ausreichend aus, weil der Zwilling die Folge ihrer Grobheit selbst
+#: repariert hat.  Nachgiebigkeit ist echt, aber begrenzt: flache Pads richten
+#: einen leicht schiefen Koerper aus, ein stark schiefer rutscht ab.
 #:
-#: Nachgiebigkeit ist echt, aber begrenzt: flache Pads richten einen
-#: leicht schiefen Koerper aus, ein stark schiefer rutscht ab.
-#:
-#: DER WERT IST EINE MODELLENTSCHEIDUNG, kein Messergebnis, und
-#: ausdruecklich ein Regler.  Die gemessene Verteilung ueber 68
-#: Container-Laeufe reicht von 0,0 bis 2,1 Grad -- die Grenze bindet
-#: heute NIRGENDS.  Sie ist eine Wache gegen einen Fehlermodus, keine
-#: Korrektur eines Ergebnisses.
+#: DER WERT IST EINE MODELLENTSCHEIDUNG, kein Messergebnis, und ausdruecklich
+#: ein Regler.  Die gemessene Verteilung ueber 68 Container-Laeufe reicht von
+#: 0,0 bis 2,1 Grad -- die Grenze bindet heute NIRGENDS.  Sie ist eine Wache
+#: gegen einen Fehlermodus, keine Korrektur eines Ergebnisses.
 PAD_SQUARE_LIMIT_DEG = 15.0
 
 #: Robot-vs-table/ground contacts shallower than this are not collision
@@ -217,16 +206,13 @@ class TwinTaskSim:
         self._scene_prefix = scene_prefix
         #: Die beiden Hindernis-Körperfamilien DIESER Szene, aus demselben
         #: Präfix abgeleitet, den der Konstruktor bekommen hat -- nicht aus den
-        #: Modulkonstanten ``OBSTACLE_BODY_PREFIX`` / ``DISTRACTOR_BODY_PREFIX``
-        #: (die sind auf ``hrl_`` festgenagelt und existieren nur noch für
-        #: Altkonsumenten, die sie direkt importieren).  Der Präfix muss GANZ
-        #: verdrahtet sein: folgte ihm nur die Render-Trennung, nicht aber
-        #: Klassifikation und Pool-Indizierung, wäre eine zweite App still
-        #: blind für die gesamte Hindernisklasse (siehe
-        #: ``tests/test_task_sim.py::test_scene_prefix_drives_classification``).
-        #: Anders als bei der Render-Trennung ist ``scene_prefix=""`` hier
-        #: harmlos: die abgeleiteten Werte (``"obstacle_"`` / ``"distractor_"``)
-        #: bleiben nichtleer, ein ``startswith`` kann also nicht auf alles passen.
+        #: Modulkonstanten (die sind auf ``hrl_`` festgenagelt und existieren
+        #: nur für Altkonsumenten).  Der Präfix muss GANZ verdrahtet sein:
+        #: folgte ihm nur die Render-Trennung, nicht auch Klassifikation und
+        #: Pool-Indizierung, wäre eine zweite App still blind für die gesamte
+        #: Hindernisklasse.  ``scene_prefix=""`` ist hier harmlos -- die
+        #: abgeleiteten Werte bleiben nichtleer, ein ``startswith`` kann also
+        #: nicht auf alles passen.
         self._obstacle_body_prefix = f"{scene_prefix}obstacle_"
         self._distractor_body_prefix = f"{scene_prefix}distractor_"
         #: Closing span (m) assumed when nothing is captured (task object size).
@@ -259,14 +245,12 @@ class TwinTaskSim:
         #: follower joint -> actuator id, filled only in the actuated regime.
         self._gripper_actuators: Dict[str, int] = {}
         #: Ueber wie viele Takte das Zufahren im nicht-aktuierten Regime
-        #: SICHTBAR laeuft.  ``0`` = aus, der Bestandsweg: die Gelenke
-        #: stehen im ersten Substep auf dem Ziel, im Bild springt die Hand
-        #: binaer auf und zu.
+        #: SICHTBAR laeuft.  ``0`` = aus: die Gelenke stehen im ersten Substep
+        #: auf dem Ziel, im Bild springt die Hand binaer auf und zu.
         #:
         #: Nur der WEG aendert sich, nie das Ziel -- und die Vorgabe bleibt
         #: aus, weil eine laengere Schliessbewegung Zeitverhalten und damit
-        #: Messwerte verschiebt.  Fuer Aufnahmen ausdruecklich einschalten
-        #: (``scripts/suffizienz/video_run.py``).
+        #: Messwerte verschiebt.  Fuer Aufnahmen ausdruecklich einschalten.
         self._gripper_ramp_ticks = max(0, int(gripper_ramp_ticks))
         #: Winkel, bei dem die laufende Rampe begonnen hat, und wie viele
         #: Takte ihr noch fehlen.
@@ -373,10 +357,10 @@ class TwinTaskSim:
 
         Found through ``actuator_trnid``, not through a name convention: the
         app authors the actuators and may call them whatever it likes.  A
-        follower without an actuator is a hard error -- the whole point of the
+        follower without an actuator is a hard error -- the point of the
         actuated regime is that a closing command produces a force, and
-        falling back to the kinematic hold for the missing ones would produce
-        the same green-but-forceless state the flag exists to end.
+        falling back to the kinematic hold would produce the same
+        green-but-forceless state the flag exists to end.
         """
         mujoco = self._mujoco
         for aid in range(self.model.nu):
@@ -502,34 +486,26 @@ class TwinTaskSim:
     def _setup_collision_masks(self) -> None:
         """Let the gripper envelope pass through graspables (grasping is kinematic).
 
-        Grasping is modelled as proximity capture + kinematic carry (see module
+        Grasping is proximity capture + kinematic carry (see module
         docstring), so finger--object contact forces are artifacts: the open
         fingers would shove an object away while descending onto it.  Contact
         bitmasks exclude exactly the gripper<->object pairs; the gripper still
-        collides with table/ground (bad approach poses stay detectable) and the
-        arm still collides with the objects (knocking them over stays possible).
+        collides with table/ground and the arm still collides with the objects
+        (knocking them over stays possible).
 
-        Masks: world/robot keep (contype=1, conaffinity=1); objects get (2, 3);
-        gripper geoms get (4, 1).  gripper&object: 4&3 = 2&1 = 0 -> no contact.
+        Masks: world/robot keep (1, 1); objects get (2, 3); gripper geoms get
+        (4, 1).  gripper&object: 4&3 = 2&1 = 0 -> no contact.
 
-        Every REGISTERED graspable gets this treatment, task objects and
-        dynamic clutter alike: grasping is kinematic for both -- the open
-        fingers would shove the box away while descending, and the goal gate
-        would veto the very grasp.  The ARM still collides with them (knocking
-        them over stays detectable).
-
-        Only ``spec.gripper_prefixes`` -- the jaws/housing -- becomes
+        Every REGISTERED graspable gets this, task objects and dynamic clutter
+        alike.  Only ``spec.gripper_prefixes`` -- the jaws/housing -- becomes
         permeable, NOT the whole ``hand_prefixes`` assembly: a wrist-mounted
         camera rides along with the hand but is not a jaw, and making it
         permeable would silently drop its obstacle-contact events.
 
-        ``actuated_gripper=True`` inverts the premise and therefore skips the
+        ``actuated_gripper=True`` inverts the premise and skips the
         permeability: there the jaws are driven by servos and must MEET the
         object -- a permeable jaw yields exactly zero finger contacts and zero
-        grip force, which is what the flag was measured doing before this.
-        The objects keep their (2, 3) mask either way, so the arm still
-        collides with them and the perceived-obstacle slots (4, 5) stay
-        permeable to them.
+        grip force.  The objects keep their (2, 3) mask either way.
         """
         mujoco = self._mujoco
         graspable_geoms = {
@@ -558,15 +534,14 @@ class TwinTaskSim:
 
         Positively identified through ``body_rootid``: every body the URDF
         contributed shares the robot's root body (the welded base link), while
-        each piece of scene furniture is its own world child and therefore its
-        own root.  Measured on the a200-0553 scene 2026-08-16: 45 of 58 bodies
-        under ``base_link``, every furniture body a root of its own.
+        each piece of scene furniture is its own world child.  Measured on the
+        a200-0553 scene: 45 of 58 bodies under ``base_link``.
 
-        Deliberately not the inverse rule -- "everything that does NOT carry
-        the app's scene prefix is robot" -- which makes every body an app
-        places under a name of its own invisible to RGB *and* depth, silently:
-        the cameras then see the surface behind it and a plausible-looking
-        point cloud comes back without the object in it.
+        Deliberately not the inverse rule -- "everything without the app's
+        scene prefix is robot" -- which makes every body an app places under a
+        name of its own invisible to RGB *and* depth, silently: the cameras
+        then see the surface behind it and a plausible-looking point cloud
+        comes back without the object in it.
         """
         root = int(self.model.body_rootid[self._tcp_body_id])
         return [
@@ -577,16 +552,14 @@ class TwinTaskSim:
     def _hide_robot_collision_geoms(self) -> None:
         """Exclude the robot's collision geometry from rendering.
 
-        The role of ``MujocoSink._hide_collision_geoms``: the robot carries
-        both visual meshes and collision geoms (``with_collision=True``); the
-        collision shells (e.g. a gripper's base box, much larger than the
-        visible gripper) would otherwise occlude the cameras.  The sink's alpha=0 trick
-        only affects the RGB pass, while MuJoCo's depth pass rasterises
-        transparent geoms too -- so we move the shells into a geom *group* that
-        all render calls disable via ``MjvOption``.  Restricted to the robot
-        subtree (:meth:`_robot_geom_ids`) -- everything else in the scene has
-        no separate visual geometry and must stay visible.  Groups are
-        visualisation-only; physics is untouched.
+        The robot carries both visual meshes and collision geoms; the
+        collision shells (e.g. a gripper base box, much larger than the
+        visible gripper) would otherwise occlude the cameras.  The sink's
+        alpha=0 trick only affects the RGB pass, while MuJoCo's depth pass
+        rasterises transparent geoms too -- so the shells move into a geom
+        *group* that all render calls disable via ``MjvOption``.  Restricted
+        to the robot subtree; everything else has no separate visual geometry
+        and must stay visible.  Groups are visualisation-only.
         """
         robot = self._robot_geom_ids()
         robot_visuals = sum(
@@ -676,20 +649,17 @@ class TwinTaskSim:
         """Mirror perceived obstacles into the collision pool.
 
         ``boxes`` are duck-typed (``.center`` (3,) world, ``.size`` (3,) full
-        extents -- :class:`perception.obstacles.ObstacleBox`).  Slots
-        beyond ``len(boxes)`` are parked; when more boxes than slots arrive
-        the largest ones win (safety-relevant volume first).  The boxes enter
-        physics immediately: MoveIt-side planning uses the planning-scene
-        copy, this pool covers the twin (dashboard), the contact events and
+        extents).  Slots beyond ``len(boxes)`` are parked; when more boxes than
+        slots arrive the largest ones win (safety-relevant volume first).  The
+        boxes enter physics immediately: MoveIt-side planning uses the
+        planning-scene copy, this pool covers the twin, the contact events and
         the client-side IK goal gate (:meth:`arm_config_collides`).
 
         A slot is a PERCEPTION of the world, never a body in it: it must not
-        exert force on the objects it depicts (same reasoning as the
-        permeable gripper shells in :meth:`_setup_collision_masks`).  In sim
-        a perceived box lands exactly on the free-jointed body it was
-        perceived from -- with ordinary contacts the solver resolves that
-        overlap by ejecting the original out from under its own ghost, on the
-        first step after the sync and before the arm has moved.
+        exert force on the objects it depicts (same reasoning as the permeable
+        gripper shells).  In sim a perceived box lands exactly on the body it
+        was perceived from -- with ordinary contacts the solver would eject the
+        original out from under its own ghost.
 
         Returns the number of active slots.
         """
@@ -749,13 +719,12 @@ class TwinTaskSim:
         Like a real gripper, closing stops at the object: when one is
         captured, the finger command corresponds to the object width (linear
         stroke model) instead of the fully-closed angle, so the rendered and
-        collision-checked finger posture matches an actual grip.
+        collision-checked posture matches an actual grip.
 
         ``grasp=False`` (real-hardware mode) drives only the finger posture for
         the dashboard twin -- no proximity capture, no kinematic carry -- so the
         sim never raises grasp/drop events that would be mistaken for the real
-        gripper's outcome (the real gripper is commanded separately and its
-        feedback is what the skill trusts).
+        gripper's outcome.
         """
         self._gripper_closing = bool(close)
         if close:
@@ -796,14 +765,13 @@ class TwinTaskSim:
     def gripper_closed(self) -> bool:
         """Ist die Hand ZU kommandiert?
 
-        Der zuletzt gegebene Befehl, kein geometrischer Schwellwert.  Bis
-        2026-08-16 stand hier ``command >= closed/2``, ein Vergleich mit der
-        halben Schliessstellung.  Der war schon immer schief -- eine Hand,
-        die ein 10-cm-Objekt haelt, steht weit unter der Schwelle und galt
-        als offen -- und wurde falsch, sobald die Hand zum Loslassen nur noch
-        auf Objektbreite plus Spiel oeffnet: mit dem echten Getriebe liegt
-        jede Spanne unter 40 mm danach WIEDER ueber der Schwelle, eine
-        gerade losgelassene Hand haette sich also als geschlossen gemeldet.
+        Der zuletzt gegebene Befehl, kein geometrischer Schwellwert.  Ein
+        Vergleich mit der halben Schliessstellung waere schief -- eine Hand,
+        die ein 10-cm-Objekt haelt, steht weit darunter und gaelte als offen --
+        und faellt vollends, sobald die Hand zum Loslassen nur auf Objektbreite
+        plus Spiel oeffnet: mit dem echten Getriebe liegt jede Spanne unter
+        40 mm danach WIEDER ueber der Schwelle, eine gerade losgelassene Hand
+        meldete sich also als geschlossen.
         """
         return self._gripper_closing
 
@@ -875,18 +843,16 @@ class TwinTaskSim:
     def _horizontal_axes(self, entry) -> list:
         """Gierwinkel der waagerechten Koerperachsen -- hoechstens zwei.
 
-        ``_try_grasp`` bildete die Greifachsen aus ``obj_yaw`` und
-        ``obj_yaw + 90 Grad``.  Das setzt voraus, dass die z-Achse des
-        Koerpers SENKRECHT steht: nur dann sind x und y die waagerechten.
-        Beim LIEGENDEN Marker liegt seine Laenge waagerecht, und beide
-        Kandidaten zeigen an der greifbaren Richtung vorbei -- der Fang
-        fiel auf die Huelle zurueck und griff aus 12-14 mm Entfernung
-        (2026-08-17, vom Owner in Foxglove gesehen).
+        Greifachsen aus ``obj_yaw`` und ``obj_yaw + 90 Grad`` zu bilden setzt
+        voraus, dass die z-Achse des Koerpers SENKRECHT steht: nur dann sind x
+        und y die waagerechten.  Beim LIEGENDEN Marker liegt seine Laenge
+        waagerecht, und beide Kandidaten zeigen an der greifbaren Richtung
+        vorbei -- der Fang fiel auf die Huelle zurueck und griff aus 12-14 mm
+        Entfernung.
 
         Genommen werden die Koerperachsen, die WIRKLICH waagerecht liegen
-        (Neigung unter 30 Grad), und dazu je die Senkrechte in der Ebene.
-        Fuer einen aufrecht stehenden Koerper sind das genau x und y --
-        die alte Rechnung, unveraendert.
+        (Neigung unter 30 Grad), und dazu je die Senkrechte in der Ebene.  Fuer
+        einen aufrecht stehenden Koerper sind das genau x und y.
         """
         R = self.data.xmat[entry["body"]].reshape(3, 3)
         winkel = []
@@ -910,15 +876,13 @@ class TwinTaskSim:
     def _pad_heights(self) -> List[float]:
         """Welt-z der Handgeome an der GESCHLOSSENEN Backenstellung.
 
-        Auf einem Scratch gerechnet, damit die laufende Szene unberuehrt
-        bleibt -- dasselbe Verfahren, das
-        :meth:`arm_config_collides` fuer Zielzustaende benutzt.
+        Auf einem Scratch gerechnet, damit die laufende Szene unberuehrt bleibt
+        -- dasselbe Verfahren wie :meth:`arm_config_collides`.
 
-        Genommen wird ``_gripper_closed`` und nicht die Weite, die das
-        Objekt spaeter verlangt: die ist erst bekannt, wenn der Fang
-        entschieden ist, und der Fang haengt an dieser Hoehe.  Die
-        geschlossene Stellung ist das, wohin die Pads fahren, wenn sie
-        nichts fangen -- eine Vorhersage ohne Zirkel.
+        Genommen wird ``_gripper_closed`` und nicht die Weite, die das Objekt
+        spaeter verlangt: die ist erst bekannt, wenn der Fang entschieden ist,
+        und der Fang haengt an dieser Hoehe.  Die geschlossene Stellung ist
+        eine Vorhersage ohne Zirkel.
         """
         mujoco = self._mujoco
         if not self._hand_geoms:
@@ -938,48 +902,39 @@ class TwinTaskSim:
     def _grip_reference(self, entry) -> np.ndarray:
         """Wo die Backen den Koerper fassen -- aus der WELT, nicht der Huelle.
 
-        Objekte werden an ihrer OBERSEITE gegriffen (die Greif-Skills
-        senken auf ``Oberkante - Spanne/2``).  Die Oberkante muss aus der
+        Objekte werden an ihrer OBERSEITE gegriffen (die Greif-Skills senken
+        auf ``Oberkante - Spanne/2``).  Die Oberkante muss aus der
         tatsaechlichen Lage kommen: ``entry["half"]`` ist die AABB IM
-        KOERPERFRAME und fuehrt bei einem liegenden Stift dessen LAENGE
-        als Hoehe.
+        KOERPERFRAME und fuehrt bei einem liegenden Stift dessen LAENGE als
+        Hoehe.
 
-        Am 2026-08-17 in der Studie gemessen, nachdem der Owner den Spalt
-        gesehen hatte: ``marker/pick`` meldete Erfolg mit +12 bis +14 mm
-        Abstand zwischen Backen und Stift.  Der Bezugspunkt lag rund
-        57 mm ueber dem liegenden Koerper, :meth:`_span_between_pads`
-        fand dort kein Geom und fiel auf die Huelle zurueck (26 mm statt
-        18 mm Schaft) -- die Backen schlossen auf 26 mm und beruehrten
-        nichts.
+        Gemessen: ``marker/pick`` meldete Erfolg mit +12 bis +14 mm Abstand
+        zwischen Backen und Stift.  Der Bezugspunkt lag rund 57 mm ueber dem
+        liegenden Koerper, :meth:`_span_between_pads` fand dort kein Geom und
+        fiel auf die Huelle zurueck (26 mm statt 18 mm Schaft) -- die Backen
+        schlossen auf 26 mm und beruehrten nichts.
 
-        Fuer einen aufrecht stehenden Koerper faellt beides zusammen; der
-        Wuerfelturm bewegt sich also nicht.
+        Fuer einen aufrecht stehenden Koerper faellt beides zusammen.
         """
         pos = self.data.xpos[entry["body"]].copy()
         ref = pos.copy()
         # Wo die Backen WIRKLICH sind.  Ein konstruierter Punkt ("Oberkante
-        # minus halbe Spanne") war die Quelle von drei Fehlern in Folge:
-        # er unterstellt, dass die Aufgabe genau dorthin faehrt.  Sie tut
-        # es nicht -- bei einem flachen Objekt hebt ihre Untergrenze
-        # (Tisch + Spanne/2) die Backen an, und der Fang mass dann
-        # 71,6 mm gegen seinen 70-mm-Radius und lehnte um 1,6 mm ab
-        # (gemessen 2026-08-17 am liegenden Marker).
-        # Die BACKEN sind die untersten Teile der Hand -- ein Mittelwert
-        # ueber die ganze Baugruppe liegt beim RG6 rund 9 cm hoeher, also
-        # im Handgelenk (gemessen 2026-08-17: Geoms von 0,363 bis 0,517).
+        # minus halbe Spanne") war die Quelle von drei Fehlern in Folge: er
+        # unterstellt, dass die Aufgabe genau dorthin faehrt.  Sie tut es nicht
+        # -- bei einem flachen Objekt hebt ihre Untergrenze (Tisch + Spanne/2)
+        # die Backen an, und der Fang mass dann 71,6 mm gegen seinen
+        # 70-mm-Radius und lehnte um 1,6 mm ab.  Die BACKEN sind die
+        # untersten Teile der Hand; ein Mittelwert ueber die ganze Baugruppe
+        # liegt beim RG6 rund 9 cm hoeher, also im Handgelenk.
         #
         # Gemessen wird an der GESCHLOSSENEN Backenstellung, nicht an der
-        # augenblicklichen: der RG6-Finger schwenkt, und ``_try_grasp``
-        # laeuft, waehrend die Hand noch offen steht.  Offen sitzt sein
-        # Geom rund 41 mm UEBER dem TCP, geschlossen 38 mm darunter -- der
-        # Bezug wanderte dadurch um 57 mm, und das Backenband lag dort, wo
-        # die Pads GERADE sind, statt dort, wo sie zupacken werden.
-        #
-        # Am Deckel am 2026-08-17 aufgelaufen: Band 0,3432..0,3882 gegen
-        # einen Deckel bei 0,1998..0,2998, also 43 mm daneben.
-        # :meth:`_span_between_pads` fand dort nichts, der Fang fiel auf den
-        # HUELLQUADER zurueck (180 mm gegen 156 mm Backengang) und meldete
-        # "kein schliessbares Flaechenpaar" -- an einem Knauf von 36 mm.
+        # augenblicklichen: der RG6-Finger schwenkt, und ``_try_grasp`` laeuft,
+        # waehrend die Hand noch offen steht.  Offen sitzt sein Geom rund 41 mm
+        # UEBER dem TCP, geschlossen 38 mm darunter -- der Bezug wanderte
+        # dadurch um 57 mm, und das Backenband lag dort, wo die Pads GERADE
+        # sind, statt dort, wo sie zupacken werden (am Deckel gemessen: Band
+        # 43 mm daneben, Fang fiel auf den Huellquader zurueck und meldete
+        # "kein schliessbares Flaechenpaar" an einem Knauf von 36 mm).
         hoehen = self._pad_heights()
         if hoehen:
             unten = hoehen[:max(1, len(hoehen) // 3)]
@@ -1001,14 +956,13 @@ class TwinTaskSim:
         """Halbe Breite eines Pads QUER zur Schliessrichtung (m).
 
         Am kompilierten Modell gemessen statt gepflegt: 6,8 mm fuer den RG6
-        (``flex_finger``, die Greifflaechen).  Sie ist die Toleranz, mit der
-        die TCP-Achse ein Geom noch trifft.
+        (``flex_finger``).  Sie ist die Toleranz, mit der die TCP-Achse ein
+        Geom noch trifft.
 
-        Gemessen wird ueber ``_pad_geoms``, NICHT ueber die ganze Hand: dort
-        liegen auch Gehaeuse (41,8 mm), Bracket (76,3 mm) und die Hebel
-        (39,2 mm), ueber die ganze Hand landet der Median auf einem Hebel.
-        Ein so gewonnener Wert (12,9 mm) ist ein Artefakt der Geom-Mischung,
-        keine Padbreite.
+        Gemessen ueber ``_pad_geoms``, NICHT ueber die ganze Hand: dort liegen
+        auch Gehaeuse (41,8 mm), Bracket (76,3 mm) und Hebel (39,2 mm), und der
+        Median landet auf einem Hebel -- 12,9 mm waeren ein Artefakt der
+        Geom-Mischung, keine Padbreite.
         """
         if self._pad_breite is not None:
             return self._pad_breite
@@ -1026,19 +980,17 @@ class TwinTaskSim:
         """Breite des Koerpers auf Backenhoehe, entlang seiner beiden
         waagerechten Achsen -- oder ``None``, wenn dort nichts steht.
 
-        Das Band der Hoehe ``default_span`` liegt um den GREIFPUNKT
-        (``ref``), nicht um den TCP: der steht beim Griff rund 45 mm
-        darueber (``DESCEND_OFFSET``), und ein Band um ihn laege
-        vollstaendig ueber dem Objekt -- gemessen am Deckel, der damit
-        weiter auf keiner Sprosse greifbar war.
-        Gezaehlt wird nur, was in dieses Band ragt: genau das muss zwischen
-        die Pads passen.  Ein Koerper, der weiter unten breit wird (die
-        Scheibe eines Deckels), geht die Fangbedingung nichts an -- dass er
-        SPAETER stoert, entscheidet die Kollision, nicht dieser Test.
+        Das Band der Hoehe ``default_span`` liegt um den GREIFPUNKT (``ref``),
+        nicht um den TCP: der steht beim Griff rund 45 mm darueber, ein Band um
+        ihn laege vollstaendig ueber dem Objekt.  Gezaehlt wird nur, was in
+        dieses Band ragt -- genau das muss zwischen die Pads passen.  Ein
+        Koerper, der weiter unten breit wird (die Scheibe eines Deckels), geht
+        die Fangbedingung nichts an; dass er SPAETER stoert, entscheidet die
+        Kollision.
 
         ``None`` heisst "auf Backenhoehe steht kein Geom dieses Koerpers";
-        dann bleibt es beim Huellquader, statt einen Griff aus dem Nichts
-        zu erlauben.
+        dann bleibt es beim Huellquader, statt einen Griff aus dem Nichts zu
+        erlauben.
         """
         band = float(self._default_span) / 2.0
         lo_z, hi_z = float(ref[2]) - band, float(ref[2]) + band
@@ -1116,15 +1068,13 @@ class TwinTaskSim:
             obj_yaw = float(np.arctan2(mat[1, 0], mat[0, 0]))
             half = entry["half"]
             # Die Spanne kommt aus der Geometrie ZWISCHEN den Backen, nicht
-            # aus der Huelle des ganzen Koerpers.  Fuer einen Wuerfel ist
-            # das dasselbe; fuer alles andere war es die groebste denkbare
-            # Abstraktion.  Gemessen an der Suffizienz-Vorstudie
-            # (2026-08-17): ein Deckel mit 180-mm-Scheibe und 30-mm-Knauf
-            # meldete auf ALLEN vier Objektsprossen "kein schliessbares
-            # Flaechenpaar", weil hier 180 mm gegen 156 mm Backengang
-            # standen -- unabhaengig davon, wie fein das Objekt modelliert
-            # war.  Damit konnte die Objektachse ueber den Griff gar nicht
-            # binden.
+            # aus der Huelle des ganzen Koerpers.  Fuer einen Wuerfel ist das
+            # dasselbe; fuer alles andere war es die groebste denkbare
+            # Abstraktion.  Gemessen: ein Deckel mit 180-mm-Scheibe und
+            # 30-mm-Knauf meldete auf ALLEN vier Objektsprossen "kein
+            # schliessbares Flaechenpaar", weil 180 mm gegen 156 mm Backengang
+            # standen -- unabhaengig davon, wie fein das Objekt modelliert war.
+            # Damit konnte die Objektachse ueber den Griff gar nicht binden.
             achsen = self._horizontal_axes(entry)
             lokal = self._span_between_pads(entry, ref, achsen[0],
                                             tcp_xy=tcp_pos[:2])
@@ -1188,18 +1138,18 @@ class TwinTaskSim:
         )
 
     def _symmetry_axis(self, entry) -> Optional[np.ndarray]:
-        """Achse im KOERPERFRAME, um die der Koerper rotationssymmetrisch
-        ist -- oder ``None``, wenn er es um keine ist.
+        """Achse im KOERPERFRAME, um die der Koerper rotationssymmetrisch ist
+        -- oder ``None``, wenn er es um keine ist.
 
         Ein Rotationskoerper hat um seine Achse keine LAGE: ein liegender
         Stift, der um 39 Grad um sich selbst gerollt ist, ist von einem
-        ungerollten nicht zu unterscheiden.  :meth:`_square_tilt` las
-        bis 2026-08-17 die diskreten Koerperachsen, was fuer einen Quader
-        richtig ist und hier eine Schieflage erfindet, die es nicht gibt.
+        ungerollten nicht zu unterscheiden.  Die diskreten Koerperachsen zu
+        lesen ist fuer einen Quader richtig und erfindet hier eine Schieflage,
+        die es nicht gibt.
 
-        Streng: JEDES Geom muss mitspielen.  Der Henkel eines Bechers ist
-        eine Kapsel quer zur Bechertachse -- damit ist der Becher nicht
-        symmetrisch, und die Funktion sagt das (``None``).
+        Streng: JEDES Geom muss mitspielen.  Der Henkel eines Bechers ist eine
+        Kapsel quer zur Bechertachse -- damit ist der Becher nicht symmetrisch,
+        und die Funktion sagt das (``None``).
         """
         mujoco = self._mujoco
         achse = None
@@ -1222,41 +1172,36 @@ class TwinTaskSim:
     def _square_tilt(self, adr: int, entry=None) -> bool:
         """Pad-Squaring fuer die NEIGUNG -- das Gegenstueck zum Gierwinkel.
 
-        Flache Backen, die sich um einen Koerper schliessen, richten ihn
-        aus: seine beruehrten Flaechen legen sich flach an die Pads.  Fuer
-        den GIERWINKEL tut das der Schnapp darueber seit jeher; die
-        Neigung blieb, wie sie war, und das Objekt wurde SCHIEF getragen.
+        Flache Backen, die sich um einen Koerper schliessen, richten ihn aus:
+        seine beruehrten Flaechen legen sich flach an die Pads.  Fuer den
+        GIERWINKEL tut das der Schnapp darueber; bliebe die Neigung, wie sie
+        ist, wuerde das Objekt SCHIEF getragen.
 
-        Am 2026-08-17 in der Suffizienz-Vorstudie aufgelaufen (Owner sah es
-        in Foxglove: "der griff sieht aus als sei der greifer nicht genug
-        geschlossen"): ein Stift lehnt im Koecher 6 Grad, wurde 6 Grad
-        schief getragen und passte danach in keinen Becher mehr -- move_group
-        meldete ``RRTConnect: Unable to sample any valid states for goal
-        tree``.  Die Geometrie war richtig, nur die Mechanik unvollstaendig.
+        Gemessen: ein Stift lehnt im Koecher 6 Grad, wird 6 Grad schief
+        getragen und passt danach in keinen Becher mehr -- move_group meldet
+        ``RRTConnect: Unable to sample any valid states for goal tree``.  Die
+        Geometrie war richtig, nur die Mechanik unvollstaendig.
 
         Geschnappt wird auf die NAECHSTE achsparallele Lage, nicht stur auf
-        senkrecht: ein liegender Koerper bleibt sonst nicht liegen, sondern
-        wuerde beim Griff aufgestellt -- eine Bewegung, die es nicht gibt.
-        Die Drehung ist damit immer die kleinstmoegliche, und fuer einen
-        Wuerfel, der ohnehin achsparallel steht, ist sie null (der
-        Wuerfelturm bewegt sich nicht).
+        senkrecht: ein liegender Koerper wuerde sonst beim Griff aufgestellt --
+        eine Bewegung, die es nicht gibt.  Die Drehung ist damit immer die
+        kleinstmoegliche, und fuer einen achsparallel stehenden Wuerfel null.
         """
         q = self.data.qpos[adr + 3 : adr + 7].copy()
         R = np.zeros(9)
         self._mujoco.mju_quat2Mat(R, q)
         R = R.reshape(3, 3)
-        # NUR die Neigung entfernen, den Gierwinkel behalten.  Der erste
-        # Entwurf (2026-08-17 frueh) schnappte auf die naechste
-        # WELTachsenparallele Lage und machte damit die Pad-Ausrichtung
-        # kaputt, die der Gier-Schnapp gerade hergestellt hatte -- fuer
-        # die Wuerfel des Turms eine Drehung von ueber 15 Grad, also
-        # genau die kostenlose Grosskorrektur, gegen die dieser Riegel
-        # gebaut ist.
+        # NUR die Neigung entfernen, den Gierwinkel behalten.  Auf die
+        # naechste WELTachsenparallele Lage zu schnappen machte die
+        # Pad-Ausrichtung kaputt, die der Gier-Schnapp gerade hergestellt hatte
+        # -- fuer die Wuerfel des Turms eine Drehung von ueber 15 Grad, also
+        # genau die kostenlose Grosskorrektur, gegen die dieser Riegel gebaut
+        # ist.
         #
-        # Gesucht ist die kleinste Drehung, die die koerpereigene Achse,
-        # die der Senkrechten am naechsten liegt, AUF die Senkrechte
-        # bringt.  Ein liegender Koerper bleibt liegen: dort ist die
-        # naechste Achse eine andere, und die Drehung ist wieder klein.
+        # Gesucht ist die kleinste Drehung, die die koerpereigene Achse, die
+        # der Senkrechten am naechsten liegt, AUF die Senkrechte bringt.  Ein
+        # liegender Koerper bleibt liegen: dort ist die naechste Achse eine
+        # andere, und die Drehung ist wieder klein.
         sym = self._symmetry_axis(entry) if entry is not None else None
         if sym is not None:
             # Nur die Lage DIESER Achse zaehlt.  Ideal ist sie senkrecht
@@ -1325,16 +1270,13 @@ class TwinTaskSim:
     def grasp_misalign_deg(self):
         """Wie schief das Objekt beim Zupacken stand (Grad), oder ``None``.
 
-        Die Pads richten ein leicht schiefes Objekt beim Schliessen aus.
-        Diese Drehung fand bisher stillschweigend statt: die Zahl wurde
-        berechnet, angewandt, auf Debug-Ebene geloggt und verworfen.
-
-        Fuer eine Suffizienzmessung ist sie aber DER Fehler, den ein
-        grobes Modell erzeugt: der Roboter zielt nach seinem Quader, der
-        echte Koerper steht anders, und die Grosszuegigkeit des Fangs
-        buegelt es aus.  move_group kann das nicht melden -- der
-        Backenkontakt ist beim Griff ausdruecklich freigegeben, sonst
-        waere jeder Griff ein Startzustand in Kollision.
+        Die Pads richten ein leicht schiefes Objekt beim Schliessen aus.  Diese
+        Drehung nur zu loggen und zu verwerfen waere fuer eine
+        Suffizienzmessung der Verlust DES Fehlers, den ein grobes Modell
+        erzeugt: der Roboter zielt nach seinem Quader, der echte Koerper steht
+        anders, und die Grosszuegigkeit des Fangs buegelt es aus.  move_group
+        kann das nicht melden -- der Backenkontakt ist beim Griff ausdruecklich
+        freigegeben, sonst waere jeder Griff ein Startzustand in Kollision.
         """
         if self._grasped is None or self._grasp_misalign is None:
             return None
@@ -1344,39 +1286,36 @@ class TwinTaskSim:
         """Kleinster Abstand Greifer<->gegriffener Koerper (m), oder ``None``.
 
         Die PRUEFUNG zum Modell: der Fang entscheidet ueber Abstand,
-        Ausrichtung und Spanne und schweisst dann -- ob die Backen den
-        Koerper wirklich beruehren, stand nirgends.  Gemessen wird, sobald
-        die Finger ihre Weite erreicht haben (:meth:`_fingers_settled`):
-        im Moment des Fangs stehen sie noch offen (+80 mm), nach dem Hub
-        ueberlappt der getragene Koerper die Handbaugruppe (-13 mm).
+        Ausrichtung und Spanne und schweisst dann -- ob die Backen den Koerper
+        wirklich beruehren, stuende sonst nirgends.  Gemessen wird, sobald die
+        Finger ihre Weite erreicht haben (:meth:`_fingers_settled`): im Moment
+        des Fangs stehen sie noch offen (+80 mm), nach dem Hub ueberlappt der
+        getragene Koerper die Handbaugruppe (-13 mm).
 
-        Lesart: ``< 0`` Durchdringung, ``~ 0`` Beruehrung, deutlich
-        ``> 0`` die Backen greifen ins Leere.  ``None`` heisst "kein
-        Griff, keine Aussage" -- nicht "in Ordnung".
+        Lesart: ``< 0`` Durchdringung, ``~ 0`` Beruehrung, deutlich ``> 0`` die
+        Backen greifen ins Leere.  ``None`` heisst "kein Griff, keine Aussage"
+        -- nicht "in Ordnung".
         """
         return self._grasp_gap0
 
     def carried_world_gap(self):
         """Kleinster Abstand des GETRAGENEN Koerpers zur echten Welt (m).
 
-        Die Realitaetspruefung fuer den TRANSPORT.  Sie fehlte: der
-        getragene Koerper hat keine Kontakte (aus gutem Grund, siehe
-        :meth:`_suspend_object_contacts`), move_group prueft den
-        GEGLAUBTEN Koerper, und der ECHTE faehrt ungehindert durch die
-        echte Welt.  Die Richtung ist die gefaehrliche -- es wird nicht
-        "Wirklichkeit verbietet, was der Glaube erlaubt" gemeldet,
-        sondern als ERFOLG gezaehlt (Owner-Frage 2026-08-17 zum Aufbau).
+        Die Realitaetspruefung fuer den TRANSPORT: der getragene Koerper hat
+        keine Kontakte (aus gutem Grund, siehe
+        :meth:`_suspend_object_contacts`), move_group prueft den GEGLAUBTEN
+        Koerper, und der ECHTE faehrt ungehindert durch die echte Welt.  Die
+        Richtung ist die gefaehrliche -- das wird nicht als "Wirklichkeit
+        verbietet, was der Glaube erlaubt" gemeldet, sondern als ERFOLG
+        gezaehlt.
 
-        Gezaehlt wird gegen alles, was weder zum Roboter noch zum
-        getragenen Koerper selbst gehoert: Tisch, Moebel, Hindernisse.
-        Der Boden bleibt draussen -- ihn beruehrt ein abgesetztes Objekt
-        bestimmungsgemaess.
+        Gezaehlt wird gegen alles, was weder zum Roboter noch zum getragenen
+        Koerper gehoert: Tisch, Moebel, Hindernisse.  Der Boden bleibt draussen
+        -- ihn beruehrt ein abgesetztes Objekt bestimmungsgemaess.
 
-        ``< 0`` heisst: der echte Koerper steckt in echtem Zeug.
-        ``None`` heisst "nichts getragen, keine Aussage".
-
-        ``mj_geomDistance`` ist eine reine Abstandsabfrage und braucht die
-        abgeschalteten Kontakte nicht.
+        ``< 0`` heisst: der echte Koerper steckt in echtem Zeug.  ``None``
+        heisst "nichts getragen, keine Aussage".  ``mj_geomDistance`` ist eine
+        reine Abstandsabfrage und braucht die abgeschalteten Kontakte nicht.
         """
         if self._grasped is None:
             return None
@@ -1414,11 +1353,10 @@ class TwinTaskSim:
         """Schlechtester Abstand des getragenen Koerpers zur echten Welt (m).
 
         :meth:`carried_world_gap` misst JETZT; diese Zahl haelt den
-        schlechtesten Moment der ganzen Fahrt fest.  Ein Abstand am Ziel
-        sagt nichts ueber den Weg: der Koerper kann mitten durch ein
-        Hindernis gefahren und am Ziel wieder frei sein -- und genau das
-        bemerkt sonst niemand, weil seine Kontakte abgeschaltet sind und
-        move_group nur den GEGLAUBTEN Koerper geprueft hat.
+        schlechtesten Moment der ganzen Fahrt fest.  Ein Abstand am Ziel sagt
+        nichts ueber den Weg: der Koerper kann mitten durch ein Hindernis
+        gefahren und am Ziel wieder frei sein -- und das bemerkt sonst niemand,
+        weil seine Kontakte abgeschaltet sind.
         """
         return self._carry_gap_min
 
@@ -1704,16 +1642,15 @@ class TwinTaskSim:
 
         Two halves, and the flag is worthless without either.  Writing ctrl is
         the obvious one -- ``ctrl`` left at zero means the position servos hold
-        the OPEN angle, so a closing command was answered with a saturated
+        the OPEN angle, so a closing command is answered with a saturated
         counter-torque (measured: 20 N.m on every follower).  Leaving qpos
-        alone is the other: a joint that is overwritten every substep cannot
-        stop at the object, so no contact force can build no matter what the
-        servo is told.
+        alone is the other: a joint overwritten every substep cannot stop at
+        the object, so no contact force can build.
 
         The setpoint is ramped across the substeps of a tick instead of
         jumping: the command changes binary open<->closed, and a step of that
-        size drives the fingers through the object within one substep before
-        the contact solver ever sees them.
+        size drives the fingers through the object before the contact solver
+        ever sees them.
         """
         for joint, target in targets.items():
             aid = self._gripper_actuators.get(joint)
@@ -1752,25 +1689,22 @@ class TwinTaskSim:
         Mirrors move_group's start/goal state validation on a scratch
         ``MjData``.  Three pair classes invalidate a configuration:
 
-        * manipulator vs. platform (the case from the MoveIt log:
-          "contact between 'base_link' and 'rg6_onrobot_rg6_base_link'"),
+        * manipulator vs. platform (from the MoveIt log: "contact between
+          'base_link' and 'rg6_onrobot_rg6_base_link'"),
         * hand assembly (gripper + wrist camera) vs. shoulder/upper-arm/
-          forearm -- a fully folded elbow that sweeps the arm through the
-          gripper's carry zone, and
-        * manipulator vs. perceived obstacles / distractors -- the pool
-          :meth:`set_obstacles` maintains mirrors what scene_sync publishes
-          to move_group, so the client-side IK gate rejects goal states
-          move_group would reject as obstacle collisions.
+          forearm -- a folded elbow that sweeps the arm through the gripper's
+          carry zone, and
+        * manipulator vs. perceived obstacles / distractors -- the pool mirrors
+          what scene_sync publishes to move_group, so the client-side IK gate
+          rejects goal states move_group would reject.
 
         Table/ground/graspable contacts are deliberately NOT part of this gate:
-        the finger envelope honestly dips toward the table during grasps
-        (MoveIt's current planning scene contains no table either); execution
-        crashes remain covered by the contact-event scan.
+        the finger envelope honestly dips toward the table during grasps, and
+        execution crashes remain covered by the contact-event scan.
 
-        ``obstacles_only=True`` restricts the gate to the obstacle pairs --
-        the pose-goal pre-send probe uses it (platform/self validity stays
-        move_group's call there, and a hand-vs-obstacle hit at a given TCP
-        pose is independent of which IK branch move_group will pick).
+        ``obstacles_only=True`` restricts the gate to the obstacle pairs -- the
+        pose-goal pre-send probe uses it, since a hand-vs-obstacle hit at a
+        given TCP pose is independent of the IK branch move_group picks.
         """
         mujoco = self._mujoco
         if self._collision_scratch is None:
@@ -1857,13 +1791,11 @@ class TwinTaskSim:
         Uses a scratch ``MjData``, so the pose comes back in MuJoCo world
         coordinates -- and that origin is *ground-referenced*, not the URDF
         root: the converter raises the welded base until the wheels rest on
-        z=0 (``urdf_mujoco``, step 7), which puts the world origin at
-        ``base_footprint``, 0.132 m below the Husky's ``base_link``.  A caller
-        that treats this as a ``base_link`` pose is off by exactly that much.
-        Used by the real-hardware camera to resolve the wrist
-        RealSense pose from the *live* arm joint_states when the foxglove bridge
-        does not relay the manipulator's static TF (the camera optical frame is
-        driver-only tf, absent from the URDF/MuJoCo model anyway).
+        z=0, which puts the world origin at ``base_footprint``, 0.132 m below
+        the Husky's ``base_link``.  A caller that treats this as a
+        ``base_link`` pose is off by exactly that much.  Used by the
+        real-hardware camera to resolve the wrist RealSense pose from the
+        *live* arm joint_states.
         """
         mujoco = self._mujoco
         bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, body)
