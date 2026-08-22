@@ -1,12 +1,11 @@
-"""MujocoSink no longer hard-codes one robot's body names.
+"""MujocoSink must not hard-code one robot's body names.
 
-Task 11 (hrl-Extraktion): before this, ``_guess_lookat``, the two ghost-sphere
-overlays and ``_body_for_frame`` all matched on literal UR5/RG6/D435 body
-names (``arm_0*``, ``camera_0_link``).  These are read from an optional
-``RobotSimSpec`` now; without one (every pre-Task-11 caller --
-octomap_explorer, the spact-integration-demos scripts/notebooks, hrl's own
-dashboard) the exact same literals apply as defaults, so nothing downstream
-has to change.
+``_guess_lookat``, the two ghost-sphere overlays and ``_body_for_frame`` take
+the literal UR5/RG6/D435 body names (``arm_0*``, ``camera_0_link``) from an
+optional ``RobotSimSpec``.  A caller that passes none (octomap_explorer, the
+spact-integration-demos scripts/notebooks, hrl's own dashboard) gets exactly
+those literals as defaults -- a robot-agnostic sink costs its callers
+nothing.
 
 This module only imports ``numpy`` at collection time (mujoco/opencv stay
 lazy inside methods), so these tests do not need the ``mujoco`` extra.

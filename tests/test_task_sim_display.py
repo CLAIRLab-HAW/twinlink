@@ -2,14 +2,13 @@
 / park_object -- the real-mode twin's non-physics "show what perception
 believes" API (see ``TwinTaskSim`` module docstring, "belief display").
 
-This mechanic was previously only exercised indirectly, through
-``hrl.env.belief_mirror.CubeTwinMirror`` + ``hrl.hierarchy.WorldModel`` (see
-``hrl.tests.test_belief_mirror``, still task-scoped there: it tests the
-WorldModel -> item-tuple translation).  ``twinlink.tests.test_display_mirror``
-only covers the dedup/sequencing logic of ``TwinDisplayMirror`` against a
-mocked sim -- the actual sim-side mechanic (does the object really follow the
-TCP, is it really parked out of reach, are its contacts really suspended and
-restored) had no direct test anywhere.  This file closes that gap with the
+The neighbouring suites reach this mechanic only indirectly:
+``hrl.tests.test_belief_mirror`` is task-scoped (the WorldModel -> item-tuple
+translation via ``hrl.env.belief_mirror.CubeTwinMirror``), and
+``twinlink.tests.test_display_mirror`` covers only the dedup/sequencing logic
+of ``TwinDisplayMirror`` against a mocked sim.  The sim-side mechanic itself
+-- does the object really follow the TCP, is it really parked out of reach,
+are its contacts really suspended and restored -- is tested here, with the
 same synthetic-scene pattern ``test_task_sim_grasp.py`` uses.
 """
 from __future__ import annotations

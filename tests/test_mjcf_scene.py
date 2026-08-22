@@ -1,10 +1,10 @@
 """Scene-furniture body-name prefix is a call-time parameter, not a constant.
 
-Task 11 (hrl-Extraktion): twinlink is a robot- AND app-agnostic package -- it
-must not bake in the name of any particular task app.  Before this, every
-prefix (``hrl_obstacle_``, ``hrl_distractor_``) was a module constant only hrl
-happened to match; a second app authoring its own obstacle pool would have
-collided with hrl's body names in a shared model.
+twinlink is a robot- AND app-agnostic package -- it must not bake in the
+name of any particular task app.  As a module constant, every prefix
+(``hrl_obstacle_``, ``hrl_distractor_``) would fit only hrl, and a second app
+authoring its own obstacle pool would collide with hrl's body names in a
+shared model.
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from twinlink import mjcf_scene
 
 
 def test_scene_prefix_is_a_parameter_not_a_constant():
-    """The lib may no longer hard-code the app's name."""
+    """The lib must not hard-code the app's name."""
     assert mjcf_scene.obstacle_body_name(0) == "hrl_obstacle_0"  # default
     assert mjcf_scene.obstacle_body_name(0, prefix="foo_") == "foo_obstacle_0"
 

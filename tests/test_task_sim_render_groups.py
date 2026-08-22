@@ -1,14 +1,14 @@
 """Regression pin: only the ROBOT's collision shells leave the render groups.
 
-``TwinTaskSim._hide_robot_collision_geoms`` used to decide by exclusion --
+``TwinTaskSim._hide_robot_collision_geoms`` must not decide by exclusion --
 "a body whose name does not start with the app's ``scene_prefix`` is robot".
-An app that places a body under a name of its own (the sufficiency study's
-``task_object``) therefore had it moved into the hidden geom group, which
-``_ensure_renderer`` switches off for RGB *and* depth: the object was
-invisible to every camera while every pose query kept returning the truth.
-Nothing failed -- the cameras simply saw the surface behind it.
+Under that rule an app that places a body under a name of its own (the
+sufficiency study's ``task_object``) has it moved into the hidden geom group,
+which ``_ensure_renderer`` switches off for RGB *and* depth: the object is
+invisible to every camera while every pose query keeps returning the truth.
+Nothing fails -- the cameras simply see the surface behind it.
 
-The rule is positive now (``body_rootid`` == the robot's root), and this test
+The rule is positive (``body_rootid`` == the robot's root), and this test
 holds it there.  Robot- and task-free MJCF, no URDF bundle needed.
 """
 from __future__ import annotations

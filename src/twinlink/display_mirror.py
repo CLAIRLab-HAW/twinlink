@@ -5,9 +5,9 @@ Zustände liefert, bleibt bei der App-Schicht (siehe
 ``hrl.env.belief_mirror.CubeTwinMirror``).
 
 In ``--real`` runs the sim's object bodies are *not* physics ground truth --
-the real objects in the real world are.  Historically the sim bodies simply
-stayed at their random spawn poses, so the dashboard twin showed the arm
-moving through a fictional scene.  This mirror closes that gap the same way
+the real objects in the real world are.  Without this mirror the sim bodies
+simply stay at their random spawn poses and the dashboard twin shows the arm
+moving through a fictional scene.  The mirror closes that gap the same way
 the obstacle layer does for foreign objects: the twin *shows* what perception
 believes.
 
