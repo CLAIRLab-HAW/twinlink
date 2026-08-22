@@ -588,7 +588,7 @@ class TwinTaskSim:
         Die Slot-Namen folgen dem Konstruktor-Präfix (``scene_prefix``), genau
         wie die Klassifikation -- mit dem Modul-Default gesucht, fände eine App
         mit eigenem Präfix ihren eigenen Pool nicht und liefe still ohne
-        Hindernisse (bis 2026-08-01 der Fall).
+        Hindernisse.
         """
         mujoco = self._mujoco
         self._obstacle_slots: List[Tuple[int, int]] = []

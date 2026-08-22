@@ -222,13 +222,13 @@ def test_grasp_carry_release():
 def test_the_open_gripper_reports_what_the_linkage_can_open_to():
     """Die offene Weite kommt aus dem GETRIEBE, nicht aus ``gripper_stroke_m``.
 
-    Bis 2026-08-16 rechnete die Sim die Weite aus ``gripper_stroke_m`` und
-    zwei Ankern zurueck, und dann fielen beide Zahlen zwangslaeufig zusammen.
-    Sie bedeuten aber Verschiedenes: ``gripper_stroke_m`` ist das Budget, an
+    Rechnet die Sim die Weite aus ``gripper_stroke_m`` und zwei Ankern
+    zurueck, fallen beide Zahlen zwangslaeufig zusammen.  Sie bedeuten aber
+    Verschiedenes: ``gripper_stroke_m`` ist das Budget, an
     dem sich eine Griffspanne misst (``GRASP_SPAN_FRACTION``), waehrend die
     Oeffnung der Hand eine Eigenschaft des Getriebes ist -- am echten RG6
-    159,0 mm, wo die Sim-Spanne 156 mm fuehrt.  Sie hier gleichzusetzen war
-    genau die Verwechslung, die den Greiferfehler mitgetragen hat.
+    159,0 mm, wo die Sim-Spanne 156 mm fuehrt.  Sie gleichzusetzen ist genau
+    die Verwechslung, die den Greiferfehler mitgetragen hat.
     """
     sim = _build()
     sim.command_gripper(False)
@@ -395,8 +395,8 @@ def test_the_captured_span_is_the_local_one_not_the_bounding_box():
     """Die Backenweite beim Loslassen richtet sich nach dem Gegriffenen.
 
     Mit der Huellquader-Spanne oeffnete der Greifer auf 180 mm -- weiter
-    als sein Gang, und weiter als noetig; genau die Beobachtung, aus der
-    am 2026-08-16 die Freigabeweite entstanden ist.
+    als sein Gang, und weiter als noetig -- genau die Beobachtung, aus der
+    die Freigabeweite entstanden ist.
     """
     sim = _build_wide()
     _approach(sim)
@@ -689,7 +689,7 @@ def test_the_limit_stays_inside_the_geometric_capture_window():
 def test_the_yaw_path_keeps_its_long_standing_tolerance():
     """Der GIERWINKEL bleibt, wie er war -- und zwar mit Grund.
 
-    Am 2026-08-17 mit 15 Grad probiert: sieben Bestandstests rot,
+    Mit 15 Grad probiert: sieben Bestandstests rot,
     darunter die Golden-Spur des Wuerfelturms.  Der Pfad ist alt,
     gepinnt und in der Studie mit hoechstens 2,1 Grad gemessen; ihn
     enger zu ziehen aenderte Ergebnisse aus einem Grund, der mit der

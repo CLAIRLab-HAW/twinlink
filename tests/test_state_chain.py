@@ -12,9 +12,9 @@ def _tf(parent, child, xyz, quat=(0.0, 0.0, 0.0, 1.0)):
 
 def test_identity_for_the_same_frame():
     # Die Zusage ist unveraendert -- aber sie gilt fuer ein Frame, das der
-    # Graph auch KENNT.  Bis 2026-08-16 lief die Kurzschluss-Pruefung vor
-    # jedem Blick in die Kanten, dieser Test lief also auf einem voellig
-    # leeren RobotState und belegte nichts.
+    # Graph auch KENNT.  Liefe die Kurzschluss-Pruefung vor jedem Blick in
+    # die Kanten, liefe dieser Test auf einem voellig leeren RobotState und
+    # belegte nichts.
     st = RobotState()
     st.set_transform(_tf("base", "cam", [1.0, 0.0, 0.0]))
     assert np.allclose(st.chain("base", "base"), np.eye(4))

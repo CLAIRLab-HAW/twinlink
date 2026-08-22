@@ -1,11 +1,11 @@
 """Regressionsschutz: greifbare Hindernisse bleiben Hindernisse.
 
-Hintergrund (Sim-Split 2026-07-31, Fix-Runde 1): ``arm_config_collides`` parkte
-nach dem Split *alle* registrierten Greifbaren aus dem Scratch-Modell weg --
-auch die, die zugleich als Hindernis klassifiziert sind (Pool-Slots, gescriptete
-Clutter, die ein Task zum Greifziel erklärt).  Damit konnte das Gate genau die
-Objekte nie mehr sehen, für die es existiert; ``settle`` wartete umgekehrt auf
-Szenen-Clutter, das gar nicht zur Nutzlast gehört.  Keine Suite hat es bemerkt.
+Hintergrund: parkt ``arm_config_collides`` *alle* registrierten Greifbaren aus
+dem Scratch-Modell weg -- auch die, die zugleich als Hindernis klassifiziert
+sind (Pool-Slots, gescriptete Clutter, die ein Task zum Greifziel erklärt) --,
+sieht das Gate genau die Objekte nie, für die es existiert; ``settle`` wartet
+umgekehrt auf Szenen-Clutter, das gar nicht zur Nutzlast gehört.  Von selbst
+bemerkt das keine Suite.
 
 Der Test baut ein winziges, roboter- und task-freies MJCF-Modell -- kein
 URDF-Bundle nötig, läuft also auch in der CI.
@@ -21,14 +21,13 @@ from twinlink.mjcf_scene import distractor_body_name, distractor_joint_name  # n
 from twinlink.testing import StraightLinkage  # noqa: E402
 from twinlink.task_sim import RobotSimSpec, TwinTaskSim  # noqa: E402
 
-#: Der Körperpräfix DIESER Testszene.  Bis 2026-08-01 stand hier eine
-#: Inkonsistenz, die nur deshalb nicht auffiel, weil die Klassifikation den
-#: Konstruktor-Präfix ignorierte: die Szene benannte ihren Distraktor mit dem
-#: Modul-Default (``hrl_distractor_0``), der Konstruktor bekam aber
-#: ``scene_prefix=""``.  Seit die Klassifikation dem Konstruktor-Präfix folgt,
-#: müssen beide dieselbe Wahl treffen -- und der eigene, app-fremde Präfix ist
-#: für einen twinlink-Test ohnehin die ehrlichere: diese Szene MÖBLIERT sich
-#: selbst, sie ist nicht präfixlos.
+#: Der Körperpräfix DIESER Testszene.  Szene und Konstruktor müssen dieselbe
+#: Wahl treffen: benennt die Szene ihren Distraktor mit dem Modul-Default
+#: (``hrl_distractor_0``), während der Konstruktor ``scene_prefix=""`` bekommt,
+#: fällt das nur so lange nicht auf, wie die Klassifikation den
+#: Konstruktor-Präfix ignoriert.  Der eigene, app-fremde Präfix ist für einen
+#: twinlink-Test ohnehin die ehrlichere Wahl: diese Szene MÖBLIERT sich selbst,
+#: sie ist nicht präfixlos.
 PREFIX = "test_"
 
 #: Ein Schieber-"Arm" mit Greifer-Kindkörper, eine Plattform, ein greifbares
