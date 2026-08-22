@@ -52,8 +52,8 @@ def test_twinlink_stands_alone():
         text = path.read_text()
         # ``perception`` gehört mit in die Liste: es ist die dritte Schicht
         # oberhalb von twinlink (Wahrnehmung/Hindernis-Tracking) und damit
-        # genauso ein Rückwärts-Import wie hrl -- bis 2026-08-01 stand sie
-        # als einzige nicht hier und wäre unbemerkt hereingerutscht.
+        # genauso ein Rückwärts-Import wie hrl.  Fehlte es als einziges in
+        # dieser Liste, rutschte es unbemerkt herein.
         for package in ("robot_contract", "husky_sdk", "hrl", "perception"):
             if f"import {package}" in text or f"from {package}" in text:
                 offenders.append(f"{path.name}: {package}")
@@ -66,8 +66,8 @@ def test_grasp_registry_is_label_keyed():
     Geprüft wird das GANZE Modul, nicht nur der Klassenrumpf: Task-Vokabular
     versteckt sich sonst in Modulkonstanten und Hilfsfunktionen daneben.
 
-    Der App-Präfix ``hrl_`` stand hier bis 2026-08-01 mit in der Wortliste --
-    und war grün, obwohl ``task_sim`` gegen genau diesen Präfix klassifizierte:
+    Der App-Präfix ``hrl_`` in dieser Wortliste wäre grün, obwohl ``task_sim``
+    gegen genau diesen Präfix klassifiziert:
     das Modul IMPORTIERTE die Konstanten (``OBSTACLE_BODY_PREFIX`` &c.), statt
     das Literal zu schreiben, also fand die Textsuche nichts.  Ein Textscan
     kann diese Eigenschaft grundsätzlich nicht belegen; den Nachweis führt
@@ -162,12 +162,11 @@ def test_scene_prefix_drives_classification():
     """Der Konstruktor-Präfix -- nicht ``hrl_`` -- bestimmt die Klassifikation.
 
     Die Kernzusage des Umbaus: twinlink ist app-agnostisch und publizierbar.
-    Bis 2026-08-01 galt sie nur zur Hälfte -- ``__init__`` nahm ``scene_prefix``
-    entgegen und nutzte ihn für die Render-Trennung, aber ``_classify_geoms``
-    verglich weiter gegen die Modulkonstanten ``OBSTACLE_BODY_PREFIX`` /
-    ``DISTRACTOR_BODY_PREFIX`` (beide ``hrl_…``) und ``_index_obstacle_pool``
-    rief ``obstacle_body_name(i)`` ohne ``prefix=``.  Identische Szene, nur der
-    Präfix getauscht, ergab damals:
+    Sie gilt nur zur Hälfte, wenn ``__init__`` den ``scene_prefix`` bloß für
+    die Render-Trennung nutzt, während ``_classify_geoms`` gegen die
+    Modulkonstanten vergleicht und ``_index_obstacle_pool``
+    ``obstacle_body_name(i)`` ohne ``prefix=`` ruft.  Identische Szene, nur der
+    Präfix getauscht, ergibt dann:
 
         prefix 'hrl_' :  obstacle_geoms=2  pool_slots=1  non_obstacle_graspables=()
         prefix 'task_':  obstacle_geoms=0  pool_slots=0  non_obstacle_graspables=('clutter',)
