@@ -4,7 +4,7 @@ For robots running ``rmw_zenoh`` (like this Husky) a plain Zenoh client can join
 the robot's Zenoh graph directly and subscribe to ROS 2 topics. Unlike a
 visualization bridge, Zenoh is a robotics-grade transport (pub/sub + query, low
 latency, bidirectional-capable). Payloads are the same CDR ROS 2 puts on the
-wire, decoded via the same path as :class:`McapSource` / :class:`FoxgloveSource`.
+wire, decoded via the same path as :class:`~twinlink.sources.mcap.McapSource` / :class:`~twinlink.sources.foxglove.FoxgloveSource`.
 
     rmw_zenoh graph ──zenoh (CDR)──▶ ZenohSource ──▶ RobotState ──▶ MujocoSink
     ZenohPublisher ──zenoh (CDR + rmw attachment)──▶ rmw_zenoh subscriber

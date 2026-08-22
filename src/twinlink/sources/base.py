@@ -1,4 +1,4 @@
-"""Source abstraction: anything that *fills* a :class:`RobotState`.
+"""Source abstraction: anything that *fills* a :class:`~twinlink.state.RobotState`.
 
 A source is bound to a state and a mapping, then started.  It typically runs in
 its own thread and feeds messages through ``mapping.apply(...)``.  Sinks read

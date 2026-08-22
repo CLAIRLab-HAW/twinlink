@@ -1,4 +1,4 @@
-"""Robot-agnostic mapping from ROS messages to :class:`RobotState`.
+"""Robot-agnostic mapping from ROS messages to :class:`~twinlink.state.RobotState`.
 
 A :class:`RobotMapping` is *configuration*, not code: it names which topics on
 *your* robot carry joint states, TF, odometry and camera images.  The decoders

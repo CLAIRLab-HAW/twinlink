@@ -1,6 +1,6 @@
 """MuJoCo digital-twin sink.
 
-Drives a MuJoCo model from a :class:`RobotState`: every joint in the state that
+Drives a MuJoCo model from a :class:`~twinlink.state.RobotState`: every joint in the state that
 also exists in the model is written to ``qpos`` by name, an optional free joint
 is driven from the base pose, ``mj_forward`` updates the kinematics, and the
 scene is rendered.  Robot-agnostic -- it only needs joint-name correspondence

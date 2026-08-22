@@ -1,10 +1,10 @@
 """The TwinLink orchestrator.
 
 Wires one *source* (live ROS 2 / MCAP / URDF) through a shared
-:class:`RobotState` into one or more *sinks* (MuJoCo, Isaac Sim, ...).
+:class:`~twinlink.state.RobotState` into one or more *sinks* (MuJoCo, Isaac Sim, ...).
 
 Threading model: the source runs in its own thread and only writes state; the
-sinks are ticked from :meth:`run`, i.e. the **main thread**.  That matters --
+sinks are ticked from :meth:`TwinLink.run`, i.e. the **main thread**.  That matters --
 OpenGL contexts and macOS windowing must live on the main thread.
 """
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """Live source over the Foxglove WebSocket protocol (no ROS install needed).
 
-This is the no-ROS sibling of :class:`Ros2Source`: instead of ``rclpy`` it
+This is the no-ROS sibling of :class:`~twinlink.sources.ros2.Ros2Source`: instead of ``rclpy`` it
 talks to a ``foxglove_bridge`` (which the robot / offboard container already
 runs) over a WebSocket and decodes the CDR payloads itself -- exactly the same
 bytes a ROS 2 publisher puts on the wire, deserialized with the same path as the

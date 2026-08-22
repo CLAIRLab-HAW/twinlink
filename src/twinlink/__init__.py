@@ -4,7 +4,7 @@ TwinLink keeps an in-memory :class:`RobotState` that mirrors the live robot and
 feeds it into simulation environments (MuJoCo today, Isaac Sim next).  The state
 can be filled from three interchangeable *sources*:
 
-* :class:`Ros2Source`       -- live ROS 2 topics,
+* :class:`~twinlink.sources.ros2.Ros2Source`       -- live ROS 2 topics,
 * :class:`McapSource`       -- a recorded MCAP / rosbag2 (mock mode),
 * :class:`UrdfStaticSource` -- a bare URDF, no motion (mock mode).
 

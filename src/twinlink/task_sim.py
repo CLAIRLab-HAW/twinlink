@@ -1604,7 +1604,7 @@ class TwinTaskSim:
     def gripper_angle_applied(self) -> float:
         """Der Winkel, der zuletzt WIRKLICH geschrieben wurde.
 
-        Nicht dasselbe wie :meth:`gripper_angle`: das ist der BEFEHL.
+        Nicht dasselbe wie :meth:`gripper_command_rad`: das ist der BEFEHL.
         Waehrend einer sichtbaren Rampe laufen die beiden auseinander,
         und was man im Bild sieht, ist dieser hier.
         """

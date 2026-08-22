@@ -384,26 +384,24 @@ def load_mujoco_from_urdf(
 ):
     """Load ``urdf_path`` into a ``mujoco.MjModel``.
 
-    Parameters
-    ----------
-    floating_base : add a free joint on the base link so the base pose can be
+    :param floating_base: add a free joint on the base link so the base pose can be
         driven from odometry, or settle under gravity (otherwise the base is
         welded at the origin).
-    add_ground : add a checkered ground plane and a light for a usable scene.
+    :param add_ground: add a checkered ground plane and a light for a usable scene.
         With a welded base the robot is also raised so its lowest geometry
         rests on the plane -- the root link of a mobile base sits above the
         ground, so welding it at the origin would sink the wheels.  Consumers
         can read the applied shift off the compiled model as the base body's
         ``body_pos[...][2]``.
-    keep_visual : render the ``<visual>`` meshes instead of ``<collision>``
+    :param keep_visual: render the ``<visual>`` meshes instead of ``<collision>``
         geometry.  Falls back to collision geometry per-link when a visual mesh
         cannot be loaded.
-    colored : with ``keep_visual``, split ``.dae`` meshes per material and apply
+    :param colored: with ``keep_visual``, split ``.dae`` meshes per material and apply
         their diffuse colours (the UR5's blue/grey/black, etc.).
-    with_collision : with ``keep_visual``, *also* keep the ``<collision>``
+    :param with_collision: with ``keep_visual``, *also* keep the ``<collision>``
         geometry so the model can be simulated (contacts) while rendering the
         visual meshes.  Needed for the physics demo.
-    mesh_cache_dir : where converted/linked meshes are written
+    :param mesh_cache_dir: where converted/linked meshes are written
         (default: ``<urdf_dir>/.twinlink_meshcache``).
     """
     import mujoco

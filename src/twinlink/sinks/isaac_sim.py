@@ -4,7 +4,7 @@ Isaac Sim ships its own embedded Python (``omni.isaac.*`` / ``isaacsim``) that
 cannot be ``pip``-installed alongside this package, so this sink is a thin,
 *runnable-inside-Isaac* adapter rather than something we can exercise here.
 
-The state contract is identical to :class:`MujocoSink`, so the mapping/source
+The state contract is identical to :class:`~twinlink.sinks.mujoco_sink.MujocoSink`, so the mapping/source
 layers are reused unchanged.  When run inside Isaac Sim's interpreter, ``setup``
 binds an ``ArticulationView`` and ``update`` writes the state's joint positions
 to the articulation each tick::
