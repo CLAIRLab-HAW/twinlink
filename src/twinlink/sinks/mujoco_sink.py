@@ -3,8 +3,8 @@
 Drives a MuJoCo model from a :class:`RobotState`: every joint in the state that
 also exists in the model is written to ``qpos`` by name, an optional free joint
 is driven from the base pose, ``mj_forward`` updates the kinematics, and the
-scene is rendered.  The sink is *robot-agnostic* -- it only needs joint-name
-correspondence between the state and the model.
+scene is rendered.  Robot-agnostic -- it only needs joint-name correspondence
+between the state and the model.
 
 With ``physics=True`` the sink instead *simulates* (``mj_step``): the state's
 joints are held at their commanded values while the free base settles under
@@ -18,14 +18,14 @@ Rendering backends:
   to be launched with ``mjpython``.
 * ``none``      -- maintain kinematics without rendering (headless).
 
-Sensor data (e.g. a RealSense colour image carried in the state) is shown in a
-side window so the recorded camera and the simulated twin are visible together.
+Sensor data carried in the state is shown in a side window, so the recorded
+camera and the simulated twin are visible together.
 
-With ``show_obstacles=True`` the free camera **auto-frames** itself on the union
-of the robot and the first obstacle cloud that arrives (see ``auto_frame``): an
-observed scene sits wherever the sensor happened to look, which is regularly
-outside a robot-centred view, so without this the voxels are off-screen and the
-overlay looks broken.  Passing ``cam_distance`` / ``cam_lookat`` opts out.
+With ``show_obstacles=True`` the free camera **auto-frames** itself on the
+union of the robot and the first obstacle cloud (see ``auto_frame``): an
+observed scene sits wherever the sensor happened to look, regularly outside a
+robot-centred view, and without this the voxels are off-screen and the overlay
+looks broken.  ``cam_distance`` / ``cam_lookat`` opt out.
 """
 from __future__ import annotations
 
@@ -376,20 +376,19 @@ class MujocoSink(StateSink):
         self._ghost_locked = True
 
     def unlock_ghost(self) -> None:
-        """Unlock the ghost for the next planned trajectory *without* a static goal preview.
+        """Unlock the ghost for the next planned trajectory *without* a static
+        goal preview.
 
-        Unlike ``show_goal_preview()``, this does NOT render a static ghost at
-        the target pose — only the upcoming planned-trajectory ghost will be
-        visible.  Use this in safe-execute mode where the user should review the
-        animated trajectory, not a static goal pose that would flash before the
+        Unlike ``show_goal_preview()`` this does NOT render a static ghost at
+        the target pose -- only the upcoming planned-trajectory ghost will be
+        visible.  For safe-execute mode, where the user should review the
+        animated trajectory rather than a static goal pose flashing before the
         plan arrives.
 
-        Snapshot the current in-state trajectory into ``_last_traj`` so that
+        The current in-state trajectory is snapshotted into ``_last_traj`` so
         ``_check_new_trajectory()`` does NOT re-pick it up as "new" the moment
-        the lock is released.  Without this, the previous execution's
-        display_planned_path (still held in the state) would flash briefly
-        before the new plan arrives.  Only a genuinely new trajectory object
-        (from the new plan) will trigger the ghost.
+        the lock is released; otherwise the previous execution's
+        display_planned_path would flash before the new plan.
         """
         self._goal_preview_pos = None
         self._goal_preview_until = 0.0
@@ -500,16 +499,14 @@ class MujocoSink(StateSink):
         return self._goal_preview_pos
 
     def _draw_goal_ghost(self, mujoco, scene) -> None:
-        """Draw colored spheres at each arm link's position at the goal-preview pose.
+        """Draw colored spheres at each arm link's position at the goal pose.
 
-        Color coding:
-          - green  = goal preview (target pose before planning)
-          - yellow = planned trajectory (ghost playback of display_planned_path)
+        green = goal preview (target pose before planning),
+        yellow = planned trajectory (ghost playback of display_planned_path).
 
-        We temporarily set qpos to the goal, ``mj_forward``, read the body
-        world positions of the arm chain, restore qpos, then add translucent
-        spheres at those locations — a visual "where the arm is heading"
-        indicator.
+        qpos is temporarily set to the goal, ``mj_forward`` run, the body world
+        positions read, qpos restored -- then translucent spheres are added at
+        those locations as a "where the arm is heading" indicator.
         """
         goal = self._goal_preview_positions()
         if goal is None or self.model is None:
@@ -707,15 +704,14 @@ class MujocoSink(StateSink):
         """Frame the free camera on robot + obstacles, once, on the first cloud.
 
         An obstacle cloud sits wherever the sensor looked -- in a recording that
-        can be metres off to the side of the robot, entirely outside the
-        robot-centred startup view, which makes a working overlay look like a
-        broken one.  So on the first non-empty cloud, aim the camera at the
-        centre of the combined AABB and pull it back far enough for the
-        enclosing sphere to fit the vertical FOV.  Because the *sphere* is
-        fitted, azimuth/elevation keep whatever the caller chose.
+        can be metres off to the side, entirely outside the robot-centred
+        startup view, which makes a working overlay look broken.  So on the
+        first non-empty cloud, aim at the centre of the combined AABB and pull
+        back far enough for the enclosing sphere to fit the vertical FOV.
+        Because the *sphere* is fitted, azimuth/elevation keep the caller's
+        choice.
 
-        One-shot by design: re-framing on every cloud would fight the user's
-        mouse.  Not applied to an explicit cam_distance / cam_lookat.
+        One-shot by design: re-framing on every cloud would fight the mouse.
         """
         if self._autoframed or self.state is None:
             return

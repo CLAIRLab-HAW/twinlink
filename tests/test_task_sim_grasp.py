@@ -1,18 +1,14 @@
 """Proximity-capture grasp mechanic: alignment, capture, carry, release.
 
-Moved/re-derived from ``hrl.tests.test_grasp_alignment`` and
-``hrl.tests.test_scene_sim`` (task-refactor 2026-07-31): the parallel-jaw
-alignment check, kinematic carry and release all live in
-``TwinTaskSim._try_grasp`` / ``_carry_grasped`` / ``_release`` -- none of it
-is about cubes.  The original tests drove this mechanic indirectly through a
-real UR5 descend (``ArmMotionPlanner`` + real cube geometry); here the same
-production methods (``command_gripper``, ``arm_positions`` via
-``set_arm_command`` + ``step_physics``) are exercised directly against a
-tiny, robot- and task-free MJCF model, the same pattern
-``test_task_sim_clutter.py`` already established in this file.  Gravity is
-off (``gravity="0 0 0"``): nothing here is about resting/settling physics
-(that stays covered task-side, e.g. hrl's ``test_cubes_rest_stably``), only
-about the capture/carry/release state machine.
+The parallel-jaw alignment check, kinematic carry and release all live in
+``TwinTaskSim._try_grasp`` / ``_carry_grasped`` / ``_release`` -- none of it is
+about cubes.  Driving that mechanic indirectly through a real UR5 descend
+would test the arm; here the same production methods are exercised directly
+against a tiny, robot- and task-free MJCF model.
+
+Gravity is off (``gravity="0 0 0"``): nothing here is about resting/settling
+physics (that stays covered task-side), only about the capture/carry/release
+state machine.
 """
 from __future__ import annotations
 
@@ -216,15 +212,12 @@ def test_grasp_carry_release():
 # --------------------------------------------------------------------- #
 # Greiferweite, oeffentlich lesbar
 #
-# Der Zwilling faehrt die Finger seit jeher auf die OBJEKTWEITE, wenn ein
-# Objekt gefasst ist (``command_gripper``: "the finger command corresponds
-# to the object width").  Diese Weite steckte bisher nur im privaten
-# ``_gripper_command``.  Wer sie an einen echten Greifer spiegeln will --
-# damit move_group dieselbe Hand prueft, die der Zwilling zeigt -- kann sie
-# nicht lesen, ohne in die Interna zu greifen.  Am 2026-08-16 im Container
-# gemessen: dessen RG6-Gelenke standen waehrend eines ganzen Zellenlaufs
-# konstant auf 0.0 (voll offen), waehrend der Zwilling zugriff -- zwei
-# verschiedene Haende, gegen die geprueft wurde.
+# Der Zwilling faehrt die Finger auf die OBJEKTWEITE, wenn ein Objekt gefasst
+# ist.  Steckte diese Weite nur im privaten ``_gripper_command``, koennte sie
+# niemand an einen echten Greifer spiegeln, ohne in die Interna zu greifen --
+# und im Container gemessen: dessen RG6-Gelenke standen waehrend eines ganzen
+# Zellenlaufs konstant auf 0.0 (voll offen), waehrend der Zwilling zugriff.
+# Zwei verschiedene Haende, gegen die geprueft wurde.
 # --------------------------------------------------------------------- #
 def test_the_open_gripper_reports_what_the_linkage_can_open_to():
     """Die offene Weite kommt aus dem GETRIEBE, nicht aus ``gripper_stroke_m``.
@@ -293,16 +286,13 @@ def test_a_grasped_object_sets_the_width_to_its_own_span():
 def test_releasing_opens_only_as_far_as_the_object_needed():
     """Zum Loslassen ganz aufzureissen ist eine Wahl, keine Notwendigkeit.
 
-    Am husky-offboard-Container am 2026-08-16 gemessen und vom Owner in
-    Foxglove gesehen: nach dem Ablegen stand die Hand auf voller Weite
-    MITTEN IM TOR, und move_group verweigerte daraufhin den Rueckzug --
-    ``2 contact(s) detected : gate_0 - rg6_gripper_finger_2_flex_finger,
-    gate_1 - rg6_gripper_finger_1_flex_finger``.  Ein echter RG6 oeffnet zum Loslassen nur so
-    weit, wie das Objekt es verlangt.
+    Am Container gemessen: nach dem Ablegen stand die Hand auf voller Weite
+    MITTEN IM TOR, und move_group verweigerte den Rueckzug (``2 contact(s)
+    detected : gate_0 - ..._finger_2, gate_1 - ..._finger_1``).  Ein echter
+    RG6 oeffnet zum Loslassen nur so weit, wie das Objekt es verlangt.
 
-    Der Payload misst 0,03 m ueber die geschlossene Kante; mit 0,005 m
-    Spiel je Seite sind das 0,04 m -- deutlich weniger als die 0,16 m,
-    die das Getriebe hergaebe.
+    Der Payload misst 0,03 m ueber die geschlossene Kante; mit 0,005 m Spiel
+    je Seite sind das 0,04 m -- deutlich weniger als die 0,16 m des Getriebes.
     """
     sim = _build()
     _approach(sim)
@@ -349,21 +339,17 @@ def test_a_released_gripper_does_not_report_itself_closed():
 
 
 # --------------------------------------------------------------------- #
-# Die Spanne kommt aus der Geometrie ZWISCHEN den Backen (2026-08-17)
+# Die Spanne kommt aus der Geometrie ZWISCHEN den Backen
 #
-# Sie kam bis hierher aus ``entry["half"]`` -- den Huellquader-Halbmassen
-# des ganzen Koerpers.  Fuer einen Wuerfel ist das dasselbe; fuer alles
-# andere ist es eine ABSTRAKTION, und zwar genau die groebste.  Gemessen
-# an der Suffizienz-Vorstudie: ein Deckel (180 mm Scheibe, 30 mm Knauf)
-# meldete auf ALLEN VIER Objektsprossen "kein schliessbares Flaechenpaar"
-# -- 180/180 mm gegen 156 mm Backengang, unabhaengig davon, wie fein das
-# Objekt modelliert war.
+# Aus ``entry["half"]`` -- den Huellquader-Halbmassen des ganzen Koerpers --
+# gelesen ist sie fuer einen Wuerfel dasselbe, fuer alles andere die groebste
+# denkbare Abstraktion.  Gemessen: ein Deckel (180 mm Scheibe, 30 mm Knauf)
+# meldete auf ALLEN VIER Objektsprossen "kein schliessbares Flaechenpaar" --
+# 180 mm gegen 156 mm Backengang, unabhaengig von der Modellfeinheit.
 #
-# Damit konnte alpha_obj auch ueber den GRIFF nicht binden: der Zwilling
-# las den Huellquader, gleichgueltig was zwischen den Backen wirklich
-# stand.  Zusammen mit der konvexen Silhouette (die beim Durchfahren
-# ohnehin nichts hergibt) erklaert das eine flache Messtabelle
-# vollstaendig -- und zwar als Eigenschaft des AUFBAUS, nicht der Sache.
+# Damit konnte alpha_obj auch ueber den GRIFF nicht binden: der Zwilling las
+# den Huellquader, gleichgueltig was zwischen den Backen wirklich stand -- das
+# erklaert eine flache Messtabelle als Eigenschaft des AUFBAUS.
 # --------------------------------------------------------------------- #
 WIDE_SCENE_XML = SCENE_XML.replace(
     '<geom name="payload_geom" type="box" size="0.02 0.015 0.02"/>',
@@ -441,20 +427,17 @@ def test_a_body_that_is_wide_everywhere_is_still_refused():
 
 
 # --------------------------------------------------------------------- #
-# Pad-Squaring auch fuer die NEIGUNG (Owner-Befund 2026-08-17)
+# Pad-Squaring auch fuer die NEIGUNG
 #
-# "der griff sieht bei moveit so aus als sei der greifer nicht genug
-# geschlossen ... die pads machen den stift beim schliessen automatisch
-# senkrecht gerade."  Genau das tat der Zwilling bisher nur fuer den
-# GIERWINKEL: er schweisste das Objekt in der Neigung fest, in der er es
-# fing.  Ein Stift, der im Koecher 6 Grad lehnt, wurde also 6 Grad schief
-# GETRAGEN -- und passte in move_group in keinen Becher mehr
-# (``RRTConnect: Unable to sample any valid states for goal tree``).
+# Der Zwilling schweisste das Objekt in der Neigung fest, in der er es fing --
+# ein Stift, der im Koecher 6 Grad lehnt, wurde also 6 Grad schief GETRAGEN
+# und passte in move_group in keinen Becher mehr (``RRTConnect: Unable to
+# sample any valid states for goal tree``).
 #
-# Flache Backen, die sich um einen schlanken Koerper schliessen, richten
-# ihn auf.  Das ist dieselbe Mechanik wie beim Gierwinkel, nur um eine
-# andere Achse -- und es gehoert in den Zwilling, weil DER die Wahrheit
-# haelt und move_group sie uebernimmt.
+# Flache Backen, die sich um einen schlanken Koerper schliessen, richten ihn
+# auf -- dieselbe Mechanik wie beim Gierwinkel, nur um eine andere Achse.  Sie
+# gehoert in den Zwilling, weil DER die Wahrheit haelt und move_group sie
+# uebernimmt.
 # --------------------------------------------------------------------- #
 def _set_payload_tilt(sim, tilt_rad: float) -> None:
     """Kippt die Nutzlast um die x-Achse (aus der Senkrechten)."""
@@ -503,21 +486,18 @@ def test_squaring_snaps_to_the_NEAREST_axis_not_to_upright():
 
 
 # --------------------------------------------------------------------- #
-# Der Griff wird GEPRUEFT, nicht nur modelliert (Owner 2026-08-17)
+# Der Griff wird GEPRUEFT, nicht nur modelliert
 #
-# ``_try_grasp`` ist ein MODELL: Abstand, Ausrichtung, Spanne -- danach
-# wird geschweisst.  Ob die Pads den Koerper wirklich beruehren, ob sie
-# ihn durchdringen oder ob sie danebengreifen, hat niemand geprueft.  Fuer
-# die Suffizienz-Studie ist das der entscheidende Punkt: dort zielt der
-# Roboter nach einem GROBEN Modell und trifft auf die WIRKLICHKEIT -- ob
-# der Griff dann noch sitzt, ist genau die Frage und darf nicht durch die
-# Grosszuegigkeit der Fangbedingung (7 cm Radius, 20 Grad) verdeckt
-# werden.
+# ``_try_grasp`` ist ein MODELL: Abstand, Ausrichtung, Spanne -- danach wird
+# geschweisst.  Ob die Pads den Koerper wirklich beruehren, ihn durchdringen
+# oder danebengreifen, prueft das nicht.  Fuer die Suffizienz-Studie ist genau
+# das der Punkt: dort zielt der Roboter nach einem GROBEN Modell und trifft
+# auf die WIRKLICHKEIT, und ob der Griff dann noch sitzt, darf nicht durch die
+# Grosszuegigkeit der Fangbedingung (7 cm, 20 Grad) verdeckt werden.
 #
-# Geprueft wird ueber ``mj_geomDistance`` -- eine reine Abstandsabfrage,
-# ohne Physik.  Die Kontakte des getragenen Koerpers sind aus gutem Grund
-# abgeschaltet (der Loeser kaempft sonst gegen die kinematische Klammer);
-# eine Abfrage stoert davon nichts.
+# Geprueft wird ueber ``mj_geomDistance`` -- eine reine Abstandsabfrage.  Die
+# Kontakte des getragenen Koerpers sind aus gutem Grund abgeschaltet; eine
+# Abfrage stoert davon nichts.
 # --------------------------------------------------------------------- #
 def test_a_sound_grasp_has_both_pads_at_the_object():
     sim = _build()
@@ -561,25 +541,18 @@ def test_the_check_sees_a_body_the_pads_pass_through():
 
 # --------------------------------------------------------------------- #
 # Die SCHIEFLAGE beim Fangen wird gemeldet, nicht nur weggeschnappt
-# (Owner 2026-08-17)
 #
-# "in mug/transport wird beim ersten abstrahierten Quader der Transport
-# positiv gemeldet, aber der Quader stand schief zum Greifer in moveit,
-# also lehnt moveit nicht ab -- sollte es aber, weil die Greiferbacken
-# dort nicht sauber greifen."
-#
-# Beides stimmt, und zusammen ergeben sie eine Luecke:
+# Zwei Dinge zusammen ergeben eine Luecke:
 #   * move_group KANN nicht ablehnen -- der Backenkontakt ist beim Griff
 #     ausdruecklich freigegeben (``_target_touchable``), sonst waere jeder
 #     Griff ein Startzustand in Kollision.
-#   * Der Zwilling SIEHT die Schieflage (``best_misalign``), schnappt sie
-#     weg und wirft die Zahl fort.  Der Griffspalt misst danach und sieht
-#     deshalb sauber aus.
+#   * Der Zwilling SIEHT die Schieflage (``best_misalign``), schnappt sie weg
+#     und wirft die Zahl fort.  Der Griffspalt misst danach und sieht deshalb
+#     sauber aus.
 #
-# Damit war ausgerechnet der Fehler unsichtbar, den ein grobes Modell
-# erzeugt: der Roboter zielt nach dem Quader, der echte Koerper steht
-# anders, und die Grosszuegigkeit des Fangs (20 Grad) buegelt es aus.
-# Die Zahl muss heraus.
+# Damit war ausgerechnet der Fehler unsichtbar, den ein grobes Modell erzeugt:
+# der Roboter zielt nach dem Quader, der echte Koerper steht anders, und die
+# Grosszuegigkeit des Fangs buegelt es aus.  Die Zahl muss heraus.
 # --------------------------------------------------------------------- #
 def test_the_capture_reports_how_far_it_had_to_square_the_object():
     sim = _build()
@@ -609,34 +582,20 @@ def test_without_a_grasp_there_is_no_misalignment_to_report():
 
 # --------------------------------------------------------------------- #
 # Die Greifhoehe folgt dem KOERPER, nicht seiner aufrecht gedachten Huelle
-# (Owner 2026-08-17: "sichtbarer Spalt zwischen Greifer und Marker")
 #
-# Gemessen: marker/pick meldete Erfolg mit einem Spalt von +12 bis
-# +14 mm -- die Backen standen ueber einen Zentimeter neben dem Stift.
-#
-# Ursache: der Greifpunkt wurde aus ``entry["half"][2]`` gerechnet, der
-# halben Hoehe der AABB IM KOERPERFRAME.  Der Marker LIEGT, seine wahre
-# Oberkante ist rund 13 mm ueber seiner Mitte statt 70.  Das Pruefband lag
-# damit ueber dem Objekt, ``_span_between_pads`` fand dort kein Geom und
-# fiel auf die Huelle zurueck (26 mm statt 18 mm Schaft) -- die Backen
-# schlossen auf 26 mm und beruehrten nichts.
+# Gemessen: marker/pick meldete Erfolg mit einem Spalt von +12 bis +14 mm --
+# die Backen standen ueber einen Zentimeter neben dem Stift.  Ursache: der
+# Greifpunkt kam aus ``entry["half"][2]``, der halben Hoehe der AABB IM
+# KOERPERFRAME.  Der Marker LIEGT, seine wahre Oberkante ist rund 13 mm ueber
+# seiner Mitte statt 70 -- das Pruefband lag ueber dem Objekt,
+# ``_span_between_pads`` fand dort kein Geom und fiel auf die Huelle zurueck.
 # --------------------------------------------------------------------- #
 def test_the_grip_reference_follows_the_real_body_not_its_upright_hull():
     """Der Greifpunkt kommt aus der WELT, nicht aus der Koerperframe-AABB.
 
-    Gemessen an der Studie: ``marker/pick`` meldete Erfolg mit einem
-    Spalt von +12 bis +14 mm -- die Backen standen ueber einen Zentimeter
-    neben dem Stift.  Der Greifpunkt wurde aus ``entry["half"][2]``
-    gerechnet, der halben Hoehe der AABB IM KOERPERFRAME.  Der Marker
-    LIEGT: seine wahre Oberkante ist rund 13 mm ueber seiner Mitte statt
-    70.  Das Pruefband lag damit ueber dem Objekt,
-    ``_span_between_pads`` fand dort kein Geom und fiel auf die Huelle
-    zurueck (26 mm statt 18 mm Schaft) -- die Backen schlossen auf 26 mm
-    und beruehrten nichts.
-
-    Geprueft wird der Bezugspunkt selbst: der synthetische Aufbau hier
-    hat keine Backen, die auf eine Weite stoppen, und kann den Spalt
-    deshalb nicht zeigen.
+    Die Messung dazu steht im Abschnittskopf darueber.  Geprueft wird hier der
+    Bezugspunkt selbst: der synthetische Aufbau hat keine Backen, die auf eine
+    Weite stoppen, und kann den Spalt deshalb nicht zeigen.
     """
     xml = SCENE_XML.replace(
         '<geom name="payload_geom" type="box" size="0.02 0.015 0.02"/>',
@@ -692,27 +651,20 @@ def test_a_tipped_object_offers_the_axes_it_really_has():
 
 
 # --------------------------------------------------------------------- #
-# Das Ausrichten hat eine GRENZE statt einer Reparatur (Owner 2026-08-17)
+# Das Ausrichten hat eine GRENZE statt einer Reparatur
 #
-# "jetzt fuehrt das Anpassen der Orientierung in moveit zu einer Anpassung
-# in mujoco, dieser Loop ist fuer die Studie gefaehrlich oder nicht?"
-#
-# Ja.  Glaube -> Handlung -> Weltaenderung -> wird als "Wahrheit"
-# zurueckgelesen -> Glaube.  Kausal ist das legitim (ein echter Greifer
-# richtet einen Stift beim Zupacken wirklich auf), aber der Zwilling
-# modellierte es als KOSTENLOSEN Schnapp: alles bis 20 Grad wurde umsonst
-# korrigiert, ohne Fehlerfall.  Damit verwandelt er Abstraktionsfehler in
-# nichts, und die grobe Sprosse sieht ausreichend aus, weil der Zwilling
-# die Folge ihrer Grobheit selbst repariert hat.
+# Glaube -> Handlung -> Weltaenderung -> wird als "Wahrheit" zurueckgelesen ->
+# Glaube.  Kausal legitim (ein echter Greifer richtet einen Stift beim
+# Zupacken wirklich auf), aber als KOSTENLOSER Schnapp modelliert verwandelt
+# der Zwilling Abstraktionsfehler in nichts: die grobe Sprosse sieht
+# ausreichend aus, weil er die Folge ihrer Grobheit selbst repariert hat.
 #
 # Nachgiebigkeit ist echt, aber begrenzt: flache Pads richten einen leicht
-# schiefen Koerper aus, ein stark schiefer rutscht ab.  Der Riegel
-# unterscheidet beides.
+# schiefen Koerper aus, ein stark schiefer rutscht ab.
 #
-# EHRLICH DAZU: die gemessene Verteilung ueber 68 Container-Laeufe reicht
-# von 0,0 bis 2,1 Grad -- die Grenze bindet heute NIRGENDS.  Sie ist eine
-# Wache gegen einen Fehlermodus, keine Korrektur eines Ergebnisses.  Der
-# Wert ist eine Modellentscheidung und ausdruecklich ein Regler.
+# EHRLICH DAZU: die gemessene Verteilung ueber 68 Container-Laeufe reicht von
+# 0,0 bis 2,1 Grad -- die Grenze bindet heute NIRGENDS.  Sie ist eine Wache
+# gegen einen Fehlermodus, keine Korrektur eines Ergebnisses.
 # --------------------------------------------------------------------- #
 def test_a_slightly_tipped_object_is_still_squared_and_grasped():
     from twinlink.task_sim import PAD_SQUARE_LIMIT_DEG
@@ -769,19 +721,15 @@ def test_a_badly_tipped_object_is_refused_too():
 
 
 # --------------------------------------------------------------------- #
-# Der TRANSPORT wird gegen die Wirklichkeit geprueft (Owner 2026-08-17)
+# Der TRANSPORT wird gegen die Wirklichkeit geprueft
 #
-# "in mujoco laeuft die physik und es wird geprueft ob griff, transport
-# etc. tatsaechlich funktioniert haben" -- fuer den Transport stimmte das
-# nicht: der getragene Koerper hat keine Kontakte (aus gutem Grund, siehe
-# ``_suspend_object_contacts``), MoveIt prueft den GEGLAUBTEN Koerper,
-# und der ECHTE faehrt ungehindert durch die echte Welt.
+# Der getragene Koerper hat keine Kontakte (aus gutem Grund, siehe
+# ``_suspend_object_contacts``), MoveIt prueft den GEGLAUBTEN Koerper, und der
+# ECHTE faehrt ungehindert durch die echte Welt.  Die Richtung ist die
+# gefaehrliche: es wird nicht "Wirklichkeit verbietet, was der Glaube erlaubt"
+# gemeldet, sondern als ERFOLG gezaehlt.
 #
-# Die Richtung ist die gefaehrliche: es wird nicht "Wirklichkeit verbietet,
-# was der Glaube erlaubt" gemeldet, sondern als ERFOLG gezaehlt.
-#
-# Geprueft wird wie beim Griff -- ``mj_geomDistance``, eine reine
-# Abstandsabfrage, die die abgeschalteten Kontakte nicht braucht.
+# Geprueft wird wie beim Griff ueber ``mj_geomDistance``.
 # --------------------------------------------------------------------- #
 def _mit_wand(x: float):
     xml = SCENE_XML.replace(
