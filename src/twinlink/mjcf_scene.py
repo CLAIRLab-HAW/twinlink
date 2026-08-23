@@ -49,8 +49,15 @@ def obstacle_body_name(index: int, prefix: str = DEFAULT_SCENE_PREFIX) -> str:
 
 
 def fmt(*vals: float) -> str:
-    """MJCF attribute formatting (compact float list)."""
-    return " ".join(f"{v:.6g}" for v in vals)
+    """MJCF attribute formatting (compact float list).
+
+    Die einzige Fassung im Workspace: ``hrl.env.geometry`` und
+    ``openvla_stack.env.scene`` trugen bis zum 2026-08-23 eigene Kopien.  Die
+    Umwandlung nach ``float`` stammt aus hrls Kopie und ist der Grund, warum
+    diese hier die gemeinsame wurde -- sie nimmt auch numpy-Skalare und
+    Zahlen-Strings, die ``f"{v:.6g}"`` allein zurueckweist.
+    """
+    return " ".join(f"{float(v):.6g}" for v in vals)
 
 
 def lookat_xyaxes(cam_pos: np.ndarray, target: np.ndarray) -> str:

@@ -5,6 +5,16 @@ Was sich wann geändert hat. Der aktuelle Stand steht in der [README](README.md)
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionierung [Semantic Versioning](https://semver.org/lang/de/).
 
+## 2026-08-23 (fmt ist die einzige Fassung)
+
+- **`mjcf_scene.fmt` ist die einzige MJCF-Zahlenformatierung im Workspace.**
+  `hrl.env.geometry` und `openvla_stack.env.scene` trugen eigene Kopien; beide
+  rufen jetzt diese hier.
+- **Die robustere der drei wurde die gemeinsame**: `float(v)` statt `v` vor
+  `:.6g` — hrls Kopie hatte die Umwandlung, die beiden anderen nicht. Damit
+  nimmt `fmt` auch numpy-Skalare und Zahlen-Strings, die `f"{v:.6g}"` allein
+  zurueckweist. Fuer alles, was schon vorher durchging, aendert sich nichts.
+
 ## 2026-08-23 (Bezeichner auf Englisch)
 
 - **Die Bezeichner dieses Pakets sind englisch**, die Prosa bleibt deutsch —
