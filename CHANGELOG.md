@@ -5,6 +5,29 @@ Was sich wann geändert hat. Der aktuelle Stand steht in der [README](README.md)
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionierung [Semantic Versioning](https://semver.org/lang/de/).
 
+## 2026-08-23 (wxyz-Algebra kommt von MuJoCo)
+
+- **Neues Modul `twinlink.quaternion`** mit `quat_mul_wxyz`,
+  `quat_conj_wxyz`, `quat_about_z_wxyz`, `mat_to_quat_wxyz`. Es rechnet
+  nichts selbst: es ruft MuJoCos `mju_mulQuat`, `mju_negQuat`,
+  `mju_axisAngle2Quat`, `mju_mat2Quat` — die Bibliothek, die die Konvention
+  definiert, kann per Konstruktion nicht von der Simulation abweichen, gegen
+  die gerechnet wird.
+- **`TwinTaskSim` traegt die Algebra nicht mehr selbst.** Dieselben vier
+  Methoden standen byte-identisch auch in `openvla_stack.env.sim`, das
+  Hamilton-Produkt zusaetzlich in `twin_sufficiency.scenes` — drei Handkopien
+  fuer eine Rechnung. Gegen die bisherige Fassung ueber 5000 zufaellige Faelle
+  gemessen: 2,2e-16, und ueber ±4π kein einziger Vorzeichenwechsel.
+- **`tests/test_quaternion.py` nagelt fest, was beim Umstellen kaputtgehen
+  kann**: die Argumentreihenfolge (`quat_mul_wxyz(a, b)` = erst `b`, dann `a`)
+  und die w-zuerst-Anordnung. Nicht die Arithmetik — die gehoert MuJoCo.
+  Gegengeprueft: vertauscht man die Argumente, faellt dieser Test — und
+  **kein einziger** der 186 anderen in twinlink und openvla-stack.
+- `scipy.spatial.transform.Rotation` geprueft und verworfen: twinlink haengt
+  bewusst nur an `numpy`, `pyyaml`, `clearlog`, und scipy waere eine zweite
+  Konvention neben der von MuJoCo — genau die Wahlmoeglichkeit, aus der die
+  drei Handkopien entstanden sind. Der Grund steht im Modulkopf.
+
 ## 2026-08-23 (fmt ist die einzige Fassung)
 
 - **`mjcf_scene.fmt` ist die einzige MJCF-Zahlenformatierung im Workspace.**

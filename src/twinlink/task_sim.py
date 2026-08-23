@@ -23,6 +23,12 @@ from typing import Dict, List, Optional, Protocol, Tuple
 import numpy as np
 
 from .events import SimEvents
+from .quaternion import (
+    mat_to_quat_wxyz,
+    quat_about_z_wxyz,
+    quat_conj_wxyz,
+    quat_mul_wxyz,
+)
 from .mjcf_scene import (
     OBSTACLE_PARK,
     OBSTACLE_POOL_SIZE,
@@ -1103,8 +1109,8 @@ class TwinTaskSim:
         # misaligned object until its faces sit flush -- snap the yaw onto
         # the pad orientation before recording the carry offset.
         if abs(best_misalign) > 1e-6:
-            snap = self._quat_about_z(-best_misalign)
-            self.data.qpos[adr + 3 : adr + 7] = self._quat_mul(
+            snap = quat_about_z_wxyz(-best_misalign)
+            self.data.qpos[adr + 3 : adr + 7] = quat_mul_wxyz(
                 snap, self.data.qpos[adr + 3 : adr + 7].copy()
             )
             mujoco = self._mujoco
@@ -1117,8 +1123,8 @@ class TwinTaskSim:
         obj_quat = self.data.qpos[adr + 3 : adr + 7].copy()  # wxyz
         # Offset of the object in the TCP frame, reapplied while carrying.
         rel_pos = tcp_mat.T @ (obj_pos - tcp_pos)
-        tcp_quat = self._mat_to_quat(tcp_mat)
-        rel_quat = self._quat_mul(self._quat_conj(tcp_quat), obj_quat)
+        tcp_quat = mat_to_quat_wxyz(tcp_mat)
+        rel_quat = quat_mul_wxyz(quat_conj_wxyz(tcp_quat), obj_quat)
         self._grasped = label
         self._grasp_offset = (rel_pos, rel_quat)
         self._grasp_span = span
@@ -1243,7 +1249,7 @@ class TwinTaskSim:
         rotate = rotate / norm
         correction = np.array([np.cos(angle / 2.0),
                               *(np.sin(angle / 2.0) * rotate)])
-        self.data.qpos[adr + 3 : adr + 7] = self._quat_mul(correction, q)
+        self.data.qpos[adr + 3 : adr + 7] = quat_mul_wxyz(correction, q)
         self._mujoco.mj_forward(self.model, self.data)
         return True
 
@@ -1457,7 +1463,7 @@ class TwinTaskSim:
         """
         adr = self._graspable[label]["qpos"]
         self.data.qpos[adr : adr + 3] = np.asarray(position, dtype=float)
-        self.data.qpos[adr + 3 : adr + 7] = self._quat_about_z(float(yaw))
+        self.data.qpos[adr + 3 : adr + 7] = quat_about_z_wxyz(float(yaw))
         dof = self._free_joint_dof(label)
         self.data.qvel[dof : dof + 6] = 0.0
         self._mujoco.mj_forward(self.model, self.data)
@@ -1485,7 +1491,7 @@ class TwinTaskSim:
         rel_pos = np.array([0.0, 0.0, self._CARRY_OFFSET])
         adr = self._graspable[label]["qpos"]
         self.data.qpos[adr : adr + 3] = tcp_pos + tcp_mat @ rel_pos
-        self.data.qpos[adr + 3 : adr + 7] = self._mat_to_quat(tcp_mat)
+        self.data.qpos[adr + 3 : adr + 7] = mat_to_quat_wxyz(tcp_mat)
         dof = self._free_joint_dof(label)
         self.data.qvel[dof : dof + 6] = 0.0
         self._grasped = label
@@ -1511,8 +1517,8 @@ class TwinTaskSim:
         rel_pos, rel_quat = self._grasp_offset
         adr = self._graspable[self._grasped]["qpos"]
         self.data.qpos[adr : adr + 3] = tcp_pos + tcp_mat @ rel_pos
-        tcp_quat = self._mat_to_quat(tcp_mat)
-        self.data.qpos[adr + 3 : adr + 7] = self._quat_mul(tcp_quat, rel_quat)
+        tcp_quat = mat_to_quat_wxyz(tcp_mat)
+        self.data.qpos[adr + 3 : adr + 7] = quat_mul_wxyz(tcp_quat, rel_quat)
         dof = self._free_joint_dof(self._grasped)
         self.data.qvel[dof : dof + 6] = 0.0
 
@@ -1885,30 +1891,7 @@ class TwinTaskSim:
             self._renderer = None
 
     # ------------------------------------------------------------------ #
-    # small quaternion helpers (wxyz, matching MuJoCo)
+    # Quaternionen-Algebra: ``twinlink.quaternion`` -- MuJoCos eigene
+    # ``mju_*``-Operationen.  Bis zum 2026-08-23 stand sie hier von Hand,
+    # Zeile fuer Zeile gleich wie in zwei weiteren Modulen.
     # ------------------------------------------------------------------ #
-    @staticmethod
-    def _quat_mul(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
-        w1, x1, y1, z1 = q1
-        w2, x2, y2, z2 = q2
-        return np.array(
-            [
-                w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-                w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-                w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-                w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
-            ]
-        )
-
-    @staticmethod
-    def _quat_conj(q: np.ndarray) -> np.ndarray:
-        return np.array([q[0], -q[1], -q[2], -q[3]])
-
-    @staticmethod
-    def _quat_about_z(angle: float) -> np.ndarray:
-        return np.array([np.cos(angle / 2.0), 0.0, 0.0, np.sin(angle / 2.0)])
-
-    def _mat_to_quat(self, mat: np.ndarray) -> np.ndarray:
-        quat = np.empty(4)
-        self._mujoco.mju_mat2Quat(quat, mat.flatten())
-        return quat
