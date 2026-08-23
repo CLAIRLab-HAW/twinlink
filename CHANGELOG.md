@@ -5,6 +5,23 @@ Was sich wann geändert hat. Der aktuelle Stand steht in der [README](README.md)
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionierung [Semantic Versioning](https://semver.org/lang/de/).
 
+## 2026-08-23 (Bezeichner auf Englisch)
+
+- **Die Bezeichner dieses Pakets sind englisch**, die Prosa bleibt deutsch —
+  dieselbe Konvention wie in `sdk/skill-tree` und wie CLAUDE.md sie vorgibt
+  ("Doku ist deutsch"). Umbenannt wurden Funktionen, Klassen, Konstanten,
+  Parameter und lokale Variablen; Docstrings und Kommentare NICHT.
+- **Was ein Programm AUSGIBT, bleibt deutsch**: Abschnittsmarken, JSON-Feld-
+  namen und Log-Meldungen sind der Bericht an den Menschen, nicht Code.
+- Umbenannt wurde mit einem `tokenize`-Werkzeug (nur NAME-Token), nicht per
+  Regex — deshalb ist kein Kommentar und kein String mitgewandert. Drei
+  Stellen, die `tokenize` NICHT sieht, wurden eigens nachgezogen:
+  f-String-Interpolationen (unter Python 3.11 ist ein f-String EIN Token),
+  die Parameternamen in `pytest.mark.parametrize` und Bezeichner, die
+  quelltextlesende Tests als String erwarten.
+- Gegengemessen: `uv run pytest` steht unveraendert bei 2465 passed,
+  3 skipped — derselbe Stand wie vor der Umbenennung.
+
 ## [Unreleased]
 
 - **`_matrix_to_quat` gegen die Drift abgesichert.** Die Funktion steht Zeile

@@ -275,7 +275,7 @@ class TwinTaskSim:
         #: :meth:`_pad_heights`) -- getrennt vom Kollisions-Scratch,
         #: damit die beiden sich nicht gegenseitig ueberschreiben.
         self._pad_scratch = None
-        self._pad_breite = None
+        self._pad_width = None
         self._tcp_body_id = self._body_id(spec.tcp_body)
         self._graspable: Dict[str, Dict] = {}
         self.register_graspables()
@@ -855,23 +855,23 @@ class TwinTaskSim:
         einen aufrecht stehenden Koerper sind das genau x und y.
         """
         R = self.data.xmat[entry["body"]].reshape(3, 3)
-        winkel = []
+        angle = []
         for k in range(3):
-            achse = R[:, k]
-            if abs(float(achse[2])) > np.cos(np.radians(60.0)):
+            axis = R[:, k]
+            if abs(float(axis[2])) > np.cos(np.radians(60.0)):
                 continue                        # steht zu steil
-            winkel.append(float(np.arctan2(achse[1], achse[0])))
-        if not winkel:
+            angle.append(float(np.arctan2(axis[1], axis[0])))
+        if not angle:
             return [float(np.arctan2(R[1, 0], R[0, 0]))]
         # Zwei Achsen genuegen: die dritte ist die Senkrechte der ersten.
-        gewaehlt = [winkel[0]]
-        for w in winkel[1:]:
+        chosen = [angle[0]]
+        for w in angle[1:]:
             if all(abs(_wrap_half(w - g - np.pi / 2.0)) > 1e-3
-                   and abs(_wrap_half(w - g)) > 1e-3 for g in gewaehlt):
-                gewaehlt.append(w)
-        if len(gewaehlt) == 1:
-            gewaehlt.append(gewaehlt[0] + np.pi / 2.0)
-        return gewaehlt[:2]
+                   and abs(_wrap_half(w - g)) > 1e-3 for g in chosen):
+                chosen.append(w)
+        if len(chosen) == 1:
+            chosen.append(chosen[0] + np.pi / 2.0)
+        return chosen[:2]
 
     def _pad_heights(self) -> List[float]:
         """Welt-z der Handgeome an der GESCHLOSSENEN Backenstellung.
@@ -935,21 +935,21 @@ class TwinTaskSim:
         # sind, statt dort, wo sie zupacken werden (am Deckel gemessen: Band
         # 43 mm daneben, Fang fiel auf den Huellquader zurueck und meldete
         # "kein schliessbares Flaechenpaar" an einem Knauf von 36 mm).
-        hoehen = self._pad_heights()
-        if hoehen:
-            unten = hoehen[:max(1, len(hoehen) // 3)]
-            ref[2] = float(np.mean(unten))
+        heights = self._pad_heights()
+        if heights:
+            bottom = heights[:max(1, len(heights) // 3)]
+            ref[2] = float(np.mean(bottom))
             return ref
-        oben = -np.inf
+        top = -np.inf
         for gid in entry["geoms"]:
-            mitte = self.model.geom_aabb[gid][:3]
-            halb = self.model.geom_aabb[gid][3:]
+            center = self.model.geom_aabb[gid][:3]
+            half = self.model.geom_aabb[gid][3:]
             R = self.data.geom_xmat[gid].reshape(3, 3)
-            basis = self.data.geom_xpos[gid] + R @ mitte
-            oben = max(oben, float(basis[2] + (np.abs(R) @ halb)[2]))
-        if not np.isfinite(oben):
-            oben = float(pos[2]) + float(entry["half"][2])
-        ref[2] = oben - self._default_span / 2.0
+            basis = self.data.geom_xpos[gid] + R @ center
+            top = max(top, float(basis[2] + (np.abs(R) @ half)[2]))
+        if not np.isfinite(top):
+            top = float(pos[2]) + float(entry["half"][2])
+        ref[2] = top - self._default_span / 2.0
         return ref
 
     def _pad_half_width(self) -> float:
@@ -964,17 +964,17 @@ class TwinTaskSim:
         Median landet auf einem Hebel -- 12,9 mm waeren ein Artefakt der
         Geom-Mischung, keine Padbreite.
         """
-        if self._pad_breite is not None:
-            return self._pad_breite
+        if self._pad_width is not None:
+            return self._pad_width
         _pos, mat = self.tcp_pose()
-        quer = mat[:, 0]
-        breiten = []
+        across = mat[:, 0]
+        widths = []
         for gid in (self._pad_geoms or self._hand_geoms):
-            halb = self.model.geom_aabb[gid][3:]
+            half = self.model.geom_aabb[gid][3:]
             R = self.data.geom_xmat[gid].reshape(3, 3)
-            breiten.append(float(np.abs(R.T @ quer) @ halb))
-        self._pad_breite = float(np.median(breiten)) if breiten else 0.0
-        return self._pad_breite
+            widths.append(float(np.abs(R.T @ across) @ half))
+        self._pad_width = float(np.median(widths)) if widths else 0.0
+        return self._pad_width
 
     def _span_between_pads(self, entry, ref, obj_yaw, tcp_xy=None):
         """Breite des Koerpers auf Backenhoehe, entlang seiner beiden
@@ -995,18 +995,18 @@ class TwinTaskSim:
         band = float(self._default_span) / 2.0
         lo_z, hi_z = float(ref[2]) - band, float(ref[2]) + band
         c, s = float(np.cos(obj_yaw)), float(np.sin(obj_yaw))
-        achsen = (np.array([c, s, 0.0]), np.array([-s, c, 0.0]))
-        grenzen = [[np.inf, -np.inf], [np.inf, -np.inf]]
-        gefunden = False
+        axes = (np.array([c, s, 0.0]), np.array([-s, c, 0.0]))
+        limits = [[np.inf, -np.inf], [np.inf, -np.inf]]
+        found = False
         for gid in range(self.model.ngeom):
             if int(self.model.geom_bodyid[gid]) != int(entry["body"]):
                 continue
-            mitte_lokal = self.model.geom_aabb[gid][:3]
-            halb = self.model.geom_aabb[gid][3:]
+            center_local = self.model.geom_aabb[gid][:3]
+            half = self.model.geom_aabb[gid][3:]
             R = self.data.geom_xmat[gid].reshape(3, 3)
-            basis = self.data.geom_xpos[gid] + R @ mitte_lokal
-            reichweite = np.abs(R) @ halb
-            if basis[2] + reichweite[2] < lo_z or basis[2] - reichweite[2] > hi_z:
+            basis = self.data.geom_xpos[gid] + R @ center_local
+            reach = np.abs(R) @ half
+            if basis[2] + reach[2] < lo_z or basis[2] - reach[2] > hi_z:
                 continue                      # liegt nicht auf Backenhoehe
             if tcp_xy is not None:
                 # ...und es muss WAAGERECHT zwischen den Backen liegen.
@@ -1018,24 +1018,24 @@ class TwinTaskSim:
                 # standen ueber der nackten Scheibe und der Fang mass den
                 # Knauf.
                 tol = self._pad_half_width()
-                daneben = False
-                for i, achse in enumerate(achsen):
+                beside = False
+                for i, axis in enumerate(axes):
                     d = abs(float((basis - np.array(
-                        [tcp_xy[0], tcp_xy[1], basis[2]])) @ achse))
-                    if d > float(np.abs(R.T @ achse) @ halb) + tol:
-                        daneben = True
+                        [tcp_xy[0], tcp_xy[1], basis[2]])) @ axis))
+                    if d > float(np.abs(R.T @ axis) @ half) + tol:
+                        beside = True
                         break
-                if daneben:
+                if beside:
                     continue
-            gefunden = True
-            for i, achse in enumerate(achsen):
-                mitte = float(basis @ achse)
-                weit = float(np.abs(R.T @ achse) @ halb)
-                grenzen[i][0] = min(grenzen[i][0], mitte - weit)
-                grenzen[i][1] = max(grenzen[i][1], mitte + weit)
-        if not gefunden:
+            found = True
+            for i, axis in enumerate(axes):
+                center = float(basis @ axis)
+                far = float(np.abs(R.T @ axis) @ half)
+                limits[i][0] = min(limits[i][0], center - far)
+                limits[i][1] = max(limits[i][1], center + far)
+        if not found:
             return None
-        return (grenzen[0][1] - grenzen[0][0], grenzen[1][1] - grenzen[1][0])
+        return (limits[0][1] - limits[0][0], limits[1][1] - limits[1][0])
 
     def _try_grasp(self) -> None:
         """Proximity capture over every graspable free body.
@@ -1075,15 +1075,15 @@ class TwinTaskSim:
             # schliessbares Flaechenpaar", weil 180 mm gegen 156 mm Backengang
             # standen -- unabhaengig davon, wie fein das Objekt modelliert war.
             # Damit konnte die Objektachse ueber den Griff gar nicht binden.
-            achsen = self._horizontal_axes(entry)
-            lokal = self._span_between_pads(entry, ref, achsen[0],
+            axes = self._horizontal_axes(entry)
+            local = self._span_between_pads(entry, ref, axes[0],
                                             tcp_xy=tcp_pos[:2])
-            spannen = (lokal if lokal is not None
+            spans = (local if local is not None
                        else (2.0 * float(half[0]), 2.0 * float(half[1])))
             candidates = []
             for axis_yaw, span in (
-                (achsen[0], spannen[0]),
-                (achsen[1], spannen[1]),
+                (axes[0], spans[0]),
+                (axes[1], spans[1]),
             ):
                 if span >= self.spec.gripper_stroke_m:
                     continue  # this face pair does not fit between the pads
@@ -1152,7 +1152,7 @@ class TwinTaskSim:
         und die Funktion sagt das (``None``).
         """
         mujoco = self._mujoco
-        achse = None
+        axis = None
         for gid in entry.get("geoms", ()):  # type: ignore[union-attr]
             typ = int(self.model.geom_type[gid])
             if typ == int(mujoco.mjtGeom.mjGEOM_SPHERE):
@@ -1162,12 +1162,12 @@ class TwinTaskSim:
                 return None
             R = np.zeros(9)
             mujoco.mju_quat2Mat(R, self.model.geom_quat[gid])
-            eigen = R.reshape(3, 3)[:, 2]      # lokale z ist die Achse
-            if achse is None:
-                achse = eigen
-            elif abs(float(achse @ eigen)) < 0.999:
+            own = R.reshape(3, 3)[:, 2]      # lokale z ist die Achse
+            if axis is None:
+                axis = own
+            elif abs(float(axis @ own)) < 0.999:
                 return None                    # zwei Achsen, keine Symmetrie
-        return achse
+        return axis
 
     def _square_tilt(self, adr: int, entry=None) -> bool:
         """Pad-Squaring fuer die NEIGUNG -- das Gegenstueck zum Gierwinkel.
@@ -1208,42 +1208,42 @@ class TwinTaskSim:
             # (stehend) oder waagerecht (liegend) -- welches von beidem,
             # entscheidet die kleinere Drehung.  Der Roll um sie herum ist
             # keine Lage und wird nicht angefasst.
-            achse = R @ sym
-            hoch = float(np.clip(abs(achse[2]), 0.0, 1.0))
-            steh, lieg = float(np.arccos(hoch)), float(np.arcsin(hoch))
-            if min(steh, lieg) > np.radians(PAD_SQUARE_LIMIT_DEG):
+            axis = R @ sym
+            upright_cos = float(np.clip(abs(axis[2]), 0.0, 1.0))
+            tilt_from_z, tilt_from_plane = float(np.arccos(upright_cos)), float(np.arcsin(upright_cos))
+            if min(tilt_from_z, tilt_from_plane) > np.radians(PAD_SQUARE_LIMIT_DEG):
                 return False
-            if steh <= lieg:
-                ziel = np.array([0.0, 0.0, 1.0 if achse[2] >= 0 else -1.0])
+            if tilt_from_z <= tilt_from_plane:
+                goal = np.array([0.0, 0.0, 1.0 if axis[2] >= 0 else -1.0])
             else:
-                flach = np.array([achse[0], achse[1], 0.0])
-                norm = float(np.linalg.norm(flach))
+                flat = np.array([axis[0], axis[1], 0.0])
+                norm = float(np.linalg.norm(flat))
                 if norm < 1e-9:
                     return True            # entartet: nichts auszurichten
-                ziel = flach / norm
-            winkel = min(steh, lieg)
-            return self._tilt_onto(adr, q, achse, ziel, winkel)
+                goal = flat / norm
+            angle = min(tilt_from_z, tilt_from_plane)
+            return self._tilt_onto(adr, q, axis, goal, angle)
 
         k = int(np.argmax(np.abs(R[2, :])))
-        achse = R[:, k] * (1.0 if R[2, k] >= 0 else -1.0)
-        ziel = np.array([0.0, 0.0, 1.0])
-        winkel = float(np.arccos(np.clip(float(achse @ ziel), -1.0, 1.0)))
-        if np.degrees(winkel) > PAD_SQUARE_LIMIT_DEG:
+        axis = R[:, k] * (1.0 if R[2, k] >= 0 else -1.0)
+        goal = np.array([0.0, 0.0, 1.0])
+        angle = float(np.arccos(np.clip(float(axis @ goal), -1.0, 1.0)))
+        if np.degrees(angle) > PAD_SQUARE_LIMIT_DEG:
             return False
-        return self._tilt_onto(adr, q, achse, ziel, winkel)
+        return self._tilt_onto(adr, q, axis, goal, angle)
 
-    def _tilt_onto(self, adr: int, q, achse, ziel, winkel: float) -> bool:
+    def _tilt_onto(self, adr: int, q, axis, goal, angle: float) -> bool:
         """``achse`` auf ``ziel`` kippen -- die kleinstmoegliche Drehung."""
-        if winkel < 1e-9:
+        if angle < 1e-9:
             return True
-        dreh = np.cross(achse, ziel)
-        norm = float(np.linalg.norm(dreh))
+        rotate = np.cross(axis, goal)
+        norm = float(np.linalg.norm(rotate))
         if norm < 1e-9:
             return True                    # parallel oder antiparallel
-        dreh = dreh / norm
-        korrektur = np.array([np.cos(winkel / 2.0),
-                              *(np.sin(winkel / 2.0) * dreh)])
-        self.data.qpos[adr + 3 : adr + 7] = self._quat_mul(korrektur, q)
+        rotate = rotate / norm
+        correction = np.array([np.cos(angle / 2.0),
+                              *(np.sin(angle / 2.0) * rotate)])
+        self.data.qpos[adr + 3 : adr + 7] = self._quat_mul(correction, q)
         self._mujoco.mj_forward(self.model, self.data)
         return True
 
@@ -1261,9 +1261,9 @@ class TwinTaskSim:
                 self.model, self._mujoco.mjtObj.mjOBJ_JOINT, joint)
             if jid < 0:
                 continue
-            ist = float(self.data.qpos[self.model.jnt_qposadr[jid]])
-            soll = float(self._gripper_command) * float(factor)
-            if abs(ist - soll) > tol:
+            actual = float(self.data.qpos[self.model.jnt_qposadr[jid]])
+            target = float(self._gripper_command) * float(factor)
+            if abs(actual - target) > tol:
                 return False
         return True
 
@@ -1322,11 +1322,11 @@ class TwinTaskSim:
         entry = self._graspable.get(self._grasped)
         if entry is None:
             return None
-        eigene = set(entry["geoms"])
-        kleinster = float("inf")
-        naechster = ""
+        own_geoms = set(entry["geoms"])
+        smallest = float("inf")
+        next = ""
         for gid in range(self.model.ngeom):
-            if gid in eigene or gid in self._hand_geoms:
+            if gid in own_geoms or gid in self._hand_geoms:
                 continue
             if int(self.model.geom_bodyid[gid]) in self._robot_bodies():
                 continue
@@ -1341,13 +1341,13 @@ class TwinTaskSim:
             # Zelle auf 0 und die Zahl sagte nichts (gemessen 2026-08-17).
             if name in self.support_geom_names():
                 continue
-            for own in eigene:
+            for own in own_geoms:
                 d = float(self._mujoco.mj_geomDistance(
                     self.model, self.data, int(gid), int(own), 1.0, None))
-                if d < kleinster:
-                    kleinster, naechster = d, name
-        self._carry_gap_who = naechster
-        return None if not np.isfinite(kleinster) else kleinster
+                if d < smallest:
+                    smallest, next = d, name
+        self._carry_gap_who = next
+        return None if not np.isfinite(smallest) else smallest
 
     def carried_world_gap_min(self):
         """Schlechtester Abstand des getragenen Koerpers zur echten Welt (m).
@@ -1380,13 +1380,13 @@ class TwinTaskSim:
         """Kleinster Abstand Hand<->Koerper JETZT (m), oder ``None``."""
         if entry is None or not self._hand_geoms:
             return None
-        kleinster = float("inf")
+        smallest = float("inf")
         for hand in self._hand_geoms:
             for gid in entry["geoms"]:
                 d = float(self._mujoco.mj_geomDistance(
                     self.model, self.data, int(hand), int(gid), 1.0, None))
-                kleinster = min(kleinster, d)
-        return None if not np.isfinite(kleinster) else kleinster
+                smallest = min(smallest, d)
+        return None if not np.isfinite(smallest) else smallest
 
     def _release(self) -> None:
         if self._grasped is None:
@@ -1551,26 +1551,26 @@ class TwinTaskSim:
         # der Block laeuft einmal je Aufruf, nicht je Takt.)
         if self._grasped is not None:
             self._carry_tick += 1
-            jetzt = self.carried_world_gap()
-            if jetzt is not None:
+            now = self.carried_world_gap()
+            if now is not None:
                 # Erst zaehlen, wenn der Koerper die Auflage verlassen hat.
                 # Direkt nach dem Griff liegt er noch auf dem Tisch, und ein
                 # Abstand von null ist dort KEINE Aussage ueber die Fahrt --
                 # er wuerde das Minimum jeder Zelle auf 0 nageln.
                 if not self._carry_airborne:
-                    if jetzt > 0.005:
+                    if now > 0.005:
                         self._carry_airborne = True
                 elif (self._carry_gap_min is None
-                      or jetzt < self._carry_gap_min):
-                    self._carry_gap_min = jetzt
+                      or now < self._carry_gap_min):
+                    self._carry_gap_min = now
                     self._carry_gap_min_who = self._carry_gap_who
         for _ in range(int(n_ticks)):
             # EINMAL je Takt, nicht je Gelenk: die Rampe ist ein Zustand,
             # der weiterlaeuft, und die Follower muessen denselben Winkel
             # sehen -- sonst stehen die beiden Backen verschieden weit.
-            winkel = self._gripper_tick_angle()
+            angle = self._gripper_tick_angle()
             gripper_targets = {
-                joint: winkel * factor
+                joint: angle * factor
                 for joint, factor in self._gripper_follower_factors.items()
             }
             # Where the fingers stand as this tick begins -- the actuated
@@ -1618,21 +1618,21 @@ class TwinTaskSim:
         ``gripper_ramp_ticks`` Takte vom Stand beim Befehlswechsel zum
         Ziel; das Ziel selbst aendert sich nie.
         """
-        ziel = float(self._gripper_command)
+        goal = float(self._gripper_command)
         if self._actuated_gripper or not self._gripper_ramp_ticks:
-            self._gripper_applied = ziel
-            return ziel
-        if self._gripper_ramp_goal is None or ziel != self._gripper_ramp_goal:
+            self._gripper_applied = goal
+            return goal
+        if self._gripper_ramp_goal is None or goal != self._gripper_ramp_goal:
             # Neuer Befehl: von dort losfahren, wo die Finger STEHEN.
             self._gripper_ramp_from = float(self._gripper_applied)
-            self._gripper_ramp_goal = ziel
+            self._gripper_ramp_goal = goal
             self._gripper_ramp_left = self._gripper_ramp_ticks
         if self._gripper_ramp_left <= 0:
-            self._gripper_applied = ziel
-            return ziel
+            self._gripper_applied = goal
+            return goal
         self._gripper_ramp_left -= 1
         rest = self._gripper_ramp_left / float(self._gripper_ramp_ticks)
-        self._gripper_applied = ziel + rest * (self._gripper_ramp_from - ziel)
+        self._gripper_applied = goal + rest * (self._gripper_ramp_from - goal)
         return self._gripper_applied
 
     def _drive_gripper(

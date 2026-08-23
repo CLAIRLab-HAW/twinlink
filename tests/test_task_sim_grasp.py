@@ -561,10 +561,10 @@ def test_the_capture_reports_how_far_it_had_to_square_the_object():
     sim.command_gripper(close=True)
     sim.step_physics(30)
     assert sim.grasped_label() == "payload"
-    schief = sim.grasp_misalign_deg()
-    assert schief is not None
-    assert abs(schief) == pytest.approx(12.0, abs=1.5), (
-        f"gemeldet {schief} Grad -- der Fang musste 12 Grad ausbuegeln")
+    skewed = sim.grasp_misalign_deg()
+    assert skewed is not None
+    assert abs(skewed) == pytest.approx(12.0, abs=1.5), (
+        f"gemeldet {skewed} Grad -- der Fang musste 12 Grad ausbuegeln")
 
 
 def test_a_square_grasp_reports_nearly_zero():
@@ -602,7 +602,7 @@ def test_the_grip_reference_follows_the_real_body_not_its_upright_hull():
         '<geom name="payload_geom" type="box" size="0.02 0.015 0.005"/>')
     model = mujoco.MjModel.from_xml_string(xml)
 
-    class _FlachSim(_GraspSim):
+    class _FlatSim(_GraspSim):
         def register_graspables(self) -> None:
             # Die Huelle behauptet 7 cm halbe Hoehe, der Koerper hat
             # 0,5 cm -- genau die Lage des LIEGENDEN Markers, dessen AABB
@@ -611,18 +611,18 @@ def test_the_grip_reference_follows_the_real_body_not_its_upright_hull():
                 "payload", "payload_free", self._body_id("payload"),
                 np.array([0.02, 0.015, 0.07]))
 
-    sim = _FlachSim(model, SPEC, scene_prefix="", default_span=0.04,
+    sim = _FlatSim(model, SPEC, scene_prefix="", default_span=0.04,
                     gripper_follower_factors={},
                     gripper_linkage=StraightLinkage(),
                     home_pose={"arm_0_slide": 0.0})
     entry = sim._graspable["payload"]
     ref = sim._grip_reference(entry)
-    oben = float(sim.data.xpos[entry["body"]][2]) + 0.005
+    top = float(sim.data.xpos[entry["body"]][2]) + 0.005
     # Der Bezugspunkt muss in der Naehe des Koerpers liegen, nicht 50 mm
     # darueber -- so weit wanderte er, als er aus der aufrechten Huelle
     # (halbe Hoehe 70 mm) gerechnet wurde.
-    assert abs(float(ref[2]) - oben) < 0.03, (
-        f"Greifpunkt bei {float(ref[2]):.3f}, echte Oberkante {oben:.3f} -- "
+    assert abs(float(ref[2]) - top) < 0.03, (
+        f"Greifpunkt bei {float(ref[2]):.3f}, echte Oberkante {top:.3f} -- "
         f"er folgt der aufrechten Huelle statt dem Koerper")
     # ...und dann findet die Spannenmessung dort auch etwas.
     assert sim._span_between_pads(entry, ref, 0.0) is not None
@@ -640,14 +640,14 @@ def test_a_tipped_object_offers_the_axes_it_really_has():
     """
     sim = _build()
     # aufrecht: x und y sind waagerecht -> genau die alten zwei Achsen
-    achsen = sim._horizontal_axes(sim._graspable["payload"])
-    assert len(achsen) == 2
-    assert min(abs(_wrap_half(a)) for a in achsen) < 1e-6
+    axes = sim._horizontal_axes(sim._graspable["payload"])
+    assert len(axes) == 2
+    assert min(abs(_wrap_half(a)) for a in axes) < 1e-6
 
     # 90 Grad um x gekippt: jetzt sind x und z waagerecht
     _set_payload_tilt(sim, np.radians(90.0))
-    gekippt = sim._horizontal_axes(sim._graspable["payload"])
-    assert len(gekippt) == 2, f"{len(gekippt)} Achsen bei gekipptem Koerper"
+    tipped = sim._horizontal_axes(sim._graspable["payload"])
+    assert len(tipped) == 2, f"{len(tipped)} Achsen bei gekipptem Koerper"
 
 
 # --------------------------------------------------------------------- #
@@ -731,7 +731,7 @@ def test_a_badly_tipped_object_is_refused_too():
 #
 # Geprueft wird wie beim Griff ueber ``mj_geomDistance``.
 # --------------------------------------------------------------------- #
-def _mit_wand(x: float):
+def _with_wall(x: float):
     xml = SCENE_XML.replace(
         '</worldbody>',
         f'<body name="wand" pos="{x} 0 0.08">'
@@ -745,7 +745,7 @@ def _mit_wand(x: float):
 
 
 def test_a_carried_object_clear_of_the_world_reports_a_positive_gap():
-    sim = _mit_wand(1.4)                      # weit weg
+    sim = _with_wall(1.4)                      # weit weg
     _approach(sim)
     sim.command_gripper(close=True)
     sim.step_physics(30)
@@ -766,7 +766,7 @@ def test_a_carried_object_driven_into_the_world_reports_no_gap_left():
     # vor dem Griff sonst physikalisch ab, und der Aufbau waere
     # unphysikalisch.  Hineingefahren wird erst der GETRAGENE Koerper,
     # dessen Kontakte aus sind: genau der Fall, den niemand bemerkt.
-    sim = _mit_wand(0.80)
+    sim = _with_wall(0.80)
     _approach(sim)
     sim.command_gripper(close=True)
     sim.step_physics(30)
@@ -790,7 +790,7 @@ def test_the_worst_moment_of_the_carry_is_remembered():
     gefahren sein und am Ziel wieder frei stehen -- gemeldet werden muss
     der SCHLECHTESTE Moment, nicht der letzte.
     """
-    sim = _mit_wand(0.80)
+    sim = _with_wall(0.80)
     _approach(sim)
     sim.command_gripper(close=True)
     sim.step_physics(30)
@@ -813,7 +813,7 @@ def test_without_a_carry_there_is_no_worst_moment():
 # --------------------------------------------------------------------- #
 # Rotationssymmetrie: ein Roll um die eigene Achse ist KEINE Schieflage
 # --------------------------------------------------------------------- #
-ZYLINDER_XML = SCENE_XML.replace(
+CYLINDER_XML = SCENE_XML.replace(
     '<geom name="payload_geom" type="box" size="0.02 0.015 0.02"/>',
     # ``zaxis`` legt die Zylinderachse auf die Welt-y -- der Koerper LIEGT.
     # ``euler`` waere hier eine Falle: MuJoCo liest es in GRAD, "1.5708"
@@ -823,7 +823,7 @@ ZYLINDER_XML = SCENE_XML.replace(
 )
 
 
-class _ZylinderSim(TwinTaskSim):
+class _CylinderSim(TwinTaskSim):
     def register_graspables(self) -> None:
         self.register_graspable(
             "payload", "payload_free", self._body_id("payload"),
@@ -831,18 +831,18 @@ class _ZylinderSim(TwinTaskSim):
         )
 
 
-def _zylinder() -> _ZylinderSim:
-    model = mujoco.MjModel.from_xml_string(ZYLINDER_XML)
-    return _ZylinderSim(
+def _cylinder() -> _CylinderSim:
+    model = mujoco.MjModel.from_xml_string(CYLINDER_XML)
+    return _CylinderSim(
         model, SPEC, scene_prefix="", default_span=0.04,
         gripper_follower_factors={}, gripper_linkage=StraightLinkage(),
         home_pose={"arm_0_slide": 0.0},
     )
 
 
-def _rollen(sim, grad: float) -> None:
+def _roles(sim, deg: float) -> None:
     """Den LIEGENDEN Zylinder um seine EIGENE Achse drehen (Welt-y)."""
-    w = np.radians(grad) / 2.0
+    w = np.radians(deg) / 2.0
     adr = sim._graspable["payload"]["qpos"]
     sim.data.qpos[adr + 3 : adr + 7] = np.array(
         [np.cos(w), 0.0, np.sin(w), 0.0])
@@ -860,30 +860,30 @@ def test_a_lying_cylinder_rolled_about_its_own_axis_is_still_graspable():
     Koerperachsen, was fuer einen Quader richtig ist und fuer einen
     Zylinder bedeutungslos.
     """
-    sim = _zylinder()
+    sim = _cylinder()
     adr = sim._graspable["payload"]["qpos"]
-    for grad in (0.0, 39.3, 75.0):
-        _rollen(sim, grad)
+    for deg in (0.0, 39.3, 75.0):
+        _roles(sim, deg)
         assert sim._square_tilt(adr, sim._graspable["payload"]), (
-            f"Roll um {grad} Grad um die eigene Achse als Schieflage "
+            f"Roll um {deg} Grad um die eigene Achse als Schieflage "
             f"abgelehnt -- der Koerper ist darum symmetrisch")
 
 
 # --------------------------------------------------------------------- #
 # Sichtbare Greiferrampe (fuer Aufnahmen, nicht fuer die Messung)
 # --------------------------------------------------------------------- #
-def _mit_rampe(takte: int):
+def _with_ramp(ticks: int):
     model = mujoco.MjModel.from_xml_string(SCENE_XML)
     return _GraspSim(
         model, SPEC, scene_prefix="", default_span=0.04,
         gripper_follower_factors={}, gripper_linkage=StraightLinkage(),
-        home_pose={"arm_0_slide": 0.0}, gripper_ramp_ticks=takte,
+        home_pose={"arm_0_slide": 0.0}, gripper_ramp_ticks=ticks,
     )
 
 
 def test_without_a_ramp_the_fingers_are_at_their_target_after_one_tick():
     """Der Bestandsweg -- jede Messung der Studie haengt daran."""
-    sim = _mit_rampe(0)
+    sim = _with_ramp(0)
     sim.command_gripper(close=True)
     sim.step_physics(1)
     assert sim.gripper_angle_applied() == pytest.approx(sim._gripper_command)
@@ -896,17 +896,17 @@ def test_a_ramp_moves_the_fingers_through_intermediate_angles():
     Substep auf den Zielwert -- im Bild springt die Hand binaer auf und
     zu.  Die Rampe aendert nur den WEG, nicht das Ziel.
     """
-    sim = _mit_rampe(10)
-    offen = sim.gripper_angle_applied()
+    sim = _with_ramp(10)
+    open = sim.gripper_angle_applied()
     sim.command_gripper(close=True)
-    ziel = sim._gripper_command
-    zwischen = []
+    goal = sim._gripper_command
+    between = []
     for _ in range(5):
         sim.step_physics(1)
-        zwischen.append(sim.gripper_angle_applied())
-    assert all(min(offen, ziel) <= w <= max(offen, ziel) for w in zwischen)
-    assert len(set(round(w, 6) for w in zwischen)) > 1, (
-        f"Winkel bleibt stehen: {zwischen} -- keine sichtbare Bewegung")
-    assert zwischen[-1] != pytest.approx(ziel), "nach der halben Rampe schon da"
+        between.append(sim.gripper_angle_applied())
+    assert all(min(open, goal) <= w <= max(open, goal) for w in between)
+    assert len(set(round(w, 6) for w in between)) > 1, (
+        f"Winkel bleibt stehen: {between} -- keine sichtbare Bewegung")
+    assert between[-1] != pytest.approx(goal), "nach der halben Rampe schon da"
     sim.step_physics(6)
-    assert sim.gripper_angle_applied() == pytest.approx(ziel), "Ziel nicht erreicht"
+    assert sim.gripper_angle_applied() == pytest.approx(goal), "Ziel nicht erreicht"

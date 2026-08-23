@@ -173,8 +173,8 @@ def _extract_groups(dae_path: str) -> Tuple[str, List[Tuple[str, Optional[list],
             if gid not in geoms:
                 continue
             bind = {
-                im.get("symbol"): im.get("target").lstrip("#")
-                for im in inst.findall(f".//{_q('instance_material', ns)}", ns)
+                inst_mat.get("symbol"): inst_mat.get("target").lstrip("#")
+                for inst_mat in inst.findall(f".//{_q('instance_material', ns)}", ns)
             }
             pos, prims = geoms[gid]
             Vw = (np.c_[pos, np.ones(len(pos))] @ M.T)[:, :3]
