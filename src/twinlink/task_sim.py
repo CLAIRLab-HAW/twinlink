@@ -444,7 +444,7 @@ class TwinTaskSim:
             # Fail loudly instead of silently falling back on the whole hand -- it is exactly that silent fallback
             # which tripled the tolerance.
             raise RuntimeError(
-                f"pad_bodies {sorted(pad_bodies)} kommen im Modell nicht vor -- " "Greifflaechen nicht klassifizierbar"
+                f"pad_bodies {sorted(pad_bodies)} not found in model -- " "grip surfaces not classifiable"
             )
         # Registered graspables that are ALSO classified as obstacles (pool slots or authored clutter the task promoted
         # to a target) stay obstacles for the validity and settling questions: the arm must plan around them, so parking
@@ -1001,7 +1001,7 @@ class TwinTaskSim:
             mujoco = self._mujoco
             mujoco.mj_forward(self.model, self.data)
         if not self._square_tilt(adr, self._graspable[label]):
-            log.debug("%s zu stark geneigt -- die Pads koennen das nicht " "ausrichten", label)
+            log.debug("%s tilted too far -- the pads cannot align it", label)
             return
         obj_pos = self.data.qpos[adr : adr + 3].copy()
         obj_quat = self.data.qpos[adr + 3 : adr + 7].copy()  # wxyz
