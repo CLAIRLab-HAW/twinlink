@@ -4,10 +4,10 @@ from twinlink.events import SimEvents
 
 
 def test_grasp_unknown_is_a_third_state_not_a_missing_grasp():
-    """``None`` beim Griff heisst „nicht feststellbar", nicht „nichts gegriffen".
+    """``None`` on the grasp means "not determinable", not "nothing grasped".
 
-    Ohne dieses Feld hat der Aufrufer nur zwei Faecher, und ein Greifer mit toter Tool-IO landet im selben wie ein
-    sauberer Leergriff.
+    Without this field the caller has only two pigeonholes, and a gripper with dead tool IO ends up in the same one as a
+    clean empty grasp.
     """
     events = SimEvents(grasp_unknown="green")
 

@@ -22,9 +22,9 @@ class SimEvents:
     robot_obstacle_collision: bool = False
     grasp_acquired: Optional[str] = None  # object id captured this step
     grasp_lost: Optional[str] = None  # object released/dropped this step
-    #: Objekt-Id, deren Griff NICHT FESTSTELLBAR war (die Greiferbruecke lieferte
-    #: nichts).  Dritter Zustand neben acquired/lost -- „unbekannt" darf
-    #: nicht als „nicht gegriffen" verbucht werden.
+    #: Object id whose grasp was NOT DETERMINABLE (the gripper bridge returned
+    #: nothing).  A third state next to acquired/lost -- ``unbekannt`` must not
+    #: be recorded as "not grasped".
     grasp_unknown: Optional[str] = None
 
     def merge(self, other: "SimEvents") -> None:

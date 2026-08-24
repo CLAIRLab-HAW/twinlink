@@ -34,10 +34,10 @@ OBSTACLE_POOL_SIZE = 8
 DEFAULT_SCENE_PREFIX = "hrl_"
 #: Kept for backward compatibility: the exact prefixes existing consumers may
 #: already import and compare against directly (unchanged values).
-#: NICHT in twinlink selbst verwenden: ``TwinTaskSim`` leitet seine beiden
-#: Hindernis-Präfixe aus dem Konstruktor-``scene_prefix`` ab.
-#: Wer hier wieder vergleicht, nagelt die Bibliothek auf ``hrl_`` fest und
-#: macht jede zweite App still blind für ihre Hindernisse.
+#: Do NOT use these inside twinlink itself: ``TwinTaskSim`` derives both of its
+#: obstacle prefixes from the constructor's ``scene_prefix``.
+#: Comparing against these again here nails the library to ``hrl_`` and makes
+#: every second app silently blind to its own obstacles.
 OBSTACLE_BODY_PREFIX = f"{DEFAULT_SCENE_PREFIX}obstacle_"
 DISTRACTOR_BODY_PREFIX = f"{DEFAULT_SCENE_PREFIX}distractor_"
 #: Where unused pool slots wait: outside typical camera frustums and clear of
@@ -52,9 +52,9 @@ def obstacle_body_name(index: int, prefix: str = DEFAULT_SCENE_PREFIX) -> str:
 def fmt(*vals: float) -> str:
     """MJCF attribute formatting (compact float list).
 
-    Die einzige Fassung im Workspace: ``hrl.env.geometry`` und ``openvla_stack.env.scene`` trugen bis zum 2026-08-23
-    eigene Kopien.  Die Umwandlung nach ``float`` stammt aus hrls Kopie und ist der Grund, warum diese hier die
-    gemeinsame wurde -- sie nimmt auch numpy-Skalare und Zahlen-Strings, die ``f"{v:.6g}"`` allein zurueckweist.
+    The only version in the workspace: ``hrl.env.geometry`` and ``openvla_stack.env.scene`` each carried their own copy
+    until 2026-08-23.  The conversion to ``float`` originates in hrl's copy and is the reason this one became the shared
+    version -- it also accepts numpy scalars and numeric strings, which ``f"{v:.6g}"`` on its own rejects.
     """
     return " ".join(f"{float(v):.6g}" for v in vals)
 

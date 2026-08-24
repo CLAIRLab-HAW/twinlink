@@ -1,8 +1,8 @@
-"""Testdoppel für die Protokolle, die :mod:`twinlink.task_sim` hereingereicht bekommt.
+"""Test doubles for the protocols handed into :mod:`twinlink.task_sim`.
 
-Kein Produktionscode: was hier steht, dient dazu, die VERDRAHTUNG der Sim zu prüfen, ohne einen bestimmten Roboter
-vorauszusetzen.  Es liegt im Paket und nicht neben den Tests, weil der Workspace mit ``--import-mode=importlib`` läuft
--- ein Modul neben den Testdateien wäre von dort nicht importierbar.
+Not production code: what stands here serves to check the WIRING of the sim without presupposing one particular robot.
+It lives in the package and not next to the tests because the workspace runs with ``--import-mode=importlib`` -- a
+module next to the test files would not be importable from there.
 """
 
 from __future__ import annotations
@@ -12,14 +12,14 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class StraightLinkage:
-    """Ein DOPPEL für :class:`twinlink.task_sim.GripperLinkage`, keine Geometrie.
+    """A DOUBLE for :class:`twinlink.task_sim.GripperLinkage`, no geometry.
 
-    Bewusst eine Gerade und bewusst mit runden Zahlen: diese Suiten prüfen die Verdrahtung der Sim, nicht die Kinematik
-    eines bestimmten Greifers.  Die echte Abbildung ist ein Kosinus und steht im Roboterprofil (``robot_contract``,
-    ``gripper.linkage``); sie hier nachzubauen wäre eine vierte Kopie derselben Formel -- genau das, was der Umbau vom
-    2026-08-16 abgeschafft hat.
+    Deliberately a straight line and deliberately with round numbers: these suites check the wiring of the sim, not the
+    kinematics of one particular gripper.  The real mapping is a cosine and lives in the robot profile
+    (``robot_contract``, ``gripper.linkage``); rebuilding it here would be a fourth copy of the same formula -- exactly
+    what the rework of 2026-08-16 did away with.
 
-    ``width = (closed_rad - q) * 0.2``, also 0 m bei q = 0,6 und 0,16 m bei q = -0,2.
+    ``width = (closed_rad - q) * 0.2``, so 0 m at q = 0.6 and 0.16 m at q = -0.2.
     """
 
     closed_rad: float = 0.6

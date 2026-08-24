@@ -1,4 +1,4 @@
-# CI: pytest + ruff (nur harte Fehler). Standalone; urdf/mujoco-Smoke skippt ohne Workspace.
+# CI: pytest + ruff (hard errors only). Standalone; the urdf/mujoco smoke test skips without a workspace.
 name: ci
 on:
   push:

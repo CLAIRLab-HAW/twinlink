@@ -1,30 +1,30 @@
-"""Quaternionen-Algebra in MuJoCo-Konvention (wxyz) -- geliehen, nicht gebaut.
+"""Quaternion algebra in MuJoCo convention (wxyz) -- borrowed, not built.
 
-Diese Rechnungen standen am 2026-08-23 dreimal von Hand im Workspace: ``twinlink.task_sim``, ``openvla_stack.env.sim``
-und ``twin_sufficiency.scenes`` trugen je eine eigene Fassung des Hamilton-Produkts, teils dazu Konjugation und Drehung
-um die Hochachse.  Alle drei rechneten dasselbe -- bis eine von ihnen es nicht mehr tut.  Ein Vorzeichenfehler darin
-zeigt sich als leicht verdrehtes Objekt am Greifer, nicht als roter Test.
+On 2026-08-23 these computations stood written out by hand three times in the workspace: ``twinlink.task_sim``,
+``openvla_stack.env.sim`` and ``twin_sufficiency.scenes`` each carried their own version of the Hamilton product, some
+of them conjugation and rotation about the vertical axis as well.  All three computed the same thing -- until one of
+them stops doing so.  A sign error in there shows up as a slightly twisted object at the gripper, not as a red test.
 
-**Nichts davon ist hier neu geschrieben.**  MuJoCo bringt die Operationen
-selbst mit (``mju_mulQuat``, ``mju_negQuat``, ``mju_axisAngle2Quat``,
-``mju_mat2Quat``), und es ist die Bibliothek, die die Konvention ueberhaupt
-definiert -- ihre Fassung kann per Konstruktion nicht von der Simulation
-abweichen, gegen die sie gerechnet wird.  Am 2026-08-23 gegengemessen:
-``mju_mulQuat`` stimmt mit der bisherigen Handrechnung ueber 2000 zufaellige
-Paare auf 2,2e-16 ueberein.  Was hier steht, ist nur die Huelle: Ausgabepuffer
-anlegen, Eingaben nach float64 bringen, Ergebnis zurueckgeben.
+**None of this is written anew here.**  MuJoCo ships the operations itself
+(``mju_mulQuat``, ``mju_negQuat``, ``mju_axisAngle2Quat``, ``mju_mat2Quat``),
+and it is the library that defines the convention in the first place -- its
+version cannot, by construction, deviate from the simulation it is computed
+against.  Cross-measured on 2026-08-23: ``mju_mulQuat`` agrees with the
+previous hand computation to 2.2e-16 over 2000 random pairs.  What stands here
+is only the shell: allocate the output buffer, bring the inputs to float64,
+return the result.
 
-**Warum nicht ``scipy.spatial.transform.Rotation``:** geprueft und verworfen.
-``twinlink`` haengt bewusst nur an ``numpy``, ``pyyaml`` und ``clearlog``; die
-MuJoCo-Wege sind ohnehin schon da, wo diese Funktionen gebraucht werden, und
-scipy waere eine zweite Konvention neben der von MuJoCo -- genau die Sorte
-Wahlmoeglichkeit, aus der die drei Handkopien entstanden sind.
+**Why not ``scipy.spatial.transform.Rotation``:** checked and rejected.
+``twinlink`` deliberately depends only on ``numpy``, ``pyyaml`` and
+``clearlog``; the MuJoCo routines are already there wherever these functions
+are needed, and scipy would be a second convention next to MuJoCo's -- exactly
+the kind of choice the three hand-written copies grew out of.
 
-**xyzw ist etwas anderes.**  Der Draht (ROS, ``/twin/*``) spricht xyzw; diese
-Funktionen sprechen ausschliesslich wxyz, und der Konventionsname steht
-deshalb in JEDEM Funktionsnamen.  Die xyzw-Seite liegt in
-``robot_contract.twin_protocol`` (``quat_mul_xyzw`` und Nachbarn) sowie -- fuer
-die Schicht, die nicht an ``robot_contract`` haengen darf -- in
+**xyzw is something else.**  The wire (ROS, ``/twin/*``) speaks xyzw; these
+functions speak wxyz exclusively, and the name of the convention therefore
+appears in EVERY function name.  The xyzw side lives in
+``robot_contract.twin_protocol`` (``quat_mul_xyzw`` and neighbours) and -- for
+the layer that must not depend on ``robot_contract`` -- in
 ``twinlink.tf_buffer``.
 """
 
@@ -36,17 +36,17 @@ import numpy as np
 
 
 def _mj():
-    """MuJoCo, spaet importiert -- ``twinlink`` laeuft auch ohne das Extra."""
+    """MuJoCo, imported late -- ``twinlink`` also runs without the extra."""
     import mujoco
 
     return mujoco
 
 
 def _arr(values: Sequence[float], size: int) -> np.ndarray:
-    """``values`` als zusammenhaengendes float64-Array der Laenge ``size``.
+    """``values`` as a contiguous float64 array of length ``size``.
 
-    Die ``mju_*``-Bindungen schreiben in Puffer und lesen aus Puffern; ein nicht zusammenhaengender Slice oder ein
-    float32-Array waere ein Fehler zur Laufzeit, kein falsches Ergebnis -- aber eben auch erst zur Laufzeit.
+    The ``mju_*`` bindings write into buffers and read from buffers; a non-contiguous slice or a float32 array would be
+    an error at runtime, not a wrong result -- but then again only at runtime.
     """
     out = np.ascontiguousarray(values, dtype=np.float64).reshape(-1)
     if out.size != size:
@@ -55,10 +55,10 @@ def _arr(values: Sequence[float], size: int) -> np.ndarray:
 
 
 def quat_mul_wxyz(a: Sequence[float], b: Sequence[float]) -> np.ndarray:
-    """Hamilton-Produkt zweier wxyz-Quaternionen: erst ``b``, dann ``a``.
+    """Hamilton product of two wxyz quaternions: first ``b``, then ``a``.
 
-    Die Reihenfolge ist der Punkt, an dem diese Funktion falsch benutzt wird -- vertauscht ergibt sie eine andere,
-    ebenso plausible Drehung, keinen Fehler.
+    The order is the point at which this function gets used wrongly -- swapped it yields a different, equally plausible
+    rotation, not an error.
     """
     out = np.empty(4)
     _mj().mju_mulQuat(out, _arr(a, 4), _arr(b, 4))
@@ -66,9 +66,9 @@ def quat_mul_wxyz(a: Sequence[float], b: Sequence[float]) -> np.ndarray:
 
 
 def quat_conj_wxyz(quat: Sequence[float]) -> np.ndarray:
-    """Konjugierter wxyz-Quaternion -- die Gegendrehung eines EINHEITS-Quaternions.
+    """Conjugate wxyz quaternion -- the counter-rotation of a UNIT quaternion.
 
-    Fuer einen nicht normierten Quaternion ist die Konjugation NICHT die Inverse.
+    For a quaternion that is not normalized the conjugate is NOT the inverse.
     """
     out = np.empty(4)
     _mj().mju_negQuat(out, _arr(quat, 4))
@@ -76,14 +76,14 @@ def quat_conj_wxyz(quat: Sequence[float]) -> np.ndarray:
 
 
 def quat_about_z_wxyz(angle: float) -> np.ndarray:
-    """Drehung um die Hochachse (rad) als wxyz-Quaternion."""
+    """Rotation about the vertical axis (rad) as a wxyz quaternion."""
     out = np.empty(4)
     _mj().mju_axisAngle2Quat(out, np.array([0.0, 0.0, 1.0]), float(angle))
     return out
 
 
 def mat_to_quat_wxyz(mat: np.ndarray) -> np.ndarray:
-    """3x3-Rotationsmatrix -> wxyz-Quaternion."""
+    """3x3 rotation matrix -> wxyz quaternion."""
     out = np.empty(4)
     _mj().mju_mat2Quat(out, _arr(mat, 9))
     return out

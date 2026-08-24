@@ -24,11 +24,11 @@ def test_spec_is_plain_data():
 
 
 def test_gripper_prefixes_are_separate_from_hand_prefixes():
-    """Die Backen sind eine ANDERE Menge als die Hand-Baugruppe.
+    """The jaws are a DIFFERENT set from the hand assembly.
 
-    Die Hand darf mitfahrende Sensorik enthalten (Handgelenkskamera); die Backen dürfen es nicht, denn nur sie werden
-    für greifbare Objekte durchlässig gemacht.  Wären beide dasselbe Feld, verlöre das Kameragehäuse seine
-    Kollisionsereignisse (Regression aus dem Sim-Split 2026-07-31).
+    The hand may contain sensors riding along with it (wrist camera); the jaws may not, because only they are made
+    permeable for graspable objects.  Were both the same field, the camera housing would lose its collision events
+    (regression from the sim split of 2026-07-31).
     """
     fields = RobotSimSpec.__dataclass_fields__
     assert "gripper_prefixes" in fields
@@ -36,12 +36,12 @@ def test_gripper_prefixes_are_separate_from_hand_prefixes():
 
 
 def test_twinlink_stands_alone():
-    """Die Eigenständigkeit des Pakets ist Teil des Vertrags.
+    """The package's independence is part of the contract.
 
-    twinlink ist ein eigenständiges MIT-Paket mit eigener CI: weder das Roboterprofil (``robot_contract``) noch dessen
-    SDK (``husky_sdk``) noch die Task-App (``hrl``) dürfen hier importiert werden.  Roboter-Fakten kommen ausschließlich
-    als :class:`RobotSimSpec` in den Konstruktor; jedes Task-Wissen (Würfel, Turm, RL) gehört ausschließlich hrl, nie
-    umgekehrt.
+    twinlink is a self-contained MIT package with its own CI: neither the robot profile (``robot_contract``) nor its SDK
+    (``husky_sdk``) nor the task app (``hrl``) may be imported here.  Robot facts enter exclusively as
+    :class:`RobotSimSpec` through the constructor; any task knowledge (cubes, tower, RL) belongs exclusively to hrl,
+    never the other way round.
     """
     import pathlib
 
@@ -49,9 +49,9 @@ def test_twinlink_stands_alone():
     offenders = []
     for path in src.rglob("*.py"):
         text = path.read_text()
-        # ``perception`` gehört mit in die Liste: es ist die dritte Schicht oberhalb von twinlink
-        # (Wahrnehmung/Hindernis-Tracking) und damit genauso ein Rückwärts-Import wie hrl.  Fehlte es als einziges in
-        # dieser Liste, rutschte es unbemerkt herein.
+        # ``perception`` belongs in the list too: it is the third layer above twinlink (perception/obstacle tracking)
+        # and therefore just as much a backwards import as hrl.  Were it the only one missing from this list, it would
+        # slip in unnoticed.
         for package in ("robot_contract", "husky_sdk", "hrl", "perception"):
             if f"import {package}" in text or f"from {package}" in text:
                 offenders.append(f"{path.name}: {package}")
@@ -59,31 +59,31 @@ def test_twinlink_stands_alone():
 
 
 def test_grasp_registry_is_label_keyed():
-    """Greifbare Objekte werden über Labels geführt, nicht über Farben.
+    """Graspable objects are carried by labels, not by colours.
 
-    Geprüft wird das GANZE Modul, nicht nur der Klassenrumpf: Task-Vokabular versteckt sich sonst in Modulkonstanten und
-    Hilfsfunktionen daneben.
+    The WHOLE module is checked, not just the class body: task vocabulary otherwise hides in module constants and helper
+    functions beside it.
 
-    Der App-Präfix ``hrl_`` in dieser Wortliste wäre grün, obwohl ``task_sim`` gegen genau diesen Präfix klassifiziert:
-    das Modul IMPORTIERTE die Konstanten (``OBSTACLE_BODY_PREFIX`` &c.), statt das Literal zu schreiben, also fand die
-    Textsuche nichts.  Ein Textscan kann diese Eigenschaft grundsätzlich nicht belegen; den Nachweis führt jetzt
-    ``test_scene_prefix_drives_classification`` über die WERTE.
+    The app prefix ``hrl_`` in this word list would be green even though ``task_sim`` classifies against exactly that
+    prefix: the module IMPORTED the constants (``OBSTACLE_BODY_PREFIX`` &c.) instead of writing the literal, so the text
+    search found nothing.  A text scan fundamentally cannot prove this property; the proof is now carried by
+    ``test_scene_prefix_drives_classification`` over the VALUES.
     """
     import inspect
 
     from twinlink import task_sim
 
     src = inspect.getsource(task_sim)
-    # Der Task-Wortschatz darf die Mechanik nicht mehr erreichen.
+    # The task vocabulary must no longer reach the mechanism.
     for word in ("cube", "CUBE", "color", "tower"):
         assert word not in src, f"Task-Begriff {word!r} in twinlink.task_sim"
 
 
-#: Sondenszene für den Präfix-Nachweis: Boden, ein Schieber-"Arm" mit
-#: Greifer-Kindkörper, ein Pool-Slot (``…obstacle_0``) und ein greifbarer
-#: Distraktor (``…distractor_0``) -- alles, was ``_classify_geoms`` und
-#: ``_index_obstacle_pool`` am Präfix festmachen.  Roboter- und task-frei, so
-#: dass kein URDF-Bundle nötig ist.
+#: Probe scene for the prefix proof: floor, a slider "arm" with a gripper
+#: child body, one pool slot (``…obstacle_0``) and one graspable distractor
+#: (``…distractor_0``) -- everything ``_classify_geoms`` and
+#: ``_index_obstacle_pool`` hang off the prefix.  Robot- and task-free, so that
+#: no URDF bundle is needed.
 _PROBE_SCENE = """
 <mujoco model="scene_prefix_probe">
   <option timestep="0.002"/>
@@ -123,7 +123,7 @@ _PROBE_SPEC = RobotSimSpec(
 
 
 def _classification_under_prefix(prefix: str) -> dict:
-    """Baue die Sondenszene unter ``prefix`` und lies ihre Klassifikation."""
+    """Build the probe scene under ``prefix`` and read back its classification."""
     import mujoco
 
     from twinlink.task_sim import TwinTaskSim
@@ -154,31 +154,31 @@ def _classification_under_prefix(prefix: str) -> dict:
 
 
 def test_scene_prefix_drives_classification():
-    """Der Konstruktor-Präfix -- nicht ``hrl_`` -- bestimmt die Klassifikation.
+    """The constructor prefix -- not ``hrl_`` -- decides the classification.
 
-    Die Kernzusage des Umbaus: twinlink ist app-agnostisch und publizierbar. Sie gilt nur zur Hälfte, wenn ``__init__``
-    den ``scene_prefix`` bloß für die Render-Trennung nutzt, während ``_classify_geoms`` gegen die Modulkonstanten
-    vergleicht und ``_index_obstacle_pool`` ``obstacle_body_name(i)`` ohne ``prefix=`` ruft.  Identische Szene, nur der
-    Präfix getauscht, ergibt dann:
+    The core promise of the rework: twinlink is app-agnostic and publishable.  It only half holds if ``__init__`` uses
+    the ``scene_prefix`` merely for the render split while ``_classify_geoms`` compares against the module constants and
+    ``_index_obstacle_pool`` calls ``obstacle_body_name(i)`` without ``prefix=``.  Identical scene, only the prefix
+    swapped, then gives:
 
         prefix 'hrl_' :  obstacle_geoms=2  pool_slots=1  non_obstacle_graspables=()
         prefix 'task_':  obstacle_geoms=0  pool_slots=0  non_obstacle_graspables=('clutter',)
 
-    -- ein zweiter Konsument wäre still blind für die gesamte Hindernisklasse
-    gewesen (dieselbe Blindheit, die Task 10 schon einmal eine Fix-Runde
-    gekostet hat).  Geprüft werden WERTE, nicht Modultext: ein Textscan nach
-    ``"hrl_"`` bleibt grün, solange das Modul die Konstanten importiert.
+    -- a second consumer would have been silently blind to the entire obstacle
+    class (the same blindness that once already cost Task 10 a round of fixes).
+    VALUES are checked, not module text: a text scan for ``"hrl_"`` stays green
+    as long as the module imports the constants.
     """
     pytest.importorskip("mujoco", reason="mujoco extra not installed")
 
     native = _classification_under_prefix("hrl_")
     foreign = _classification_under_prefix("task_")
 
-    # Absolut festgenagelt, damit der Vergleich nicht trivial grün wird, wenn beide Seiten nichts mehr klassifizieren.
+    # Nailed down absolutely, so the comparison does not turn trivially green when both sides classify nothing at all.
     assert native == {
         "obstacle_geoms": 2,  # Pool-Slot + Distraktor
         "pool_slots": 1,
-        "non_obstacle_graspables": (),  # der Distraktor BLEIBT Hindernis
+        "non_obstacle_graspables": (),  # the distractor REMAINS an obstacle
     }
     assert foreign == native
 

@@ -23,7 +23,7 @@ class _FakeSim:
 
 
 def test_unchanged_beliefs_are_not_rewritten():
-    """Der Kern des Mirrors: kein Neu-Teleportieren, kein Jitter."""
+    """The core of the mirror: no re-teleporting, no jitter."""
     sim = _FakeSim()
     mirror = TwinDisplayMirror(sim)
     items = [("green", ("pose", (0.7, 0.0, 0.22), 0.0))]

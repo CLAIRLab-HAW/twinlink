@@ -1,11 +1,11 @@
-"""Regressionsschutz: greifbare Hindernisse bleiben Hindernisse.
+"""Regression guard: graspable obstacles stay obstacles.
 
-Hintergrund: parkt ``arm_config_collides`` *alle* registrierten Greifbaren aus dem Scratch-Modell weg -- auch die, die
-zugleich als Hindernis klassifiziert sind (Pool-Slots, gescriptete Clutter, die ein Task zum Greifziel erklärt) --,
-sieht das Gate genau die Objekte nie, für die es existiert; ``settle`` wartet umgekehrt auf Szenen-Clutter, das gar
-nicht zur Nutzlast gehört.  Von selbst bemerkt das keine Suite.
+Background: if ``arm_config_collides`` parks *all* registered graspables out of the scratch model -- including those
+that are classified as obstacles at the same time (pool slots, scripted clutter that a task declares to be a grasp
+target) -- then the gate never sees exactly the objects it exists for; conversely, ``settle`` waits for scene clutter
+that is not part of the payload at all.  No suite notices that by itself.
 
-Der Test baut ein winziges, roboter- und task-freies MJCF-Modell -- kein URDF-Bundle nötig, läuft also auch in der CI.
+The test builds a tiny, robot- and task-free MJCF model -- no URDF bundle needed, so it also runs in CI.
 """
 
 from __future__ import annotations
@@ -19,17 +19,17 @@ from twinlink.mjcf_scene import distractor_body_name, distractor_joint_name  # n
 from twinlink.testing import StraightLinkage  # noqa: E402
 from twinlink.task_sim import RobotSimSpec, TwinTaskSim  # noqa: E402
 
-#: Der Körperpräfix DIESER Testszene.  Szene und Konstruktor müssen dieselbe
-#: Wahl treffen: benennt die Szene ihren Distraktor mit dem Modul-Default
-#: (``hrl_distractor_0``), während der Konstruktor ``scene_prefix=""`` bekommt,
-#: fällt das nur so lange nicht auf, wie die Klassifikation den
-#: Konstruktor-Präfix ignoriert.  Der eigene, app-fremde Präfix ist für einen
-#: twinlink-Test ohnehin die ehrlichere Wahl: diese Szene MÖBLIERT sich selbst,
-#: sie ist nicht präfixlos.
+#: The body prefix of THIS test scene.  Scene and constructor must make the
+#: same choice: if the scene names its distractor with the module default
+#: (``hrl_distractor_0``) while the constructor is given ``scene_prefix=""``,
+#: that only goes unnoticed as long as the classification ignores the
+#: constructor prefix.  An own, app-foreign prefix is the more honest choice
+#: for a twinlink test anyway: this scene FURNISHES itself, it is not
+#: prefix-less.
 PREFIX = "test_"
 
-#: Ein Schieber-"Arm" mit Greifer-Kindkörper, eine Plattform, ein greifbares
-#: Hindernis (Distraktor-Präfix) in +x und eine reine Nutzlast in -x.
+#: A slider "arm" with a gripper child body, a platform, one graspable
+#: obstacle (distractor prefix) in +x and a pure payload in -x.
 SCENE_XML = f"""
 <mujoco model="clutter_gate">
   <option timestep="0.002"/>
@@ -71,14 +71,14 @@ SPEC = RobotSimSpec(
     arm_joints=("arm_0_slide",),
 )
 
-#: Schieberstellung, bei der der Armkörper in den greifbaren Distraktor fährt.
+#: Slider position at which the arm body drives into the graspable distractor.
 INTO_CLUTTER = 0.55
-#: Schieberstellung, bei der der Armkörper in die reine Nutzlast fährt.
+#: Slider position at which the arm body drives into the pure payload.
 INTO_PAYLOAD = -0.5
 
 
 class _ClutterSim(TwinTaskSim):
-    """Registriert beide freien Körper als greifbar -- wie ein Clear-Task."""
+    """Registers both free bodies as graspable -- like a clear task."""
 
     def register_graspables(self) -> None:
         self.register_graspable(
@@ -114,15 +114,15 @@ def test_clutter_is_classified_as_obstacle_although_it_is_graspable():
 
 
 def test_gate_rejects_a_configuration_reaching_into_graspable_clutter():
-    """Der Kern der Regression: greifbar heißt nicht unsichtbar fürs Gate."""
+    """The core of the regression: graspable does not mean invisible to the gate."""
     sim = _build()
     try:
         assert sim.arm_config_collides({"arm_0_slide": INTO_CLUTTER}) is True
-        # ... und auch über den reinen Hindernis-Pfad (Pose-Vorprobe).
+        # ... and also over the pure obstacle path (pose pre-check).
         assert sim.arm_config_collides({"arm_0_slide": INTO_CLUTTER}, obstacles_only=True) is True
         assert sim.arm_config_collides({"arm_0_slide": 0.0}) is False
 
-        # Gegenprobe = die Regression: würde man ALLE Greifbaren wegparken, verschwände genau dieses Urteil.
+        # Counter-check = the regression: parking ALL graspables away would make exactly this verdict disappear.
         sim._non_obstacle_graspables = tuple(sim._graspable)
         assert sim.arm_config_collides({"arm_0_slide": INTO_CLUTTER}) is False
     finally:
@@ -130,10 +130,10 @@ def test_gate_rejects_a_configuration_reaching_into_graspable_clutter():
 
 
 def test_gate_still_ignores_the_sims_own_payload():
-    """Die andere Hälfte der alten Semantik: Nutzlast ist kein Gültigkeitsgrund.
+    """The other half of the old semantics: payload is no reason for validity.
 
-    Die Nutzlast wird weggeparkt UND gehört ohnehin keiner der drei geprüften Paarklassen an -- beides zusammen hält den
-    Griff über dem eigenen Objekt gültig (der Greifer senkt beim Zugreifen zwangsläufig in es hinein).
+    The payload is parked away AND belongs to none of the three checked pair classes anyway -- the two together keep the
+    grasp above one's own object valid (when grasping, the gripper inevitably lowers into it).
     """
     sim = _build()
     try:

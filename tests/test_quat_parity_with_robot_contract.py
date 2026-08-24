@@ -1,20 +1,20 @@
-"""``_matrix_to_quat`` gibt es zweimal im Workspace -- sie duerfen nicht driften.
+"""``_matrix_to_quat`` exists twice in the workspace -- the two must not drift.
 
-``twinlink.tf_buffer._matrix_to_quat`` und ``robot_contract.twin_protocol.mat_to_quat_xyzw`` sind Zeile fuer Zeile
-dieselbe Shepperd-Implementierung, gleiche Konvention (xyzw), gleiche Verzweigung ueber die groesste Diagonale --
-letztere gewaehlt, weil sie bei 180-Grad-Drehungen (Spur -1) stabil bleibt, und das ist JEDE Top-Down- Greifmatrix.
+``twinlink.tf_buffer._matrix_to_quat`` and ``robot_contract.twin_protocol.mat_to_quat_xyzw`` are line for line the same
+Shepperd implementation, same convention (xyzw), same branching over the largest diagonal element -- the latter chosen
+because it stays stable at 180-degree rotations (trace -1), and that is EVERY top-down grasp matrix.
 
-Die Dopplung ist kein Versehen, sondern der Preis einer bewussten Schichtentscheidung: ``twinlink`` haengt absichtlich
-NICHT an ``robot_contract`` (siehe ``task_sim.py``, dort ausdruecklich kommentiert). Solange diese Entscheidung steht,
-bleiben beide Fassungen -- aber sie duerfen sich nicht auseinanderentwickeln, denn dann rechnet der Zwilling anders als
-der Draht, und die Abweichung faellt erst an einer schiefen Greifpose auf.
+The duplication is not an oversight but the price of a deliberate layering decision: ``twinlink`` deliberately does NOT
+depend on ``robot_contract`` (see ``task_sim.py``, commented there explicitly).  As long as that decision stands, both
+versions remain -- but they must not develop apart, because then the twin computes differently from the wire, and the
+deviation only shows up at a crooked grasp pose.
 
-Ein Querverweis im Kommentar waere dafuer kein Mechanismus (vgl.
-``deploy/husky-offboard/tests/test_guard_single_source.py``).  Dieser Test ist einer: er vergleicht die beiden Fassungen
-an Matrizen, die genau die heiklen Zweige treffen.
+A cross-reference in a comment would be no mechanism for that (cf.
+``deploy/husky-offboard/tests/test_guard_single_source.py``).  This test is one: it compares the two versions at
+matrices that hit exactly the delicate branches.
 
-Er ueberspringt sich sauber, wenn ``robot_contract`` fehlt -- in twinlinks eigener CI ist das der Normalfall und gerade
-der Punkt der Schichtentscheidung.
+It skips itself cleanly when ``robot_contract`` is missing -- in twinlink's own CI that is the normal case and precisely
+the point of the layering decision.
 """
 
 import numpy as np
@@ -42,7 +42,7 @@ def _rot_z(a):
     return np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]], float)
 
 
-#: Jeder Eintrag trifft einen anderen Zweig der Verzweigung.
+#: Every entry hits a different branch of the case distinction.
 MATRICES = {
     "identitaet (Spur > 0)": np.eye(3),
     "180 um x (m00 groesst)": _rot_x(np.pi),
@@ -59,7 +59,7 @@ def test_both_implementations_agree(name):
     m = MATRICES[name]
     a = np.asarray(_matrix_to_quat(m), float)
     b = np.asarray(tp.mat_to_quat_xyzw(m), float)
-    # q und -q sind dieselbe Drehung -- verglichen wird die Drehung, nicht das Vorzeichen.
+    # q and -q are the same rotation -- what is compared is the rotation, not the sign.
     if float(np.dot(a, b)) < 0.0:
         b = -b
     assert a == pytest.approx(b, abs=1e-9), (
@@ -69,7 +69,7 @@ def test_both_implementations_agree(name):
 
 @pytest.mark.parametrize("name", sorted(MATRICES))
 def test_the_quaternion_is_a_unit_quaternion(name):
-    """Beide muessen normiert liefern, sonst ist der Vergleich oben wertlos."""
+    """Both must return normalized results, otherwise the comparison above is worthless."""
     for fn in (_matrix_to_quat, tp.mat_to_quat_xyzw):
         q = np.asarray(fn(MATRICES[name]), float)
         assert float(np.linalg.norm(q)) == pytest.approx(1.0, abs=1e-9)
