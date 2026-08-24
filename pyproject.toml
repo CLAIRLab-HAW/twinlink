@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "twinlink"
 version = "0.2.0"
 authors = [
-  { name="Hannes Philip Voss", email="mail@hannesvoss.de" },
+  { name = "Hannes Philip Voss", email = "mail@hannesvoss.de" },
 ]
 description = "Robot-agnostic bridge from a real robot (ROS 2 / MCAP) to a digital twin in simulation (MuJoCo, Isaac Sim)."
 readme = "README.md"

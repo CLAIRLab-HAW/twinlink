@@ -5,6 +5,12 @@ Was sich wann geändert hat. Der aktuelle Stand steht in der [README](README.md)
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionierung [Semantic Versioning](https://semver.org/lang/de/).
 
+## 2026-08-24 (Author metadata unified)
+
+- **`authors` spacing normalised** to `{ name = "Hannes Philip Voss", email =
+  "mail@hannesvoss.de" }` (the value was already right; only the `=` spacing
+  differed from the other packages). Metadata only, no behaviour change.
+
 ## 2026-08-24 (requires-python aligns to the workspace floor)
 
 - **`requires-python` raised from `>=3.8` to `>=3.10`.** The workspace venv is
