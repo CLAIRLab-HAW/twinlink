@@ -14,6 +14,7 @@ rates and cheap to sample from a render loop:
 All access is guarded by a single re-entrant lock.  Writers bump a monotonic
 ``revision`` counter so a consumer can cheaply detect "did anything change".
 """
+
 from __future__ import annotations
 
 import logging
@@ -118,7 +119,9 @@ class CameraFrame:
         except Exception as exc:
             logging.getLogger("twinlink.state").warning(
                 "lazy image decode failed (format=%r, depth=%s): %s",
-                self.raw_format, self.is_depth, exc,
+                self.raw_format,
+                self.is_depth,
+                exc,
             )
             self.raw = None  # do not retry a poisoned payload
             return False
@@ -167,11 +170,13 @@ def _transform_matrix(tf: "Transform") -> np.ndarray:
     wx, wy, wz = w * x * s, w * y * s, w * z * s
 
     mat = np.eye(4)
-    mat[:3, :3] = np.array([
-        [1.0 - (yy + zz), xy - wz, xz + wy],
-        [xy + wz, 1.0 - (xx + zz), yz - wx],
-        [xz - wy, yz + wx, 1.0 - (xx + yy)],
-    ])
+    mat[:3, :3] = np.array(
+        [
+            [1.0 - (yy + zz), xy - wz, xz + wy],
+            [xy + wz, 1.0 - (xx + zz), yz - wx],
+            [xz - wy, yz + wx, 1.0 - (xx + yy)],
+        ]
+    )
     mat[:3, 3] = np.asarray(tf.translation, dtype=float)
     return mat
 
@@ -226,8 +231,16 @@ class RobotState:
                     break
                 self._joints[n] = JointState(
                     float(positions[i]),
-                    float(velocities[i]) if velocities is not None and i < len(velocities) else None,
-                    float(efforts[i]) if efforts is not None and i < len(efforts) else None,
+                    (
+                        float(velocities[i])
+                        if velocities is not None and i < len(velocities)
+                        else None
+                    ),
+                    (
+                        float(efforts[i])
+                        if efforts is not None and i < len(efforts)
+                        else None
+                    ),
                     st,
                 )
             self._touch()
@@ -311,7 +324,10 @@ class RobotState:
     def joint_positions(self, names: Iterable[str]) -> np.ndarray:
         with self._lock:
             return np.array(
-                [self._joints[n].position if n in self._joints else np.nan for n in names],
+                [
+                    self._joints[n].position if n in self._joints else np.nan
+                    for n in names
+                ],
                 dtype=float,
             )
 
@@ -362,7 +378,7 @@ class RobotState:
         # Undirected adjacency: tf edges are stored as (parent, child) but a
         # chain may traverse either way.
         adjacency: Dict[str, List[str]] = {}
-        for (parent, child) in edges:
+        for parent, child in edges:
             adjacency.setdefault(child, []).append(parent)
             adjacency.setdefault(parent, []).append(child)
 

@@ -18,6 +18,7 @@ subclass and override those three; the decoding/mapping layer is reused as-is::
         def _subscribe(self, topic, type_str, on_msg): ...
         def _spin(self): ...
 """
+
 from __future__ import annotations
 
 import importlib
@@ -52,16 +53,23 @@ class Ros2Source(StateSource):
 
     # ------------------------------------------------------------------ #
     def start(self) -> "Ros2Source":
-        assert self.state is not None and self.mapping is not None, "bind() before start()"
+        assert (
+            self.state is not None and self.mapping is not None
+        ), "bind() before start()"
         self._init_node()
         for topic in self.mapping.topics():
             type_str = self.mapping.topic_type(topic)
             if not type_str:
-                log.warning("No message type known for %s; skipping. Set topic_types in config.", topic)
+                log.warning(
+                    "No message type known for %s; skipping. Set topic_types in config.",
+                    topic,
+                )
                 continue
             role = self.mapping.role_of(topic)
             self._subscribe(topic, type_str, self._make_callback(topic, type_str), role)
-        self._thread = threading.Thread(target=self._spin, name="ros2-source", daemon=True)
+        self._thread = threading.Thread(
+            target=self._spin, name="ros2-source", daemon=True
+        )
         self._thread.start()
         self._running = True
         return self
@@ -111,14 +119,20 @@ class Ros2Source(StateSource):
         self._executor = rclpy.executors.MultiThreadedExecutor()
         self._executor.add_node(self._node)
 
-    def _subscribe(self, topic: str, type_str: str, on_msg: Callable, role: Optional[str]) -> None:
+    def _subscribe(
+        self, topic: str, type_str: str, on_msg: Callable, role: Optional[str]
+    ) -> None:
         from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
         msg_class = resolve_msg_class(type_str)
         reliability = (
-            ReliabilityPolicy.BEST_EFFORT if role in _BEST_EFFORT_ROLES else ReliabilityPolicy.RELIABLE
+            ReliabilityPolicy.BEST_EFFORT
+            if role in _BEST_EFFORT_ROLES
+            else ReliabilityPolicy.RELIABLE
         )
-        qos = QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=10, reliability=reliability)
+        qos = QoSProfile(
+            history=HistoryPolicy.KEEP_LAST, depth=10, reliability=reliability
+        )
         self._node.create_subscription(msg_class, topic, on_msg, qos)
         log.info("subscribed %s [%s] reliability=%s", topic, type_str, reliability.name)
 

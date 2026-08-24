@@ -30,6 +30,7 @@ deshalb in JEDEM Funktionsnamen.  Die xyzw-Seite liegt in
 die Schicht, die nicht an ``robot_contract`` haengen darf -- in
 ``twinlink.tf_buffer``.
 """
+
 from __future__ import annotations
 
 from typing import Sequence

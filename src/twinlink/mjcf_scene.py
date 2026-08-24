@@ -14,6 +14,7 @@ save-XML-and-recompile round-trip needs the same primitives --
 Task furniture (tables, task objects, camera placement) stays app-side; this
 module carries only what is identical across tasks.
 """
+
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
@@ -115,7 +116,9 @@ def distractor_joint_name(index: int, prefix: str = DEFAULT_SCENE_PREFIX) -> str
 
 
 def add_distractors(
-    worldbody: ET.Element, distractors: Sequence[Dict], prefix: str = DEFAULT_SCENE_PREFIX
+    worldbody: ET.Element,
+    distractors: Sequence[Dict],
+    prefix: str = DEFAULT_SCENE_PREFIX,
 ) -> None:
     """Author sim-only clutter boxes (``{"position", "size", "yaw", "rgba"}``).
 

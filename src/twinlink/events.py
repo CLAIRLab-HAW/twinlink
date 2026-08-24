@@ -5,6 +5,7 @@ the robot), not task vocabulary -- every manipulation app that steps a twin
 wants exactly these fields.  ``grasp_acquired``/``grasp_lost`` carry the
 *object identifier* the task layer uses (hrl: the cube colour).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

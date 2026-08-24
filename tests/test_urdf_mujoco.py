@@ -1,4 +1,5 @@
 """URDF→MuJoCo smoke against the workspace robot bundle (needs mujoco)."""
+
 from pathlib import Path
 
 import pytest

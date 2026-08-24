@@ -11,6 +11,7 @@ debugging round because of exactly that blind spot.
 The scene is a tiny, robot- and task-free MJCF model (no URDF bundle needed --
 runs in CI), built the same way ``test_task_sim_clutter.py`` builds its scene.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -159,7 +160,10 @@ PAYLOAD_HALF = np.array([0.05, 0.025, 0.06])
 class _PoolSim(TwinTaskSim):
     def register_graspables(self) -> None:
         self.register_graspable(
-            "payload", "payload_free", self._body_id("payload"), PAYLOAD_HALF,
+            "payload",
+            "payload_free",
+            self._body_id("payload"),
+            PAYLOAD_HALF,
         )
 
 
@@ -204,16 +208,16 @@ def test_perceived_obstacle_does_not_shove_the_object_it_mirrors():
     """
     sim = _build_pool_sim()
     try:
-        before = sim.data.qpos[sim._graspable["payload"]["qpos"]:][:3].copy()
+        before = sim.data.qpos[sim._graspable["payload"]["qpos"] :][:3].copy()
         # Perceive the payload exactly where it stands -- what the obstacle
         # pipeline does every survey.
         assert sim.set_obstacles([_Box(PAYLOAD_POS, 2.0 * PAYLOAD_HALF)]) == 1
         sim.step_physics(20)
-        after = sim.data.qpos[sim._graspable["payload"]["qpos"]:][:3].copy()
+        after = sim.data.qpos[sim._graspable["payload"]["qpos"] :][:3].copy()
         moved = float(np.linalg.norm(after - before))
-        assert moved < 1e-6, (
-            f"the perceived box shoved its own source body by {moved*1e3:.1f} mm"
-        )
+        assert (
+            moved < 1e-6
+        ), f"the perceived box shoved its own source body by {moved*1e3:.1f} mm"
     finally:
         sim.close()
 
@@ -229,15 +233,19 @@ def test_active_pool_slot_still_collides_with_the_arm():
     sim = _build_pool_sim()
     try:
         gid = sim._mujoco.mj_name2id(
-            sim.model, sim._mujoco.mjtObj.mjOBJ_GEOM,
+            sim.model,
+            sim._mujoco.mjtObj.mjOBJ_GEOM,
             f"{obstacle_body_name(0, prefix='')}_geom",
         )
         # Put the perceived box right on the arm's shoulder link.
         sim.set_obstacles([_Box([0.0, 0.0, 0.08], [0.1, 0.1, 0.1])])
         sim.step_physics(1)
         partners = {
-            int(sim.data.contact[i].geom1) if int(sim.data.contact[i].geom2) == gid
-            else int(sim.data.contact[i].geom2)
+            (
+                int(sim.data.contact[i].geom1)
+                if int(sim.data.contact[i].geom2) == gid
+                else int(sim.data.contact[i].geom2)
+            )
             for i in range(int(sim.data.ncon))
             if gid in (int(sim.data.contact[i].geom1), int(sim.data.contact[i].geom2))
         }

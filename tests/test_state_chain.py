@@ -5,9 +5,12 @@ from twinlink.state import RobotState, Transform
 
 
 def _tf(parent, child, xyz, quat=(0.0, 0.0, 0.0, 1.0)):
-    return Transform(translation=np.asarray(xyz, dtype=float),
-                     rotation=np.asarray(quat, dtype=float),
-                     frame_id=parent, child_frame_id=child)
+    return Transform(
+        translation=np.asarray(xyz, dtype=float),
+        rotation=np.asarray(quat, dtype=float),
+        frame_id=parent,
+        child_frame_id=child,
+    )
 
 
 def test_identity_for_the_same_frame():
@@ -63,7 +66,9 @@ def test_rotation_is_carried_through():
     st = RobotState()
     st.set_transform(_tf("base", "cam", [0.0, 0.0, 0.0], q))
     M = st.chain("cam", "base")
-    assert np.allclose(M @ np.array([1.0, 0.0, 0.0, 1.0]), [0.0, 1.0, 0.0, 1.0], atol=1e-9)
+    assert np.allclose(
+        M @ np.array([1.0, 0.0, 0.0, 1.0]), [0.0, 1.0, 0.0, 1.0], atol=1e-9
+    )
 
 
 def test_disconnected_frames_return_none_rather_than_identity():
@@ -88,8 +93,9 @@ def test_two_hops_with_rotation_pin_the_composition_order():
     st.set_transform(_tf("arm", "cam", [0.0, 2.0, 0.0]))
 
     M = st.chain("cam", "base")
-    assert np.allclose(M @ np.array([0.0, 0.0, 0.0, 1.0]),
-                       [-1.0, 0.0, 0.0, 1.0], atol=1e-9)
+    assert np.allclose(
+        M @ np.array([0.0, 0.0, 0.0, 1.0]), [-1.0, 0.0, 0.0, 1.0], atol=1e-9
+    )
 
 
 def test_a_degenerate_quaternion_raises_instead_of_reading_as_no_rotation():

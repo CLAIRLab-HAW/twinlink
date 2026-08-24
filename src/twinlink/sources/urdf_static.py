@@ -4,6 +4,7 @@ The simplest possible "mock mode": no recording, no live robot -- just hold a
 static joint configuration so a digital twin can be brought up from a URDF
 alone (e.g. to validate the model loads and the sink renders).
 """
+
 from __future__ import annotations
 
 from typing import Dict, Optional

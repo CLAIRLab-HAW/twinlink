@@ -11,6 +11,7 @@ of ``TwinDisplayMirror`` against a mocked sim.  The sim-side mechanic itself
 are its contacts really suspended and restored -- is tested here, with the
 same synthetic-scene pattern ``test_task_sim_grasp.py`` uses.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -59,7 +60,9 @@ SPEC = RobotSimSpec(
 class _DisplaySim(TwinTaskSim):
     def register_graspables(self) -> None:
         self.register_graspable(
-            "believed", "believed_free", self._body_id("believed"),
+            "believed",
+            "believed_free",
+            self._body_id("believed"),
             np.array([0.02, 0.02, 0.02]),
         )
 
@@ -102,7 +105,9 @@ def test_display_carry_follows_tcp_without_events():
     sim = _build()
     try:
         sim.display_carry("believed")
-        assert sim.grasped_label() == "believed", "carry pins the object like a grasp internally"
+        assert (
+            sim.grasped_label() == "believed"
+        ), "carry pins the object like a grasp internally"
         sim.set_arm_command({"arm_0_slide": 0.4})
         events = sim.step_physics(5)
         tcp, _mat = sim.tcp_pose()

@@ -11,6 +11,7 @@ Nothing fails -- the cameras simply see the surface behind it.
 The rule is positive (``body_rootid`` == the robot's root), and this test
 holds it there.  Robot- and task-free MJCF, no URDF bundle needed.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -67,8 +68,10 @@ SPEC = RobotSimSpec(
 class _ProbeSim(TwinTaskSim):
     def register_graspables(self) -> None:
         self.register_graspable(
-            "task_object", "task_object_free",
-            self._body_id("task_object"), np.full(3, 0.03),
+            "task_object",
+            "task_object_free",
+            self._body_id("task_object"),
+            np.full(3, 0.03),
         )
 
     def support_geom_names(self):

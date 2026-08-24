@@ -39,6 +39,7 @@ Caveats (verify at the robot):
 * latched/transient-local topics (``robot_description``, ``tf_static``) need a
   querying subscriber -- live high-rate topics (joint_states, points) are fine.
 """
+
 from __future__ import annotations
 
 import json
@@ -93,8 +94,10 @@ def liveliness_subscriber_query(domain_id: int, topic: str) -> str:
     """
     mangled = topic if topic.startswith("/") else f"/{topic}"
     mangled = mangled.replace("/", "%")
-    return (f"{LIVELINESS_ADMIN_SPACE}/{domain_id}/*/*/*/{LIVELINESS_SUBSCRIBER}"
-            f"/*/*/*/{mangled}/*/*/*")
+    return (
+        f"{LIVELINESS_ADMIN_SPACE}/{domain_id}/*/*/*/{LIVELINESS_SUBSCRIBER}"
+        f"/*/*/*/{mangled}/*/*/*"
+    )
 
 
 def parse_liveliness_token(keyexpr: str) -> Optional[dict]:
@@ -117,8 +120,9 @@ def parse_liveliness_token(keyexpr: str) -> Optional[dict]:
     }
 
 
-def rmw_attachment_bytes(sequence_number: int, source_timestamp_ns: int,
-                         gid: bytes) -> bytes:
+def rmw_attachment_bytes(
+    sequence_number: int, source_timestamp_ns: int, gid: bytes
+) -> bytes:
     """Serialize the rmw_zenoh per-message attachment (33 bytes).
 
     rmw_zenoh subscribers DROP any sample without this attachment.  Layout =
@@ -129,8 +133,11 @@ def rmw_attachment_bytes(sequence_number: int, source_timestamp_ns: int,
     """
     if len(gid) != RMW_GID_STORAGE_SIZE:
         raise ValueError(f"gid must be {RMW_GID_STORAGE_SIZE} bytes, got {len(gid)}")
-    return (struct.pack("<qq", sequence_number, source_timestamp_ns)
-            + bytes([RMW_GID_STORAGE_SIZE]) + gid)
+    return (
+        struct.pack("<qq", sequence_number, source_timestamp_ns)
+        + bytes([RMW_GID_STORAGE_SIZE])
+        + gid
+    )
 
 
 def _session_config(zenoh, mode: str, connect):
@@ -150,10 +157,7 @@ def _session_config(zenoh, mode: str, connect):
 # are missing. Field order/types must match the wire layout exactly -- these are
 # the stable upstream ``.msg`` definitions (unchanged across ROS 2 distros).
 _MOVEIT_MSG_DEFS = {
-    "object_recognition_msgs/msg/ObjectType": (
-        "string key\n"
-        "string db\n"
-    ),
+    "object_recognition_msgs/msg/ObjectType": ("string key\n" "string db\n"),
     "moveit_msgs/msg/CollisionObject": (
         "std_msgs/Header header\n"
         "geometry_msgs/Pose pose\n"
@@ -249,7 +253,9 @@ class ZenohSource(StateSource):
         assert self.state is not None, "bind() before start()"
         self._stop.clear()
         self._running = True
-        self._thread = threading.Thread(target=self._run, name="zenoh-source", daemon=True)
+        self._thread = threading.Thread(
+            target=self._run, name="zenoh-source", daemon=True
+        )
         self._thread.start()
         return self
 
@@ -284,13 +290,24 @@ class ZenohSource(StateSource):
         backoff = 0.5
         while not self._stop.is_set():
             try:
-                self._session = zenoh.open(_session_config(zenoh, self.mode, self.connect))
-                log.info("zenoh session open (mode=%s, connect=%s)", self.mode, self.connect or "scout")
+                self._session = zenoh.open(
+                    _session_config(zenoh, self.mode, self.connect)
+                )
+                log.info(
+                    "zenoh session open (mode=%s, connect=%s)",
+                    self.mode,
+                    self.connect or "scout",
+                )
                 if self._declare(zenoh):
                     self._stop.wait()  # connected; zenoh delivers on its own threads
                     break
             except Exception as exc:
-                log.warning("zenoh connect failed (mode=%s connect=%s): %s", self.mode, self.connect, exc)
+                log.warning(
+                    "zenoh connect failed (mode=%s connect=%s): %s",
+                    self.mode,
+                    self.connect,
+                    exc,
+                )
             finally:
                 self._teardown()
             if not self.reconnect or self._stop.is_set():
@@ -306,13 +323,21 @@ class ZenohSource(StateSource):
         for topic in self._wanted_topics():
             msgtype = self.mapping.topic_type(topic)
             if not msgtype:
-                log.warning("no message type known for %s; set topic_types in config", topic)
+                log.warning(
+                    "no message type known for %s; set topic_types in config", topic
+                )
                 continue
             if msgtype not in self._typestore.types:
-                log.warning("type %s has no schema over zenoh — skipping %s", msgtype, topic)
+                log.warning(
+                    "type %s has no schema over zenoh — skipping %s", msgtype, topic
+                )
                 continue
-            key = self.key_template.format(domain=self.domain_id, topic=topic.lstrip("/"))
-            self._subs.append(self._session.declare_subscriber(key, self._make_cb(topic, msgtype)))
+            key = self.key_template.format(
+                domain=self.domain_id, topic=topic.lstrip("/")
+            )
+            self._subs.append(
+                self._session.declare_subscriber(key, self._make_cb(topic, msgtype))
+            )
             log.info("subscribed %s [%s] via %s", topic, msgtype, key)
             n += 1
         if n == 0:
@@ -393,9 +418,13 @@ class ZenohUplink:
                 import zenoh
 
                 self._session = zenoh.open(
-                    _session_config(zenoh, self.mode, self.connect))
-                log.info("zenoh uplink session open (mode=%s, connect=%s)",
-                         self.mode, self.connect or "scout")
+                    _session_config(zenoh, self.mode, self.connect)
+                )
+                log.info(
+                    "zenoh uplink session open (mode=%s, connect=%s)",
+                    self.mode,
+                    self.connect or "scout",
+                )
             return self._session
 
     def publisher(self, topic: str, msgtype: str) -> "ZenohPublisher":
@@ -440,17 +469,23 @@ class ZenohUplink:
             log.debug("liveliness discovery failed on %s: %s", topic, exc)
         for info in tokens:
             if info["type_name"] == expected:
-                return topic_keyexpr(self.domain_id, topic,
-                                     info["type_name"], info["type_hash"])
+                return topic_keyexpr(
+                    self.domain_id, topic, info["type_name"], info["type_hash"]
+                )
         if tokens:
             # A subscriber exists but under another type: trust the graph —
             # it is the side that deserializes.
             info = tokens[0]
-            log.warning("subscriber on %s has type %s (expected %s) — "
-                        "publishing with the graph's type", topic,
-                        info["type_name"], expected)
-            return topic_keyexpr(self.domain_id, topic,
-                                 info["type_name"], info["type_hash"])
+            log.warning(
+                "subscriber on %s has type %s (expected %s) — "
+                "publishing with the graph's type",
+                topic,
+                info["type_name"],
+                expected,
+            )
+            return topic_keyexpr(
+                self.domain_id, topic, info["type_name"], info["type_hash"]
+            )
         pinned = self.type_hashes.get(msgtype)
         if pinned:
             log.info("no live subscriber on %s — using the pinned type hash", topic)
@@ -458,7 +493,8 @@ class ZenohUplink:
         raise ConnectionError(
             f"no rmw_zenoh subscriber for {topic} [{msgtype}] discoverable via "
             f"liveliness (plan server running? router reachable?) and no pinned "
-            f"type hash configured")
+            f"type hash configured"
+        )
 
 
 class ZenohPublisher:
@@ -474,8 +510,14 @@ class ZenohPublisher:
     subscriber drops the sample.
     """
 
-    def __init__(self, uplink: ZenohUplink, topic: str, msgtype: str,
-                 *, store: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        uplink: ZenohUplink,
+        topic: str,
+        msgtype: str,
+        *,
+        store: Optional[str] = None,
+    ) -> None:
         self.uplink = uplink
         self.topic = topic
         self.msgtype = msgtype  # e.g. "sensor_msgs/msg/JointState"

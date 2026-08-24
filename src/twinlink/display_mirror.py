@@ -24,6 +24,7 @@ Strictly display: never enabled in sim training (there the object bodies ARE
 the task physics and rewards read them); an app only constructs this for its
 real-camera mode, where every sim-truth check is already skipped.
 """
+
 from __future__ import annotations
 
 import logging

@@ -5,6 +5,7 @@ prüfen, ohne einen bestimmten Roboter vorauszusetzen.  Es liegt im Paket und
 nicht neben den Tests, weil der Workspace mit ``--import-mode=importlib``
 läuft -- ein Modul neben den Testdateien wäre von dort nicht importierbar.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

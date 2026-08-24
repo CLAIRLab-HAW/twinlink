@@ -1,4 +1,5 @@
 """TwinDisplayMirror: Beliefs anzeigen, ohne Jitter."""
+
 from __future__ import annotations
 
 from twinlink.display_mirror import TwinDisplayMirror

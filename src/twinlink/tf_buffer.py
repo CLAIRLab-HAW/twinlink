@@ -12,6 +12,7 @@ Note the complement in :class:`twinlink.RobotState`: the state keeps only the
 *latest* transform per edge (live-twin use); this buffer keeps *time series*
 for offline batch processing.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -31,11 +32,13 @@ def _quat_to_matrix(q: np.ndarray) -> np.ndarray:
     xx, yy, zz = x * x * s, y * y * s, z * z * s
     xy, xz, yz = x * y * s, x * z * s, y * z * s
     wx, wy, wz = w * x * s, w * y * s, w * z * s
-    return np.array([
-        [1.0 - (yy + zz), xy - wz, xz + wy],
-        [xy + wz, 1.0 - (xx + zz), yz - wx],
-        [xz - wy, yz + wx, 1.0 - (xx + yy)],
-    ])
+    return np.array(
+        [
+            [1.0 - (yy + zz), xy - wz, xz + wy],
+            [xy + wz, 1.0 - (xx + zz), yz - wx],
+            [xz - wy, yz + wx, 1.0 - (xx + yy)],
+        ]
+    )
 
 
 def _matrix_to_quat(m: np.ndarray) -> np.ndarray:
@@ -88,7 +91,7 @@ def _slerp(q0: np.ndarray, q1: np.ndarray, alpha: float) -> np.ndarray:
 @dataclass
 class Transform:
     translation: np.ndarray  # (3,)
-    rotation: np.ndarray     # quaternion (x, y, z, w)
+    rotation: np.ndarray  # quaternion (x, y, z, w)
 
     def as_matrix(self) -> np.ndarray:
         mat = np.eye(4)

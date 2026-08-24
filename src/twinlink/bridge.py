@@ -7,6 +7,7 @@ Threading model: the source runs in its own thread and only writes state; the
 sinks are ticked from :meth:`TwinLink.run`, i.e. the **main thread**.  That matters --
 OpenGL contexts and macOS windowing must live on the main thread.
 """
+
 from __future__ import annotations
 
 import logging
@@ -92,13 +93,19 @@ class TwinLink:
                 if heartbeat > 0 and (tick - hb_time) >= heartbeat:
                     rev = self.state.revision
                     rate = (rev - hb_rev) / (tick - hb_time)
-                    log.info("heartbeat: %s  (%.0f updates/s)", self.state.summary(), rate)
+                    log.info(
+                        "heartbeat: %s  (%.0f updates/s)", self.state.summary(), rate
+                    )
                     hb_time, hb_rev = tick, rev
 
                 if duration is not None and (time.monotonic() - t0) >= duration:
                     break
 
-                if stop_when_source_done and source_was_running and self.source is not None:
+                if (
+                    stop_when_source_done
+                    and source_was_running
+                    and self.source is not None
+                ):
                     if not self.source.is_running():
                         # Render one more frame (already done above), then finish.
                         log.info("source drained; stopping")

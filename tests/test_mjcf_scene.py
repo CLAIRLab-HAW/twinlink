@@ -6,6 +6,7 @@ name of any particular task app.  As a module constant, every prefix
 authoring its own obstacle pool would collide with hrl's body names in a
 shared model.
 """
+
 from __future__ import annotations
 
 from twinlink import mjcf_scene

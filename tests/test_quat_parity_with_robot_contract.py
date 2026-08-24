@@ -22,6 +22,7 @@ heiklen Zweige treffen.
 Er ueberspringt sich sauber, wenn ``robot_contract`` fehlt -- in twinlinks
 eigener CI ist das der Normalfall und gerade der Punkt der Schichtentscheidung.
 """
+
 import numpy as np
 import pytest
 
@@ -29,7 +30,8 @@ from twinlink.tf_buffer import _matrix_to_quat
 
 tp = pytest.importorskip(
     "robot_contract.twin_protocol",
-    reason="Paritaetstest laeuft nur im Workspace, wo beide Schichten liegen")
+    reason="Paritaetstest laeuft nur im Workspace, wo beide Schichten liegen",
+)
 
 
 def _rot_x(a):
@@ -70,7 +72,8 @@ def test_both_implementations_agree(name):
         b = -b
     assert a == pytest.approx(b, abs=1e-9), (
         f"{name}: twinlink und robot_contract rechnen auseinander -- "
-        f"twinlink={a}, robot_contract={b}")
+        f"twinlink={a}, robot_contract={b}"
+    )
 
 
 @pytest.mark.parametrize("name", sorted(MATRICES))

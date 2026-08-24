@@ -10,6 +10,7 @@ twinlink stays free of any robot profile; callers (e.g. ``husky_sdk.motion``)
 bind their profile values.  Runs on a private ``MjData`` scratch copy so IK
 iterations never disturb the live simulation state.
 """
+
 from __future__ import annotations
 
 import logging
@@ -22,8 +23,11 @@ log = logging.getLogger("twinlink.kinematics")
 #: Duck-typed config fields read off ``cfg`` (all optional):
 #: ``ik_max_iters`` (200), ``ik_tolerance_pos`` (0.004 m),
 #: ``ik_tolerance_rot`` (0.02 rad).
-_IK_DEFAULTS = {"ik_max_iters": 200, "ik_tolerance_pos": 0.004,
-                "ik_tolerance_rot": 0.02}
+_IK_DEFAULTS = {
+    "ik_max_iters": 200,
+    "ik_tolerance_pos": 0.004,
+    "ik_tolerance_rot": 0.02,
+}
 
 
 def top_down_grasp_matrix(yaw: float = 0.0) -> np.ndarray:
@@ -76,11 +80,16 @@ class ArmIK:
             self._qpos_adr[name] = int(model.jnt_qposadr[jid])
             self._dof_adr[name] = int(model.jnt_dofadr[jid])
             lo, hi = model.jnt_range[jid]
-            self._range[name] = (float(lo), float(hi)) if hi > lo else (-2 * np.pi, 2 * np.pi)
+            self._range[name] = (
+                (float(lo), float(hi)) if hi > lo else (-2 * np.pi, 2 * np.pi)
+            )
 
     def _cfg(self, field: str) -> float:
-        return getattr(self.cfg, field, _IK_DEFAULTS[field]) if self.cfg is not None \
+        return (
+            getattr(self.cfg, field, _IK_DEFAULTS[field])
+            if self.cfg is not None
             else _IK_DEFAULTS[field]
+        )
 
     # ------------------------------------------------------------------ #
     def solve(
@@ -131,7 +140,11 @@ class ArmIK:
 
             if np.linalg.norm(err_pos) < tol_pos and np.linalg.norm(err_rot) < tol_rot:
                 sol = {j: float(data.qpos[self._qpos_adr[j]]) for j in self.joints}
-                log.debug("IK converged in %d iters (pos err %.4f)", it, np.linalg.norm(err_pos))
+                log.debug(
+                    "IK converged in %d iters (pos err %.4f)",
+                    it,
+                    np.linalg.norm(err_pos),
+                )
                 return sol
 
             jacp = np.zeros((3, self.model.nv))
@@ -154,6 +167,8 @@ class ArmIK:
 
         log.debug(
             "IK did not converge (pos err %.4f, rot err %.4f) for target %s",
-            np.linalg.norm(err_pos), np.linalg.norm(err_rot), np.round(target_pos, 3),
+            np.linalg.norm(err_pos),
+            np.linalg.norm(err_rot),
+            np.round(target_pos, 3),
         )
         return None

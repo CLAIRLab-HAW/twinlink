@@ -28,6 +28,7 @@ descriptions; this helper papers over all of them so an arbitrary robot URDF
 
 Nothing here is robot-specific; it is driven entirely by the URDF.
 """
+
 from __future__ import annotations
 
 import copy
@@ -53,7 +54,12 @@ MeshParts = List[Tuple[str, Optional[list]]]
 # ---------------------------------------------------------------------- #
 def _sanitize(rel: str) -> str:
     base = os.path.splitext(rel)[0]
-    return base.replace(os.sep, "__").replace("/", "__").replace("\\", "__").replace(".", "_")
+    return (
+        base.replace(os.sep, "__")
+        .replace("/", "__")
+        .replace("\\", "__")
+        .replace(".", "_")
+    )
 
 
 def _fresh(dst: str, src: str) -> bool:
@@ -71,7 +77,10 @@ def _link_or_copy(src: str, dst: str) -> None:
 
 def _assimp_convert(src: str, dst: str) -> bool:
     if shutil.which("assimp") is None:
-        log.warning("assimp not found; cannot convert %s (install assimp or drop it)", os.path.basename(src))
+        log.warning(
+            "assimp not found; cannot convert %s (install assimp or drop it)",
+            os.path.basename(src),
+        )
         return False
     res = subprocess.run(["assimp", "export", src, dst], capture_output=True)
     return res.returncode == 0 and os.path.exists(dst)
@@ -201,11 +210,15 @@ def _ensure_inertial(link) -> None:
     inertial = ET.SubElement(link, "inertial")
     ET.SubElement(inertial, "mass").set("value", "0.1")
     inertia = ET.SubElement(inertial, "inertia")
-    for k, v in dict(ixx="1e-3", iyy="1e-3", izz="1e-3", ixy="0", ixz="0", iyz="0").items():
+    for k, v in dict(
+        ixx="1e-3", iyy="1e-3", izz="1e-3", ixy="0", ixz="0", iyz="0"
+    ).items():
         inertia.set(k, v)
 
 
-def _prepare_urdf(urdf_path, keep_visual, colored, with_collision, cache_dir) -> Tuple[ET.ElementTree, List[str]]:
+def _prepare_urdf(
+    urdf_path, keep_visual, colored, with_collision, cache_dir
+) -> Tuple[ET.ElementTree, List[str]]:
     tree = ET.parse(urdf_path)
     root = tree.getroot()
     urdf_dir = os.path.dirname(os.path.abspath(urdf_path))
@@ -220,7 +233,9 @@ def _prepare_urdf(urdf_path, keep_visual, colored, with_collision, cache_dir) ->
         visuals = list(link.findall("visual"))
         collisions = list(link.findall("collision"))
         if keep_visual:
-            kept = _rewrite_or_drop(link, visuals, urdf_dir, cache_dir, colored, dropped)
+            kept = _rewrite_or_drop(
+                link, visuals, urdf_dir, cache_dir, colored, dropped
+            )
             if kept == 0:  # fall back to collision geometry for this link
                 _rewrite_or_drop(link, collisions, urdf_dir, cache_dir, False, dropped)
             elif with_collision:  # keep collisions too (for physics contact)
@@ -238,7 +253,9 @@ def _prepare_urdf(urdf_path, keep_visual, colored, with_collision, cache_dir) ->
 # ---------------------------------------------------------------------- #
 # scene augmentation (compiled-MJCF round-trip)
 # ---------------------------------------------------------------------- #
-def _add_scene(mjcf_root: ET.Element, floating_base: bool, base_body_name: Optional[str]) -> Optional[str]:
+def _add_scene(
+    mjcf_root: ET.Element, floating_base: bool, base_body_name: Optional[str]
+) -> Optional[str]:
     worldbody = mjcf_root.find("worldbody")
     asset = mjcf_root.find("asset")
     if asset is None:
@@ -292,7 +309,9 @@ def _add_scene(mjcf_root: ET.Element, floating_base: bool, base_body_name: Optio
         top_bodies = worldbody.findall("body")
         target = None
         if base_body_name:
-            target = next((b for b in top_bodies if b.get("name") == base_body_name), None)
+            target = next(
+                (b for b in top_bodies if b.get("name") == base_body_name), None
+            )
         if target is None and top_bodies:
             target = top_bodies[0]
         if target is not None:
@@ -323,10 +342,15 @@ def _geom_lowest_z(model, data, gid: int) -> float:
         return float(pos[2] - np.abs(mat[2, :]) @ size)
     if gtype == int(mujoco.mjtGeom.mjGEOM_SPHERE):
         return float(pos[2] - size[0])
-    if gtype in (int(mujoco.mjtGeom.mjGEOM_CYLINDER), int(mujoco.mjtGeom.mjGEOM_CAPSULE)):
+    if gtype in (
+        int(mujoco.mjtGeom.mjGEOM_CYLINDER),
+        int(mujoco.mjtGeom.mjGEOM_CAPSULE),
+    ):
         c = abs(float(mat[2, 2]))
         s = float(np.sqrt(max(0.0, 1.0 - c * c)))
-        drop = size[1] * c + size[0] * (s if gtype == int(mujoco.mjtGeom.mjGEOM_CYLINDER) else 1.0)
+        drop = size[1] * c + size[0] * (
+            s if gtype == int(mujoco.mjtGeom.mjGEOM_CYLINDER) else 1.0
+        )
         return float(pos[2] - drop)
     return float(pos[2] - model.geom_rbound[gid])  # conservative fallback
 
@@ -356,7 +380,8 @@ def _ground_welded_robot(worldbody: ET.Element, model, data) -> float:
         body.set("pos", " ".join(f"{v:.6g}" for v in pos))
         log.info(
             "grounded welded base %r: raised %.3f m so the robot rests on z=0",
-            body.get("name", "?"), shift,
+            body.get("name", "?"),
+            shift,
         )
     return shift
 
@@ -364,7 +389,11 @@ def _ground_welded_robot(worldbody: ET.Element, model, data) -> float:
 def _root_link_name(urdf_path: str) -> Optional[str]:
     root = ET.parse(urdf_path).getroot()
     links = [l.get("name") for l in root.findall("link")]
-    children = {j.find("child").get("link") for j in root.findall("joint") if j.find("child") is not None}
+    children = {
+        j.find("child").get("link")
+        for j in root.findall("joint")
+        if j.find("child") is not None
+    }
     roots = [name for name in links if name not in children]
     return roots[0] if roots else None
 
@@ -408,10 +437,14 @@ def load_mujoco_from_urdf(
 
     urdf_path = os.path.abspath(urdf_path)
     urdf_dir = os.path.dirname(urdf_path)
-    cache_dir = os.path.abspath(mesh_cache_dir or os.path.join(urdf_dir, ".twinlink_meshcache"))
+    cache_dir = os.path.abspath(
+        mesh_cache_dir or os.path.join(urdf_dir, ".twinlink_meshcache")
+    )
     os.makedirs(cache_dir, exist_ok=True)
 
-    tree, dropped = _prepare_urdf(urdf_path, keep_visual, colored, with_collision, cache_dir)
+    tree, dropped = _prepare_urdf(
+        urdf_path, keep_visual, colored, with_collision, cache_dir
+    )
     if dropped:
         log.info("dropped %d unusable mesh(es): %s", len(dropped), sorted(set(dropped)))
 
@@ -424,7 +457,9 @@ def load_mujoco_from_urdf(
     compiler.set("fusestatic", "false")
     compiler.set("strippath", "false")
 
-    tmp_urdf = tempfile.NamedTemporaryFile("w", suffix=".urdf", delete=False, dir=cache_dir)
+    tmp_urdf = tempfile.NamedTemporaryFile(
+        "w", suffix=".urdf", delete=False, dir=cache_dir
+    )
     tree.write(tmp_urdf.name)
     tmp_urdf.close()
     try:
@@ -436,7 +471,9 @@ def load_mujoco_from_urdf(
         return model
 
     base_body = _root_link_name(urdf_path)
-    tmp_xml = os.path.join(cache_dir, next(tempfile._get_candidate_names()) + ".twinlink.xml")
+    tmp_xml = os.path.join(
+        cache_dir, next(tempfile._get_candidate_names()) + ".twinlink.xml"
+    )
     try:
         mujoco.mj_saveLastXML(tmp_xml, model)
         mjcf = ET.parse(tmp_xml)

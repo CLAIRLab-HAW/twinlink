@@ -4,6 +4,7 @@
 can split sensor->bridge from bridge->client lag (background:
 docs/hrl-real-perception-plan.md, Phase 0).
 """
+
 import struct
 
 from twinlink.sources.foxglove import parse_message_data, select_channels

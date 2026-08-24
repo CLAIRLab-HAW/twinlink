@@ -8,6 +8,7 @@ golden liveliness tokens below are verbatim from the upstream design doc.
 Pure-python throughout: zenoh / rosbags are only needed for the optional
 cross-checks at the end (skipped when the extra is not installed).
 """
+
 import struct
 
 import pytest
@@ -37,8 +38,10 @@ PUB_TOKEN = (
 # type mangling + keyexprs
 # --------------------------------------------------------------------------- #
 def test_mangle_ros_type():
-    assert (mangle_ros_type("sensor_msgs/msg/JointState")
-            == "sensor_msgs::msg::dds_::JointState_")
+    assert (
+        mangle_ros_type("sensor_msgs/msg/JointState")
+        == "sensor_msgs::msg::dds_::JointState_"
+    )
     assert mangle_ros_type("std_msgs/msg/Bool") == "std_msgs::msg::dds_::Bool_"
     # short pkg/Type form normalizes like the foxglove schema parser
     assert mangle_ros_type("std_msgs/String") == "std_msgs::msg::dds_::String_"
@@ -148,8 +151,10 @@ def test_cdr_roundtrip_of_the_twin_types():
         ("std_msgs/msg/String", {"data": '{"action": "prepare"}'}),
     ):
         m = ts.types[typename](**kwargs)
-        assert ts.deserialize_cdr(ts.serialize_cdr(m, typename), typename).data \
+        assert (
+            ts.deserialize_cdr(ts.serialize_cdr(m, typename), typename).data
             == kwargs["data"]
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -178,11 +183,12 @@ def test_uplink_loopback_discovers_and_publishes():
         type_hash = "RIHS01_" + "ab" * 32
         token = session.liveliness().declare_token(
             f"@ros2_lv/0/{'0' * 32}/0/10/MS/%/%/plan_server/"
-            f"%twin%arm_cmd/{type_name}/{type_hash}/::,10:,:,:,,")
+            f"%twin%arm_cmd/{type_name}/{type_hash}/::,10:,:,:,,"
+        )
         received = []
         sub = session.declare_subscriber(
-            f"0/twin/arm_cmd/{type_name}/{type_hash}",
-            lambda s: received.append(s))
+            f"0/twin/arm_cmd/{type_name}/{type_hash}", lambda s: received.append(s)
+        )
 
         uplink = ZenohUplink(domain_id=0)
         uplink._session = session  # share the session: no scouting in tests
@@ -199,7 +205,8 @@ def test_uplink_loopback_discovers_and_publishes():
         seq, _ts = struct.unpack_from("<qq", raw)
         assert (len(raw), seq, raw[16]) == (33, 1, RMW_GID_STORAGE_SIZE)
         msg = pub.typestore.deserialize_cdr(
-            sample.payload.to_bytes(), "std_msgs/msg/String")
+            sample.payload.to_bytes(), "std_msgs/msg/String"
+        )
         assert msg.data == '{"action": "prepare", "request_id": "arm-1"}'
         pub.close()
         sub.undeclare()

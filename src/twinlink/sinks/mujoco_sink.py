@@ -27,6 +27,7 @@ observed scene sits wherever the sensor happened to look, regularly outside a
 robot-centred view, and without this the voxels are off-screen and the overlay
 looks broken.  ``cam_distance`` / ``cam_lookat`` opt out.
 """
+
 from __future__ import annotations
 
 import logging
@@ -56,7 +57,10 @@ _DEFAULT_MANIPULATOR_PREFIXES: Tuple[str, ...] = ("arm_0",)
 #: URDF step further out.  Not derived from a prefix (unlike the two
 #: candidates above) because "camera_0" alone is not a distinguishing prefix
 #: without a spec to source it from.
-_DEFAULT_CAMERA_LINK_CANDIDATES: Tuple[str, ...] = ("camera_0_link", "camera_0_bottom_screw_frame")
+_DEFAULT_CAMERA_LINK_CANDIDATES: Tuple[str, ...] = (
+    "camera_0_link",
+    "camera_0_bottom_screw_frame",
+)
 
 
 def _xyzw_to_wxyz(q: np.ndarray) -> np.ndarray:
@@ -138,9 +142,15 @@ class MujocoSink(StateSink):
         self.width = width
         self.height = height
         self.camera = camera
-        self.cam_distance = _CAM_DEFAULT_DISTANCE if cam_distance is None else float(cam_distance)
-        self.cam_azimuth = _CAM_DEFAULT_AZIMUTH if cam_azimuth is None else float(cam_azimuth)
-        self.cam_elevation = _CAM_DEFAULT_ELEVATION if cam_elevation is None else float(cam_elevation)
+        self.cam_distance = (
+            _CAM_DEFAULT_DISTANCE if cam_distance is None else float(cam_distance)
+        )
+        self.cam_azimuth = (
+            _CAM_DEFAULT_AZIMUTH if cam_azimuth is None else float(cam_azimuth)
+        )
+        self.cam_elevation = (
+            _CAM_DEFAULT_ELEVATION if cam_elevation is None else float(cam_elevation)
+        )
         self.cam_lookat = cam_lookat
         # Auto-framing only ever touches lookat + distance, so an explicit value
         # for either one is taken as "the caller has framed this deliberately".
@@ -148,7 +158,8 @@ class MujocoSink(StateSink):
         # from any viewing direction.
         self.auto_frame = (
             bool(show_obstacles and cam_distance is None and cam_lookat is None)
-            if auto_frame is None else bool(auto_frame)
+            if auto_frame is None
+            else bool(auto_frame)
         )
         self.base_free_joint = base_free_joint
         self.joint_remap = dict(joint_remap or {})
@@ -170,7 +181,9 @@ class MujocoSink(StateSink):
         # titles (e.g. an em-dash renders as "â€""), so avoid Unicode here.
         self._win_main = "TwinLink - MuJoCo twin"
         self._win_cam = "TwinLink - sensor camera"
-        self._frame_body: Dict[str, int] = {}  # cloud frame_id -> mujoco body id (cache)
+        self._frame_body: Dict[str, int] = (
+            {}
+        )  # cloud frame_id -> mujoco body id (cache)
         self._preview_pos: Optional[Dict[str, float]] = None
         self._last_traj = None
         self._traj_start = 0.0
@@ -220,8 +233,11 @@ class MujocoSink(StateSink):
     def _hide_collision_geoms(self, mujoco) -> None:
         # When a model carries both visual (non-colliding) and collision geoms
         # (e.g. for physics), hide the collision ones so the render stays clean.
-        nonplane = [i for i in range(self.model.ngeom)
-                    if int(self.model.geom_type[i]) != int(mujoco.mjtGeom.mjGEOM_PLANE)]
+        nonplane = [
+            i
+            for i in range(self.model.ngeom)
+            if int(self.model.geom_type[i]) != int(mujoco.mjtGeom.mjGEOM_PLANE)
+        ]
         has_visual = any(self.model.geom_contype[i] == 0 for i in nonplane)
         collision = [i for i in nonplane if self.model.geom_contype[i] != 0]
         if has_visual and collision:
@@ -234,14 +250,21 @@ class MujocoSink(StateSink):
         # + damping so a "parked" robot stays put (motor/gearbox holding torque).
         n = 0
         for jid in range(self.model.njnt):
-            if int(self.model.jnt_type[jid]) == int(mujoco.mjtJoint.mjJNT_HINGE) and not self.model.jnt_limited[jid]:
+            if (
+                int(self.model.jnt_type[jid]) == int(mujoco.mjtJoint.mjJNT_HINGE)
+                and not self.model.jnt_limited[jid]
+            ):
                 dof = int(self.model.jnt_dofadr[jid])
                 self.model.dof_frictionloss[dof] = self.wheel_frictionloss
                 self.model.dof_damping[dof] = self.wheel_damping
                 n += 1
         if n:
-            log.info("braked %d free hinge joint(s) (frictionloss=%.1f, damping=%.1f)",
-                     n, self.wheel_frictionloss, self.wheel_damping)
+            log.info(
+                "braked %d free hinge joint(s) (frictionloss=%.1f, damping=%.1f)",
+                n,
+                self.wheel_frictionloss,
+                self.wheel_damping,
+            )
 
     def _load_model(self, mujoco):
         m = self._model_arg
@@ -308,7 +331,9 @@ class MujocoSink(StateSink):
         # offscreen (also used headless when a snapshot is requested). Reserve
         # extra scene geoms for obstacle voxels.
         extra = self.obstacle_max + 1000 if self.show_obstacles else 0
-        self._renderer = mujoco.Renderer(self.model, self.height, self.width, max_geom=10000 + extra)
+        self._renderer = mujoco.Renderer(
+            self.model, self.height, self.width, max_geom=10000 + extra
+        )
         self._mjcam = mujoco.MjvCamera()
         self._mjcam.distance = self.cam_distance
         self._mjcam.azimuth = self.cam_azimuth
@@ -424,8 +449,13 @@ class MujocoSink(StateSink):
             self._traj_start = time.monotonic()
             self._preview_state = "planning"
             scaled = traj.duration() / self._preview_speed
-            log.info("ghost trajectory: %d waypoints, %.1fs real → %.1fs playback (%.1fx slow)",
-                     len(traj.times), traj.duration(), scaled, 1.0 / self._preview_speed)
+            log.info(
+                "ghost trajectory: %d waypoints, %.1fs real → %.1fs playback (%.1fx slow)",
+                len(traj.times),
+                traj.duration(),
+                scaled,
+                1.0 / self._preview_speed,
+            )
 
     def _apply_kinematics(self, mujoco) -> None:
         # NOTE: in ghost-preview mode we do NOT move the real arm — the ghost
@@ -441,7 +471,9 @@ class MujocoSink(StateSink):
             bp = self.state.base_pose()
             if bp is not None:
                 self.data.qpos[self._base_qpos : self._base_qpos + 3] = bp.translation
-                self.data.qpos[self._base_qpos + 3 : self._base_qpos + 7] = _xyzw_to_wxyz(bp.rotation)
+                self.data.qpos[self._base_qpos + 3 : self._base_qpos + 7] = (
+                    _xyzw_to_wxyz(bp.rotation)
+                )
         mujoco.mj_forward(self.model, self.data)
 
     def _step_physics(self, mujoco) -> None:
@@ -450,7 +482,9 @@ class MujocoSink(StateSink):
         if self._phys_last is None:
             n = 1
         else:
-            n = int(np.clip(round((now - self._phys_last) / self.model.opt.timestep), 1, 40))
+            n = int(
+                np.clip(round((now - self._phys_last) / self.model.opt.timestep), 1, 40)
+            )
         self._phys_last = now
 
         joints = self.state.joints() if self.hold_joints else {}
@@ -468,8 +502,9 @@ class MujocoSink(StateSink):
     # ------------------------------------------------------------------ #
 
     # --- goal preview: ghost arm at target pose before planning ----------
-    def show_goal_preview(self, goal_positions: Dict[str, float], name: str = "",
-                          hold: float = 1.5) -> None:
+    def show_goal_preview(
+        self, goal_positions: Dict[str, float], name: str = "", hold: float = 1.5
+    ) -> None:
         """Set a goal pose to be rendered as a ghost overlay for ``hold`` seconds.
 
         Called by the demo when it sends a planning goal to MoveIt — the user
@@ -536,9 +571,12 @@ class MujocoSink(StateSink):
             pos = self.data.xpos[bid].copy()
             if scene.ngeom < scene.maxgeom:
                 mujoco.mjv_initGeom(
-                    scene.geoms[scene.ngeom], mujoco.mjtGeom.mjGEOM_SPHERE,
-                    sphere_size, np.ascontiguousarray(pos, float),
-                    eye, sphere_rgba,
+                    scene.geoms[scene.ngeom],
+                    mujoco.mjtGeom.mjGEOM_SPHERE,
+                    sphere_size,
+                    np.ascontiguousarray(pos, float),
+                    eye,
+                    sphere_rgba,
                 )
                 scene.ngeom += 1
 
@@ -567,9 +605,12 @@ class MujocoSink(StateSink):
             pos = self.data.xpos[bid].copy()
             if scene.ngeom < scene.maxgeom:
                 mujoco.mjv_initGeom(
-                    scene.geoms[scene.ngeom], mujoco.mjtGeom.mjGEOM_SPHERE,
-                    sphere_size, np.ascontiguousarray(pos, float),
-                    eye, sphere_rgba,
+                    scene.geoms[scene.ngeom],
+                    mujoco.mjtGeom.mjGEOM_SPHERE,
+                    sphere_size,
+                    np.ascontiguousarray(pos, float),
+                    eye,
+                    sphere_rgba,
                 )
                 scene.ngeom += 1
 
@@ -634,14 +675,18 @@ class MujocoSink(StateSink):
         name = frame_id.split("/")[-1]  # strip namespace, e.g. a200_0553/cam -> cam
         bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, name)
         optical_fix = False
-        if bid < 0:  # optical frames are driver-only tf -> use the camera link + correct
+        if (
+            bid < 0
+        ):  # optical frames are driver-only tf -> use the camera link + correct
             for cand in self._camera_link_candidates():
                 bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, cand)
                 if bid >= 0:
                     break
             optical_fix = name.endswith("optical_frame")
         if bid < 0:
-            log.warning("no MuJoCo body for obstacle frame %r; obstacles not shown", frame_id)
+            log.warning(
+                "no MuJoCo body for obstacle frame %r; obstacles not shown", frame_id
+            )
         self._frame_body[frame_id] = (bid, optical_fix)
         return bid, optical_fix
 
@@ -681,8 +726,12 @@ class MujocoSink(StateSink):
                 if scene.ngeom >= scene.maxgeom:
                     break
                 mujoco.mjv_initGeom(
-                    scene.geoms[scene.ngeom], mujoco.mjtGeom.mjGEOM_BOX,
-                    size, np.ascontiguousarray(p, float), eye, rgba,
+                    scene.geoms[scene.ngeom],
+                    mujoco.mjtGeom.mjGEOM_BOX,
+                    size,
+                    np.ascontiguousarray(p, float),
+                    eye,
+                    rgba,
                 )
                 scene.ngeom += 1
 
@@ -729,7 +778,9 @@ class MujocoSink(StateSink):
         lookat = 0.5 * (lo + hi)
         radius = 0.5 * float(np.linalg.norm(hi - lo))
         fovy = math.radians(float(self.model.vis.global_.fovy) or 45.0)
-        distance = max(radius / max(math.tan(0.5 * fovy), 1e-3) * _AUTO_FRAME_MARGIN, 0.1)
+        distance = max(
+            radius / max(math.tan(0.5 * fovy), 1e-3) * _AUTO_FRAME_MARGIN, 0.1
+        )
         if not (np.isfinite(lookat).all() and math.isfinite(distance)):
             # The standard decoder drops non-finite points; a hand-filled cloud
             # might not. Framing on a NaN would blank the render -- worse than
@@ -743,9 +794,14 @@ class MujocoSink(StateSink):
                 cam.lookat[:] = lookat
                 cam.distance = distance
         self._autoframed = True
-        log.info("auto-framed camera on robot+obstacles: lookat=(%.2f, %.2f, %.2f), "
-                 "distance=%.2f (pass cam_lookat/cam_distance to keep your own framing)",
-                 lookat[0], lookat[1], lookat[2], distance)
+        log.info(
+            "auto-framed camera on robot+obstacles: lookat=(%.2f, %.2f, %.2f), "
+            "distance=%.2f (pass cam_lookat/cam_distance to keep your own framing)",
+            lookat[0],
+            lookat[1],
+            lookat[2],
+            distance,
+        )
 
     def _render(self, mujoco) -> bool:
         if self.auto_frame:
@@ -772,8 +828,11 @@ class MujocoSink(StateSink):
             # --- ghost overlay: render the arm at the preview/goal position ---
             ghost_positions = self._ghost_positions()
             if ghost_positions is not None and frame is not None:
-                log.debug("ghost_positions: %d joints, state=%s",
-                          len(ghost_positions), self._preview_state)
+                log.debug(
+                    "ghost_positions: %d joints, state=%s",
+                    len(ghost_positions),
+                    self._preview_state,
+                )
                 ghost_frame = self._render_ghost(mujoco, ghost_positions)
                 if ghost_frame is not None:
                     frame = self._alpha_blend(frame, ghost_frame, alpha=0.45)
@@ -781,8 +840,10 @@ class MujocoSink(StateSink):
                     log.debug("ghost_frame was None — renderer not ready?")
             else:
                 if self._preview_state == "planning":
-                    log.debug("ghost_positions=None but state=planning — "
-                             "preview_positions returned None (traj expired?)")
+                    log.debug(
+                        "ghost_positions=None but state=planning — "
+                        "preview_positions returned None (traj expired?)"
+                    )
 
         self._maybe_snapshot(frame)
 
@@ -830,10 +891,13 @@ class MujocoSink(StateSink):
         return ghost_frame
 
     @staticmethod
-    def _alpha_blend(base: np.ndarray, overlay: np.ndarray, alpha: float = 0.45) -> np.ndarray:
+    def _alpha_blend(
+        base: np.ndarray, overlay: np.ndarray, alpha: float = 0.45
+    ) -> np.ndarray:
         """Blend overlay over base with given alpha (overlay is the ghost)."""
-        return ((1.0 - alpha) * base.astype(np.float32) +
-                alpha * overlay.astype(np.float32)).astype(np.uint8)
+        return (
+            (1.0 - alpha) * base.astype(np.float32) + alpha * overlay.astype(np.float32)
+        ).astype(np.uint8)
 
     # ------------------------------------------------------------------ #
     def _show(self, frame_rgb: np.ndarray) -> bool:
@@ -842,7 +906,9 @@ class MujocoSink(StateSink):
         except ImportError:
             # No GUI backend -- degrade to snapshots only, once.
             if self.display:
-                log.warning("OpenCV not available; disabling live display (use snapshot_path).")
+                log.warning(
+                    "OpenCV not available; disabling live display (use snapshot_path)."
+                )
                 self.display = False
             return True
         try:
@@ -901,13 +967,17 @@ class MujocoSink(StateSink):
                 delta = flags
             if delta:
                 steps = max(1, abs(int(delta)))
-                cam.distance *= 0.9 ** steps if delta > 0 else 1.1 ** steps
+                cam.distance *= 0.9**steps if delta > 0 else 1.1**steps
 
     def _pan(self, cam, dx, dy) -> None:
         az = np.radians(cam.azimuth)
         right = np.array([np.sin(az), -np.cos(az), 0.0])
         scale = 0.0015 * cam.distance
-        cam.lookat[:] = np.asarray(cam.lookat) + right * (-dx * scale) + np.array([0, 0, 1]) * (dy * scale)
+        cam.lookat[:] = (
+            np.asarray(cam.lookat)
+            + right * (-dx * scale)
+            + np.array([0, 0, 1]) * (dy * scale)
+        )
 
     def _handle_key(self, key: int) -> None:
         cam = self._mjcam
@@ -934,21 +1004,61 @@ class MujocoSink(StateSink):
             bp = self.state.base_pose()
             if bp is not None:
                 txt += f"  base:({bp.translation[0]:+.2f},{bp.translation[1]:+.2f})"
-        cv2.putText(bgr, txt, (10, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (60, 220, 60), 1, cv2.LINE_AA)
+        cv2.putText(
+            bgr,
+            txt,
+            (10, 22),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (60, 220, 60),
+            1,
+            cv2.LINE_AA,
+        )
 
         # State indicator (color-coded) — only shown during preview, not live
         gp = self._goal_preview_positions()
         if self._preview_state == "planning" and gp is not None:
             label = "◆ PLANNED TRAJECTORY (yellow ghost) — review, then confirm"
             color = (0, 220, 220)  # yellow (BGR)
-            cv2.putText(bgr, label, (10, 48), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2, cv2.LINE_AA)
+            cv2.putText(
+                bgr,
+                label,
+                (10, 48),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                color,
+                2,
+                cv2.LINE_AA,
+            )
         elif gp is not None:
-            label = f"▶ GOAL: {self._goal_preview_name}" if self._goal_preview_name else "▶ GOAL PREVIEW"
+            label = (
+                f"▶ GOAL: {self._goal_preview_name}"
+                if self._goal_preview_name
+                else "▶ GOAL PREVIEW"
+            )
             color = (60, 220, 60)  # green (BGR)
-            cv2.putText(bgr, label, (10, 48), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2, cv2.LINE_AA)
+            cv2.putText(
+                bgr,
+                label,
+                (10, 48),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                color,
+                2,
+                cv2.LINE_AA,
+            )
 
         hint = "drag: orbit  scroll/+-: zoom  shift-drag: pan  ESC: quit"
-        cv2.putText(bgr, hint, (10, bgr.shape[0] - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (150, 150, 150), 1, cv2.LINE_AA)
+        cv2.putText(
+            bgr,
+            hint,
+            (10, bgr.shape[0] - 12),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.45,
+            (150, 150, 150),
+            1,
+            cv2.LINE_AA,
+        )
 
     def _maybe_show_sensor(self, cv2=None) -> None:
         if not self.show_sensor_camera or not self.display:
@@ -979,7 +1089,10 @@ class MujocoSink(StateSink):
         if not self.snapshot_path or frame_rgb is None:
             return
         clock = self.state.last_update if self.state else 0.0
-        if self.snapshot_every > 0 and (clock - self._last_snapshot) < self.snapshot_every:
+        if (
+            self.snapshot_every > 0
+            and (clock - self._last_snapshot) < self.snapshot_every
+        ):
             return
         self._last_snapshot = clock
         try:

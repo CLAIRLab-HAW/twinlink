@@ -16,6 +16,7 @@ to the articulation each tick::
     TwinLink(mapping=RobotMapping.from_yaml("a200_0553.yaml"),
              source=Ros2Source(), sinks=[sink]).run()
 """
+
 from __future__ import annotations
 
 import logging
@@ -56,13 +57,19 @@ class IsaacSimSink(StateSink):
                 "are shared with MujocoSink, so only this sink needs the Isaac runtime."
             ) from exc
 
-        self._view = ArticulationView(prim_paths_expr=self.articulation_prim, name="twinlink_twin")
+        self._view = ArticulationView(
+            prim_paths_expr=self.articulation_prim, name="twinlink_twin"
+        )
         self._view.initialize()
         # Map each articulation DoF to the (possibly remapped) state joint name.
         inverse = {v: k for k, v in self.joint_remap.items()}
         self._dof_names = list(self._view.dof_names)
         self._state_for_dof = [inverse.get(n, n) for n in self._dof_names]
-        log.info("IsaacSimSink bound to %s with %d DoFs", self.articulation_prim, len(self._dof_names))
+        log.info(
+            "IsaacSimSink bound to %s with %d DoFs",
+            self.articulation_prim,
+            len(self._dof_names),
+        )
 
     def update(self) -> bool:
         if self._view is None:
@@ -70,7 +77,10 @@ class IsaacSimSink(StateSink):
         import numpy as np
 
         positions = np.array(
-            [self.state.joint_position(name, default=math.nan) for name in self._state_for_dof],
+            [
+                self.state.joint_position(name, default=math.nan)
+                for name in self._state_for_dof
+            ],
             dtype=np.float32,
         )
         current = self._view.get_joint_positions()
@@ -98,4 +108,6 @@ class IsaacSimSink(StateSink):
         q = base_pose.rotation  # xyzw
         xform.ClearXformOpOrder()
         xform.AddTranslateOp().Set(Gf.Vec3d(float(t[0]), float(t[1]), float(t[2])))
-        xform.AddOrientOp().Set(Gf.Quatf(float(q[3]), float(q[0]), float(q[1]), float(q[2])))
+        xform.AddOrientOp().Set(
+            Gf.Quatf(float(q[3]), float(q[0]), float(q[1]), float(q[2]))
+        )
