@@ -5,13 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "twinlink"
 version = "0.2.0"
-authors = [
-  { name = "Hannes Philip Voss", email = "mail@hannesvoss.de" },
-]
 description = "Robot-agnostic bridge from a real robot (ROS 2 / MCAP) to a digital twin in simulation (MuJoCo, Isaac Sim)."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
+authors = [
+  { name = "Hannes Philip Voss", email = "mail@hannesvoss.de" },
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
@@ -43,11 +43,11 @@ all = ["rosbags>=0.9", "mujoco>=3.0", "opencv-python>=4.5", "websockets>=12", "e
 Homepage = "https://github.com/CLAIRLab-HAW/twinlink"
 Issues = "https://github.com/CLAIRLab-HAW/twinlink/issues"
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
 [tool.uv.sources]
 clearlog = { workspace = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
