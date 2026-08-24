@@ -10,7 +10,7 @@ authors = [
 ]
 description = "Robot-agnostic bridge from a real robot (ROS 2 / MCAP) to a digital twin in simulation (MuJoCo, Isaac Sim)."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 classifiers = [
     "Programming Language :: Python :: 3",

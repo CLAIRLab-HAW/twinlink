@@ -5,6 +5,13 @@ Was sich wann geändert hat. Der aktuelle Stand steht in der [README](README.md)
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionierung [Semantic Versioning](https://semver.org/lang/de/).
 
+## 2026-08-24 (requires-python aligns to the workspace floor)
+
+- **`requires-python` raised from `>=3.8` to `>=3.10`.** The workspace venv is
+  Python 3.11, and the workspace floor is `>=3.10` (CLAUDE.md, "Ein neues Paket
+  anlegen"); a `>=3.8` promise is never tested and was unlisted drift.
+- No behaviour change; 143 tests still green.
+
 ## 2026-08-23 (wxyz-Algebra kommt von MuJoCo)
 
 - **Neues Modul `twinlink.quaternion`** mit `quat_mul_wxyz`,
