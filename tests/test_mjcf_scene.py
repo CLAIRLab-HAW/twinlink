@@ -49,10 +49,6 @@ def test_add_distractors_honours_a_custom_prefix():
     import xml.etree.ElementTree as ET
 
     worldbody = ET.Element("worldbody")
-    mjcf_scene.add_distractors(
-        worldbody,
-        [{"position": (0.0, 0.0, 0.0), "size": (0.1, 0.1, 0.1)}],
-        prefix="foo_",
-    )
+    mjcf_scene.add_distractors(worldbody, [{"position": (0.0, 0.0, 0.0), "size": (0.1, 0.1, 0.1)}], prefix="foo_")
     body = worldbody.find("body")
     assert body.get("name") == "foo_distractor_0"

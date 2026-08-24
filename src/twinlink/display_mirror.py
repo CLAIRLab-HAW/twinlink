@@ -101,11 +101,7 @@ class TwinDisplayMirror:
         if state[0] != "pose":
             return state
         _, position, yaw = state
-        return (
-            "pose",
-            tuple(round(float(c), 3) for c in position),
-            round(float(yaw), 2),
-        )
+        return ("pose", tuple(round(float(c), 3) for c in position), round(float(yaw), 2))
 
     def reset(self) -> None:
         self._written = {}

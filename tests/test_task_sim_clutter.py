@@ -18,10 +18,7 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco", reason="mujoco extra not installed")
 
-from twinlink.mjcf_scene import (
-    distractor_body_name,
-    distractor_joint_name,
-)  # noqa: E402
+from twinlink.mjcf_scene import distractor_body_name, distractor_joint_name  # noqa: E402
 from twinlink.testing import StraightLinkage  # noqa: E402
 from twinlink.task_sim import RobotSimSpec, TwinTaskSim  # noqa: E402
 
@@ -93,12 +90,7 @@ class _ClutterSim(TwinTaskSim):
             self._body_id(distractor_body_name(0, prefix=PREFIX)),
             np.full(3, 0.05),
         )
-        self.register_graspable(
-            "payload",
-            "payload_free",
-            self._body_id("payload"),
-            np.array([0.04, 0.04, 0.02]),
-        )
+        self.register_graspable("payload", "payload_free", self._body_id("payload"), np.array([0.04, 0.04, 0.02]))
 
 
 def _build() -> _ClutterSim:
@@ -130,10 +122,7 @@ def test_gate_rejects_a_configuration_reaching_into_graspable_clutter():
     try:
         assert sim.arm_config_collides({"arm_0_slide": INTO_CLUTTER}) is True
         # ... und auch über den reinen Hindernis-Pfad (Pose-Vorprobe).
-        assert (
-            sim.arm_config_collides({"arm_0_slide": INTO_CLUTTER}, obstacles_only=True)
-            is True
-        )
+        assert sim.arm_config_collides({"arm_0_slide": INTO_CLUTTER}, obstacles_only=True) is True
         assert sim.arm_config_collides({"arm_0_slide": 0.0}) is False
 
         # Gegenprobe = die Regression: würde man ALLE Greifbaren wegparken,

@@ -24,19 +24,8 @@ from typing import Dict, List, Optional, Protocol, Tuple
 import numpy as np
 
 from .events import SimEvents
-from .quaternion import (
-    mat_to_quat_wxyz,
-    quat_about_z_wxyz,
-    quat_conj_wxyz,
-    quat_mul_wxyz,
-)
-from .mjcf_scene import (
-    OBSTACLE_PARK,
-    OBSTACLE_POOL_SIZE,
-    camera_extrinsics,
-    camera_intrinsics,
-    obstacle_body_name,
-)
+from .quaternion import mat_to_quat_wxyz, quat_about_z_wxyz, quat_conj_wxyz, quat_mul_wxyz
+from .mjcf_scene import OBSTACLE_PARK, OBSTACLE_POOL_SIZE, camera_extrinsics, camera_intrinsics, obstacle_body_name
 
 log = logging.getLogger("twinlink.task_sim")
 
@@ -233,9 +222,7 @@ class TwinTaskSim:
         #: rg6_gripper_finger_1_flex_finger``.  Ein
         #: echter RG6 oeffnet nur so weit, wie das Objekt es verlangt.
         self._release_clearance = float(release_clearance)
-        self._gripper_follower_factors: Dict[str, float] = dict(
-            gripper_follower_factors
-        )
+        self._gripper_follower_factors: Dict[str, float] = dict(gripper_follower_factors)
         #: Weite <-> Treibergelenk.  Siehe :class:`GripperLinkage`: die Formel
         #: gehört dem Roboter und wird hereingereicht, damit sie nicht zum
         #: vierten Mal im Stack steht.
@@ -355,10 +342,7 @@ class TwinTaskSim:
     # ------------------------------------------------------------------ #
     def _index_joints(self) -> None:
         mujoco = self._mujoco
-        single_dof = {
-            int(mujoco.mjtJoint.mjJNT_HINGE),
-            int(mujoco.mjtJoint.mjJNT_SLIDE),
-        }
+        single_dof = {int(mujoco.mjtJoint.mjJNT_HINGE), int(mujoco.mjtJoint.mjJNT_SLIDE)}
         for jid in range(self.model.njnt):
             name = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_JOINT, jid)
             if name is None or int(self.model.jnt_type[jid]) not in single_dof:
@@ -384,9 +368,7 @@ class TwinTaskSim:
             jname = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_JOINT, jid)
             if jname in self._gripper_follower_factors:
                 self._gripper_actuators[jname] = aid
-        missing = sorted(
-            set(self._gripper_follower_factors) - set(self._gripper_actuators)
-        )
+        missing = sorted(set(self._gripper_follower_factors) - set(self._gripper_actuators))
         if missing:
             raise RuntimeError(
                 "actuated_gripper=True, but the model has no actuator for "
@@ -417,27 +399,18 @@ class TwinTaskSim:
         self._obstacle_geoms: set = set()
         self._object_geoms: Dict[int, str] = {}
         support = self.support_geom_names()
-        self._object_bodies = {
-            entry["body"]: label for label, entry in self._graspable.items()
-        }
+        self._object_bodies = {entry["body"]: label for label, entry in self._graspable.items()}
         for gid in range(self.model.ngeom):
             bid = int(self.model.geom_bodyid[gid])
             gname = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_GEOM, gid) or ""
             bname = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_BODY, bid) or ""
-            if (
-                self.model.geom_contype[gid] == 0
-                and self.model.geom_conaffinity[gid] == 0
-            ):
+            if self.model.geom_contype[gid] == 0 and self.model.geom_conaffinity[gid] == 0:
                 continue  # visual-only geometry (meshes, markers)
             if gname in support:
                 self._table_geoms.add(gid)
-            elif gname == "twinlink_ground" or int(self.model.geom_type[gid]) == int(
-                mujoco.mjtGeom.mjGEOM_PLANE
-            ):
+            elif gname == "twinlink_ground" or int(self.model.geom_type[gid]) == int(mujoco.mjtGeom.mjGEOM_PLANE):
                 self._ground_geoms.add(gid)
-            elif bname.startswith(
-                (self._obstacle_body_prefix, self._distractor_body_prefix)
-            ):
+            elif bname.startswith((self._obstacle_body_prefix, self._distractor_body_prefix)):
                 # Perceived-obstacle pool slots + authored distractors: the
                 # things the arm must plan around (goal gate + contact events).
                 # Checked BEFORE the graspable bodies: a distractor the task
@@ -458,9 +431,7 @@ class TwinTaskSim:
                 # the robot the manipulator must not touch.
                 self._platform_geoms.add(gid)
         if not self._robot_geoms:
-            raise RuntimeError(
-                "no manipulator geoms classified -- collision events would be blind"
-            )
+            raise RuntimeError("no manipulator geoms classified -- collision events would be blind")
         # Subsets for the goal-state self-collision gate: the hand assembly
         # (gripper + wrist camera) versus arm links far from the wrist.  A
         # contact between those means a fully folded, invalid configuration
@@ -488,8 +459,7 @@ class TwinTaskSim:
             # Laut scheitern statt still auf die ganze Hand zurueckfallen --
             # genau dieser stille Rueckfall hat die Toleranz verdreifacht.
             raise RuntimeError(
-                f"pad_bodies {sorted(pad_bodies)} kommen im Modell nicht vor -- "
-                "Greifflaechen nicht klassifizierbar"
+                f"pad_bodies {sorted(pad_bodies)} kommen im Modell nicht vor -- " "Greifflaechen nicht klassifizierbar"
             )
         # Registered graspables that are ALSO classified as obstacles (pool
         # slots or authored clutter the task promoted to a target) stay
@@ -499,9 +469,7 @@ class TwinTaskSim:
         # parked/settled -- the pre-split behaviour, expressed without task
         # knowledge.
         self._non_obstacle_graspables: Tuple[str, ...] = tuple(
-            label
-            for label, entry in self._graspable.items()
-            if not (self._obstacle_geoms & set(entry["geoms"]))
+            label for label, entry in self._graspable.items() if not (self._obstacle_geoms & set(entry["geoms"]))
         )
 
     def _setup_collision_masks(self) -> None:
@@ -529,9 +497,7 @@ class TwinTaskSim:
         grip force.  The objects keep their (2, 3) mask either way.
         """
         mujoco = self._mujoco
-        graspable_geoms = {
-            g for entry in self._graspable.values() for g in entry["geoms"]
-        }
+        graspable_geoms = {g for entry in self._graspable.values() for g in entry["geoms"]}
         for gid in range(self.model.ngeom):
             bid = int(self.model.geom_bodyid[gid])
             bname = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_BODY, bid) or ""
@@ -585,19 +551,13 @@ class TwinTaskSim:
         """
         robot = self._robot_geom_ids()
         robot_visuals = sum(
-            1
-            for gid in robot
-            if self.model.geom_contype[gid] == 0
-            and self.model.geom_conaffinity[gid] == 0
+            1 for gid in robot if self.model.geom_contype[gid] == 0 and self.model.geom_conaffinity[gid] == 0
         )
         if robot_visuals == 0:
             return  # nothing to fall back on -- keep collision geoms visible
         hidden = 0
         for gid in robot:
-            if (
-                self.model.geom_contype[gid] != 0
-                or self.model.geom_conaffinity[gid] != 0
-            ):
+            if self.model.geom_contype[gid] != 0 or self.model.geom_conaffinity[gid] != 0:
                 self.model.geom_group[gid] = self._HIDDEN_GEOM_GROUP
                 hidden += 1
         log.info("moved %d robot collision geom(s) out of the render groups", hidden)
@@ -622,9 +582,7 @@ class TwinTaskSim:
         for i in range(int(n_slots)):
             name = obstacle_body_name(i, prefix=self._scene_prefix)
             bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, name)
-            gid = mujoco.mj_name2id(
-                self.model, mujoco.mjtObj.mjOBJ_GEOM, f"{name}_geom"
-            )
+            gid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, f"{name}_geom")
             if bid < 0 or gid < 0:
                 break
             self._obstacle_slots.append((bid, gid))
@@ -694,9 +652,7 @@ class TwinTaskSim:
         if len(boxes) > len(self._obstacle_slots):
             boxes.sort(key=lambda b: -float(np.prod(np.asarray(b.size, dtype=float))))
             log.warning(
-                "%d obstacles exceed the %d-slot pool -- keeping the largest",
-                len(boxes),
-                len(self._obstacle_slots),
+                "%d obstacles exceed the %d-slot pool -- keeping the largest", len(boxes), len(self._obstacle_slots)
             )
             boxes = boxes[: len(self._obstacle_slots)]
         for i, (bid, gid) in enumerate(self._obstacle_slots):
@@ -705,12 +661,7 @@ class TwinTaskSim:
                 half = np.maximum(np.asarray(box.size, dtype=float) / 2.0, 1e-3)
                 yaw = float(getattr(box, "yaw", 0.0))
                 self.model.body_pos[bid] = np.asarray(box.center, dtype=float)
-                self.model.body_quat[bid] = (
-                    np.cos(yaw / 2.0),
-                    0.0,
-                    0.0,
-                    np.sin(yaw / 2.0),
-                )
+                self.model.body_quat[bid] = (np.cos(yaw / 2.0), 0.0, 0.0, np.sin(yaw / 2.0))
                 self._write_obstacle_geom(gid, half)
                 # Masks (see _setup_collision_masks for the scheme): world and
                 # robot keep (1, 1), graspables get (2, 3), gripper shells
@@ -742,9 +693,7 @@ class TwinTaskSim:
 
     def arm_positions(self) -> Dict[str, float]:
         """Current arm joint positions (== command, joints are held)."""
-        return {
-            j: float(self.data.qpos[self._joint_qpos[j]]) for j in self.spec.arm_joints
-        }
+        return {j: float(self.data.qpos[self._joint_qpos[j]]) for j in self.spec.arm_joints}
 
     def command_gripper(self, close: bool, *, grasp: bool = True) -> None:
         """Binary open/close -- the gripper service semantics.
@@ -764,11 +713,7 @@ class TwinTaskSim:
             if grasp:
                 self._try_grasp()
             if grasp and self._grasped is not None:
-                span = (
-                    self._grasp_span
-                    if self._grasp_span is not None
-                    else self._default_span
-                )
+                span = self._grasp_span if self._grasp_span is not None else self._default_span
                 width = min(span, self.spec.gripper_stroke_m)
                 # Weite -> Gelenk macht die Getriebekinematik, nicht diese
                 # Methode.  Vorher stand hier ``closed * (1 - width/stroke)``,
@@ -791,10 +736,7 @@ class TwinTaskSim:
                 self._gripper_command = self._gripper_open
             else:
                 self._gripper_command = max(
-                    self._linkage.angle_from_width(
-                        span + 2.0 * self._release_clearance
-                    ),
-                    self._gripper_open,
+                    self._linkage.angle_from_width(span + 2.0 * self._release_clearance), self._gripper_open
                 )
             if grasp:
                 self._release()
@@ -849,9 +791,7 @@ class TwinTaskSim:
     # ------------------------------------------------------------------ #
     # grasping (kinematic carry)
     # ------------------------------------------------------------------ #
-    def register_graspable(
-        self, label: str, joint: str, body_id: int, half_extents
-    ) -> None:
+    def register_graspable(self, label: str, joint: str, body_id: int, half_extents) -> None:
         """Register one grabbable free body under ``label``.
 
         Called from :meth:`register_graspables`.  Each entry carries the
@@ -904,11 +844,7 @@ class TwinTaskSim:
         # Zwei Achsen genuegen: die dritte ist die Senkrechte der ersten.
         chosen = [angle[0]]
         for w in angle[1:]:
-            if all(
-                abs(_wrap_half(w - g - np.pi / 2.0)) > 1e-3
-                and abs(_wrap_half(w - g)) > 1e-3
-                for g in chosen
-            ):
+            if all(abs(_wrap_half(w - g - np.pi / 2.0)) > 1e-3 and abs(_wrap_half(w - g)) > 1e-3 for g in chosen):
                 chosen.append(w)
         if len(chosen) == 1:
             chosen.append(chosen[0] + np.pi / 2.0)
@@ -1061,11 +997,7 @@ class TwinTaskSim:
                 tol = self._pad_half_width()
                 beside = False
                 for i, axis in enumerate(axes):
-                    d = abs(
-                        float(
-                            (basis - np.array([tcp_xy[0], tcp_xy[1], basis[2]])) @ axis
-                        )
-                    )
+                    d = abs(float((basis - np.array([tcp_xy[0], tcp_xy[1], basis[2]])) @ axis))
                     if d > float(np.abs(R.T @ axis) @ half) + tol:
                         beside = True
                         break
@@ -1121,16 +1053,9 @@ class TwinTaskSim:
             # Damit konnte die Objektachse ueber den Griff gar nicht binden.
             axes = self._horizontal_axes(entry)
             local = self._span_between_pads(entry, ref, axes[0], tcp_xy=tcp_pos[:2])
-            spans = (
-                local
-                if local is not None
-                else (2.0 * float(half[0]), 2.0 * float(half[1]))
-            )
+            spans = local if local is not None else (2.0 * float(half[0]), 2.0 * float(half[1]))
             candidates = []
-            for axis_yaw, span in (
-                (axes[0], spans[0]),
-                (axes[1], spans[1]),
-            ):
+            for axis_yaw, span in ((axes[0], spans[0]), (axes[1], spans[1])):
                 if span >= self.spec.gripper_stroke_m:
                     continue  # this face pair does not fit between the pads
                 mis = _wrap_half(axis_yaw - gripper_yaw)
@@ -1150,15 +1075,11 @@ class TwinTaskSim:
         # the pad orientation before recording the carry offset.
         if abs(best_misalign) > 1e-6:
             snap = quat_about_z_wxyz(-best_misalign)
-            self.data.qpos[adr + 3 : adr + 7] = quat_mul_wxyz(
-                snap, self.data.qpos[adr + 3 : adr + 7].copy()
-            )
+            self.data.qpos[adr + 3 : adr + 7] = quat_mul_wxyz(snap, self.data.qpos[adr + 3 : adr + 7].copy())
             mujoco = self._mujoco
             mujoco.mj_forward(self.model, self.data)
         if not self._square_tilt(adr, self._graspable[label]):
-            log.debug(
-                "%s zu stark geneigt -- die Pads koennen das nicht " "ausrichten", label
-            )
+            log.debug("%s zu stark geneigt -- die Pads koennen das nicht " "ausrichten", label)
             return
         obj_pos = self.data.qpos[adr : adr + 3].copy()
         obj_quat = self.data.qpos[adr + 3 : adr + 7].copy()  # wxyz
@@ -1207,10 +1128,7 @@ class TwinTaskSim:
             typ = int(self.model.geom_type[gid])
             if typ == int(mujoco.mjtGeom.mjGEOM_SPHERE):
                 continue  # um jede Achse symmetrisch
-            if typ not in (
-                int(mujoco.mjtGeom.mjGEOM_CYLINDER),
-                int(mujoco.mjtGeom.mjGEOM_CAPSULE),
-            ):
+            if typ not in (int(mujoco.mjtGeom.mjGEOM_CYLINDER), int(mujoco.mjtGeom.mjGEOM_CAPSULE)):
                 return None
             R = np.zeros(9)
             mujoco.mju_quat2Mat(R, self.model.geom_quat[gid])
@@ -1262,9 +1180,7 @@ class TwinTaskSim:
             # keine Lage und wird nicht angefasst.
             axis = R @ sym
             upright_cos = float(np.clip(abs(axis[2]), 0.0, 1.0))
-            tilt_from_z, tilt_from_plane = float(np.arccos(upright_cos)), float(
-                np.arcsin(upright_cos)
-            )
+            tilt_from_z, tilt_from_plane = float(np.arccos(upright_cos)), float(np.arcsin(upright_cos))
             if min(tilt_from_z, tilt_from_plane) > np.radians(PAD_SQUARE_LIMIT_DEG):
                 return False
             if tilt_from_z <= tilt_from_plane:
@@ -1310,9 +1226,7 @@ class TwinTaskSim:
         waren keine.
         """
         for joint, factor in self._gripper_follower_factors.items():
-            jid = self._mujoco.mj_name2id(
-                self.model, self._mujoco.mjtObj.mjOBJ_JOINT, joint
-            )
+            jid = self._mujoco.mj_name2id(self.model, self._mujoco.mjtObj.mjOBJ_JOINT, joint)
             if jid < 0:
                 continue
             actual = float(self.data.qpos[self.model.jnt_qposadr[jid]])
@@ -1384,13 +1298,8 @@ class TwinTaskSim:
                 continue
             if int(self.model.geom_bodyid[gid]) in self._robot_bodies():
                 continue
-            name = (
-                self._mujoco.mj_id2name(self.model, self._mujoco.mjtObj.mjOBJ_GEOM, gid)
-                or ""
-            )
-            if "ground" in name or int(self.model.geom_type[gid]) == int(
-                self._mujoco.mjtGeom.mjGEOM_PLANE
-            ):
+            name = self._mujoco.mj_id2name(self.model, self._mujoco.mjtObj.mjOBJ_GEOM, gid) or ""
+            if "ground" in name or int(self.model.geom_type[gid]) == int(self._mujoco.mjtGeom.mjGEOM_PLANE):
                 continue
             # Die AUFLAGE bleibt draussen.  Beim Aufnehmen liegt das Objekt
             # noch darauf und beim Ablegen setzt es wieder auf -- beides
@@ -1399,11 +1308,7 @@ class TwinTaskSim:
             if name in self.support_geom_names():
                 continue
             for own in own_geoms:
-                d = float(
-                    self._mujoco.mj_geomDistance(
-                        self.model, self.data, int(gid), int(own), 1.0, None
-                    )
-                )
+                d = float(self._mujoco.mj_geomDistance(self.model, self.data, int(gid), int(own), 1.0, None))
                 if d < smallest:
                     smallest, next = d, name
         self._carry_gap_who = next
@@ -1429,12 +1334,7 @@ class TwinTaskSim:
         if getattr(self, "_robot_body_cache", None) is None:
             ids = set()
             for bid in range(self.model.nbody):
-                bname = (
-                    self._mujoco.mj_id2name(
-                        self.model, self._mujoco.mjtObj.mjOBJ_BODY, bid
-                    )
-                    or ""
-                )
+                bname = self._mujoco.mj_id2name(self.model, self._mujoco.mjtObj.mjOBJ_BODY, bid) or ""
                 if bname.startswith(self.spec.manipulator_prefixes):
                     ids.add(bid)
             self._robot_body_cache = ids
@@ -1447,11 +1347,7 @@ class TwinTaskSim:
         smallest = float("inf")
         for hand in self._hand_geoms:
             for gid in entry["geoms"]:
-                d = float(
-                    self._mujoco.mj_geomDistance(
-                        self.model, self.data, int(hand), int(gid), 1.0, None
-                    )
-                )
+                d = float(self._mujoco.mj_geomDistance(self.model, self.data, int(hand), int(gid), 1.0, None))
                 smallest = min(smallest, d)
         return None if not np.isfinite(smallest) else smallest
 
@@ -1488,10 +1384,7 @@ class TwinTaskSim:
         saved: Dict[int, Tuple[int, int]] = {}
         entry = self._graspable.get(label)
         for gid in (entry["geoms"] if entry else []):
-            saved[gid] = (
-                int(self.model.geom_contype[gid]),
-                int(self.model.geom_conaffinity[gid]),
-            )
+            saved[gid] = (int(self.model.geom_contype[gid]), int(self.model.geom_conaffinity[gid]))
             self.model.geom_contype[gid] = 0
             self.model.geom_conaffinity[gid] = 0
         self._object_contact_masks[label] = saved
@@ -1608,12 +1501,7 @@ class TwinTaskSim:
         # getragene 140-mm-Stift die Handbaugruppe, gemessen -13,3 mm).
         # Beide Zeitpunkte sahen aus wie Aussagen ueber die Griffguete und
         # waren keine.
-        if (
-            self._grasped is not None
-            and self._grasp_gap0 is None
-            and self._gripper_closing
-            and self._fingers_settled()
-        ):
+        if self._grasped is not None and self._grasp_gap0 is None and self._gripper_closing and self._fingers_settled():
             self._grasp_gap0 = self._measure_gap(self._graspable.get(self._grasped))
         # Den SCHLECHTESTEN Moment der Fahrt festhalten: ein Abstand am
         # Ziel sagt nichts ueber den Weg dorthin, und genau dort faehrt
@@ -1641,18 +1529,11 @@ class TwinTaskSim:
             # der weiterlaeuft, und die Follower muessen denselben Winkel
             # sehen -- sonst stehen die beiden Backen verschieden weit.
             angle = self._gripper_tick_angle()
-            gripper_targets = {
-                joint: angle * factor
-                for joint, factor in self._gripper_follower_factors.items()
-            }
+            gripper_targets = {joint: angle * factor for joint, factor in self._gripper_follower_factors.items()}
             # Where the fingers stand as this tick begins -- the actuated
             # regime ramps its setpoint from here (see _drive_gripper).
             start = (
-                {
-                    j: float(self.data.qpos[self._joint_qpos[j]])
-                    for j in gripper_targets
-                    if j in self._joint_qpos
-                }
+                {j: float(self.data.qpos[self._joint_qpos[j]]) for j in gripper_targets if j in self._joint_qpos}
                 if self._actuated_gripper
                 else {}
             )
@@ -1663,9 +1544,7 @@ class TwinTaskSim:
                         self.data.qpos[adr] = value
                         self.data.qvel[self._joint_dof[name]] = 0.0
                 if self._actuated_gripper:
-                    self._drive_gripper(
-                        start, gripper_targets, (substep + 1) / self.n_substeps
-                    )
+                    self._drive_gripper(start, gripper_targets, (substep + 1) / self.n_substeps)
                 else:
                     for name, value in gripper_targets.items():
                         adr = self._joint_qpos.get(name)
@@ -1711,9 +1590,7 @@ class TwinTaskSim:
         self._gripper_applied = goal + rest * (self._gripper_ramp_from - goal)
         return self._gripper_applied
 
-    def _drive_gripper(
-        self, start: Dict[str, float], targets: Dict[str, float], alpha: float
-    ) -> None:
+    def _drive_gripper(self, start: Dict[str, float], targets: Dict[str, float], alpha: float) -> None:
         """Write ``data.ctrl`` for the follower joints; do NOT pin their qpos.
 
         Two halves, and the flag is worthless without either.  Writing ctrl is
@@ -1754,11 +1631,7 @@ class TwinTaskSim:
     # goal-state validity (mirror of MoveIt's start/goal collision check)
     # ------------------------------------------------------------------ #
     def arm_config_collides(
-        self,
-        joints: Dict[str, float],
-        *,
-        penetration: float = 0.003,
-        obstacles_only: bool = False,
+        self, joints: Dict[str, float], *, penetration: float = 0.003, obstacles_only: bool = False
     ) -> bool:
         """True if the arm configuration is in *robot self-collision*.
 
@@ -1859,9 +1732,7 @@ class TwinTaskSim:
     # ------------------------------------------------------------------ #
     # queries
     # ------------------------------------------------------------------ #
-    def fk_body_pose(
-        self, body: str, arm_joints: Dict[str, float]
-    ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    def fk_body_pose(self, body: str, arm_joints: Dict[str, float]) -> Optional[Tuple[np.ndarray, np.ndarray]]:
         """Forward-kinematics world pose of ``body`` for given arm joint angles.
 
         Uses a scratch ``MjData``, so the pose comes back in MuJoCo world
@@ -1929,9 +1800,7 @@ class TwinTaskSim:
             self._scene_option.geomgroup[self._HIDDEN_GEOM_GROUP] = 0
         return self._renderer
 
-    def render_rgb(
-        self, camera: str, width: Optional[int] = None, height: Optional[int] = None
-    ) -> np.ndarray:
+    def render_rgb(self, camera: str, width: Optional[int] = None, height: Optional[int] = None) -> np.ndarray:
         w = width or self._render_size[0]
         h = height or self._render_size[1]
         renderer = self._ensure_renderer(w, h)
@@ -1939,9 +1808,7 @@ class TwinTaskSim:
         renderer.update_scene(self.data, camera=camera, scene_option=self._scene_option)
         return renderer.render()
 
-    def render_depth(
-        self, camera: str, width: Optional[int] = None, height: Optional[int] = None
-    ) -> np.ndarray:
+    def render_depth(self, camera: str, width: Optional[int] = None, height: Optional[int] = None) -> np.ndarray:
         w = width or self._render_size[0]
         h = height or self._render_size[1]
         renderer = self._ensure_renderer(w, h)
@@ -1951,9 +1818,7 @@ class TwinTaskSim:
         renderer.disable_depth_rendering()
         return depth
 
-    def camera_matrix(
-        self, camera: str, width: Optional[int] = None, height: Optional[int] = None
-    ) -> np.ndarray:
+    def camera_matrix(self, camera: str, width: Optional[int] = None, height: Optional[int] = None) -> np.ndarray:
         w = width or self._render_size[0]
         h = height or self._render_size[1]
         return camera_intrinsics(self.model, camera, w, h)

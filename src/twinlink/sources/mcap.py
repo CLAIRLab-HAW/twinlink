@@ -47,14 +47,10 @@ class McapSource(StateSource):
         self.progress = 0.0
 
     def start(self) -> "McapSource":
-        assert (
-            self.state is not None and self.mapping is not None
-        ), "bind() before start()"
+        assert self.state is not None and self.mapping is not None, "bind() before start()"
         self._stop.clear()
         self._running = True
-        self._thread = threading.Thread(
-            target=self._run, name="mcap-source", daemon=True
-        )
+        self._thread = threading.Thread(target=self._run, name="mcap-source", daemon=True)
         self._thread.start()
         return self
 
@@ -69,9 +65,7 @@ class McapSource(StateSource):
         try:
             from rosbags.highlevel import AnyReader
         except ImportError as exc:  # pragma: no cover - import guard
-            log.error(
-                "rosbags is required for McapSource: pip install rosbags (%s)", exc
-            )
+            log.error("rosbags is required for McapSource: pip install rosbags (%s)", exc)
             self._running = False
             return
 
@@ -91,11 +85,7 @@ class McapSource(StateSource):
         with AnyReader([self.path]) as reader:
             conns = [c for c in reader.connections if c.topic in wanted]
             if not conns:
-                log.warning(
-                    "No requested topics present in %s.\n  wanted: %s",
-                    self.path,
-                    sorted(wanted),
-                )
+                log.warning("No requested topics present in %s.\n  wanted: %s", self.path, sorted(wanted))
                 return
 
             window = None
@@ -124,15 +114,10 @@ class McapSource(StateSource):
 
                 self.clock = elapsed
                 if window is not None and window > self.start_offset:
-                    self.progress = min(
-                        1.0,
-                        (elapsed - self.start_offset) / (window - self.start_offset),
-                    )
+                    self.progress = min(1.0, (elapsed - self.start_offset) / (window - self.start_offset))
 
                 try:
                     msg = reader.deserialize(raw, conn.msgtype)
                     self.mapping.apply(conn.topic, conn.msgtype, msg, self.state)
                 except Exception as exc:  # keep replaying despite a bad frame
-                    log.debug(
-                        "decode failed on %s (%s): %s", conn.topic, conn.msgtype, exc
-                    )
+                    log.debug("decode failed on %s (%s): %s", conn.topic, conn.msgtype, exc)

@@ -17,8 +17,7 @@ def _workspace_urdf():
 
 URDF = _workspace_urdf()
 pytestmark = pytest.mark.skipif(
-    URDF is None or not URDF.exists(),
-    reason="urdf/robot.urdf bundle not checked out (standalone twinlink)",
+    URDF is None or not URDF.exists(), reason="urdf/robot.urdf bundle not checked out (standalone twinlink)"
 )
 
 
@@ -26,16 +25,9 @@ def test_load_robot_bundle_collision_geometry():
     from twinlink.urdf_mujoco import load_mujoco_from_urdf
 
     model = load_mujoco_from_urdf(str(URDF), add_ground=True)
-    joint_names = {
-        mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, i)
-        for i in range(model.njnt)
-    }
+    joint_names = {mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, i) for i in range(model.njnt)}
     # the a200-0553 bundle: 6 UR joints + 6 RG6 finger joints + 4 wheels = 16
-    for j in (
-        "arm_0_shoulder_pan_joint",
-        "arm_0_wrist_3_joint",
-        "rg6_finger_joint",
-    ):
+    for j in ("arm_0_shoulder_pan_joint", "arm_0_wrist_3_joint", "rg6_finger_joint"):
         assert j in joint_names, f"{j} missing from MuJoCo model"
     assert model.njnt >= 16
     # model must actually step

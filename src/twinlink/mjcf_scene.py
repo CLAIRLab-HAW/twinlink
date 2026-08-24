@@ -79,9 +79,7 @@ def lookat_xyaxes(cam_pos: np.ndarray, target: np.ndarray) -> str:
     return fmt(*right, *up)
 
 
-def add_obstacle_pool(
-    worldbody: ET.Element, n_slots: int, prefix: str = DEFAULT_SCENE_PREFIX
-) -> None:
+def add_obstacle_pool(worldbody: ET.Element, n_slots: int, prefix: str = DEFAULT_SCENE_PREFIX) -> None:
     """Pre-allocate ``n_slots`` static obstacle boxes (runtime-mutated).
 
     MuJoCo models cannot grow after compilation, so perceived obstacles are
@@ -115,11 +113,7 @@ def distractor_joint_name(index: int, prefix: str = DEFAULT_SCENE_PREFIX) -> str
     return f"{prefix}distractor_{index}_free"
 
 
-def add_distractors(
-    worldbody: ET.Element,
-    distractors: Sequence[Dict],
-    prefix: str = DEFAULT_SCENE_PREFIX,
-) -> None:
+def add_distractors(worldbody: ET.Element, distractors: Sequence[Dict], prefix: str = DEFAULT_SCENE_PREFIX) -> None:
     """Author sim-only clutter boxes (``{"position", "size", "yaw", "rgba"}``).
 
     Boxes the task does NOT know about, standing in for real-world clutter --

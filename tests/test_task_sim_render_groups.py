@@ -67,12 +67,7 @@ SPEC = RobotSimSpec(
 
 class _ProbeSim(TwinTaskSim):
     def register_graspables(self) -> None:
-        self.register_graspable(
-            "task_object",
-            "task_object_free",
-            self._body_id("task_object"),
-            np.full(3, 0.03),
-        )
+        self.register_graspable("task_object", "task_object_free", self._body_id("task_object"), np.full(3, 0.03))
 
     def support_geom_names(self):
         return frozenset({"hrl_table_top"})

@@ -50,20 +50,13 @@ class TwinLink:
     def setup(self) -> None:
         if self.source is not None:
             if self.mapping is None and self.source.requires_mapping:
-                raise ValueError(
-                    f"{type(self.source).__name__} needs a RobotMapping; pass mapping=..."
-                )
+                raise ValueError(f"{type(self.source).__name__} needs a RobotMapping; pass mapping=...")
             self.source.bind(self.state, self.mapping)
         for sink in self.sinks:
             sink.bind(self.state)
             sink.setup()
 
-    def run(
-        self,
-        duration: Optional[float] = None,
-        stop_when_source_done: bool = True,
-        heartbeat: float = 0.0,
-    ) -> None:
+    def run(self, duration: Optional[float] = None, stop_when_source_done: bool = True, heartbeat: float = 0.0) -> None:
         """Block, ticking sinks at ``rate`` Hz, until done or interrupted.
 
         ``heartbeat`` > 0 logs the state + incoming message rate every N seconds
@@ -93,19 +86,13 @@ class TwinLink:
                 if heartbeat > 0 and (tick - hb_time) >= heartbeat:
                     rev = self.state.revision
                     rate = (rev - hb_rev) / (tick - hb_time)
-                    log.info(
-                        "heartbeat: %s  (%.0f updates/s)", self.state.summary(), rate
-                    )
+                    log.info("heartbeat: %s  (%.0f updates/s)", self.state.summary(), rate)
                     hb_time, hb_rev = tick, rev
 
                 if duration is not None and (time.monotonic() - t0) >= duration:
                     break
 
-                if (
-                    stop_when_source_done
-                    and source_was_running
-                    and self.source is not None
-                ):
+                if stop_when_source_done and source_was_running and self.source is not None:
                     if not self.source.is_running():
                         # Render one more frame (already done above), then finish.
                         log.info("source drained; stopping")

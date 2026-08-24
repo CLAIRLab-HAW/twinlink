@@ -23,11 +23,7 @@ log = logging.getLogger("twinlink.kinematics")
 #: Duck-typed config fields read off ``cfg`` (all optional):
 #: ``ik_max_iters`` (200), ``ik_tolerance_pos`` (0.004 m),
 #: ``ik_tolerance_rot`` (0.02 rad).
-_IK_DEFAULTS = {
-    "ik_max_iters": 200,
-    "ik_tolerance_pos": 0.004,
-    "ik_tolerance_rot": 0.02,
-}
+_IK_DEFAULTS = {"ik_max_iters": 200, "ik_tolerance_pos": 0.004, "ik_tolerance_rot": 0.02}
 
 
 def top_down_grasp_matrix(yaw: float = 0.0) -> np.ndarray:
@@ -39,26 +35,13 @@ def top_down_grasp_matrix(yaw: float = 0.0) -> np.ndarray:
     """
     cz, sz = np.cos(yaw), np.sin(yaw)
     # Columns: x/y/z axes of the TCP frame in world coordinates.
-    return np.array(
-        [
-            [cz, sz, 0.0],
-            [sz, -cz, 0.0],
-            [0.0, 0.0, -1.0],
-        ]
-    )
+    return np.array([[cz, sz, 0.0], [sz, -cz, 0.0], [0.0, 0.0, -1.0]])
 
 
 class ArmIK:
     """Damped-least-squares IK over selected arm joints of a twin model."""
 
-    def __init__(
-        self,
-        model,
-        cfg=None,
-        *,
-        joints: Sequence[str],
-        tcp_body: str,
-    ) -> None:
+    def __init__(self, model, cfg=None, *, joints: Sequence[str], tcp_body: str) -> None:
         import mujoco
 
         self._mujoco = mujoco
@@ -80,16 +63,10 @@ class ArmIK:
             self._qpos_adr[name] = int(model.jnt_qposadr[jid])
             self._dof_adr[name] = int(model.jnt_dofadr[jid])
             lo, hi = model.jnt_range[jid]
-            self._range[name] = (
-                (float(lo), float(hi)) if hi > lo else (-2 * np.pi, 2 * np.pi)
-            )
+            self._range[name] = (float(lo), float(hi)) if hi > lo else (-2 * np.pi, 2 * np.pi)
 
     def _cfg(self, field: str) -> float:
-        return (
-            getattr(self.cfg, field, _IK_DEFAULTS[field])
-            if self.cfg is not None
-            else _IK_DEFAULTS[field]
-        )
+        return getattr(self.cfg, field, _IK_DEFAULTS[field]) if self.cfg is not None else _IK_DEFAULTS[field]
 
     # ------------------------------------------------------------------ #
     def solve(
@@ -140,11 +117,7 @@ class ArmIK:
 
             if np.linalg.norm(err_pos) < tol_pos and np.linalg.norm(err_rot) < tol_rot:
                 sol = {j: float(data.qpos[self._qpos_adr[j]]) for j in self.joints}
-                log.debug(
-                    "IK converged in %d iters (pos err %.4f)",
-                    it,
-                    np.linalg.norm(err_pos),
-                )
+                log.debug("IK converged in %d iters (pos err %.4f)", it, np.linalg.norm(err_pos))
                 return sol
 
             jacp = np.zeros((3, self.model.nv))

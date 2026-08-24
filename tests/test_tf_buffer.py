@@ -48,15 +48,7 @@ def test_dynamic_interpolation_translation_and_slerp():
     buf = TFBuffer()
     # 90° about z at t=1000, identity at t=0
     buf.add_dynamic(0, _tf_msg("odom", "base", (0.0, 0.0, 0.0)))
-    buf.add_dynamic(
-        1000,
-        _tf_msg(
-            "odom",
-            "base",
-            (2.0, 0.0, 0.0),
-            quat=(0, 0, np.sin(np.pi / 4), np.cos(np.pi / 4)),
-        ),
-    )
+    buf.add_dynamic(1000, _tf_msg("odom", "base", (2.0, 0.0, 0.0), quat=(0, 0, np.sin(np.pi / 4), np.cos(np.pi / 4))))
     buf.finalize()
 
     M = buf.lookup("base", "odom", 500)  # halfway
@@ -82,8 +74,6 @@ def test_slerp_endpoints_and_short_arc():
 
 
 def test_transform_inverse_compose_roundtrip():
-    t = Transform(
-        np.array([1.0, 2.0, 3.0]), np.array([0.0, 0.0, np.sin(0.3), np.cos(0.3)])
-    )
+    t = Transform(np.array([1.0, 2.0, 3.0]), np.array([0.0, 0.0, np.sin(0.3), np.cos(0.3)]))
     eye = t.compose(t.inverse()).as_matrix()
     assert np.allclose(eye, np.eye(4), atol=1e-12)

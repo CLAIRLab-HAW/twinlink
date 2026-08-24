@@ -32,10 +32,7 @@ def test_spec_defaults_to_none_and_keeps_todays_literals():
     sink = mujoco_sink.MujocoSink.__new__(mujoco_sink.MujocoSink)
     sink.spec = None
     assert sink._manipulator_prefixes() == ("arm_0",)
-    assert sink._camera_link_candidates() == (
-        "camera_0_link",
-        "camera_0_bottom_screw_frame",
-    )
+    assert sink._camera_link_candidates() == ("camera_0_link", "camera_0_bottom_screw_frame")
 
 
 def test_spec_overrides_the_manipulator_prefixes():

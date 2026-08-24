@@ -117,9 +117,7 @@ def discover_channels(url: str, timeout: float = 5.0) -> List[dict]:
     from websockets.sync.client import connect
 
     channels: Dict[int, dict] = {}
-    with connect(
-        url, subprotocols=_SUBPROTOCOLS, open_timeout=timeout, max_size=None
-    ) as ws:
+    with connect(url, subprotocols=_SUBPROTOCOLS, open_timeout=timeout, max_size=None) as ws:
         end = time.monotonic() + timeout
         while time.monotonic() < end:
             try:
@@ -160,9 +158,7 @@ class FoxgloveSource(StateSource):
         self._stop = threading.Event()
         self._ws = None
         self._typestore = None
-        self._sub_map: Dict[int, Tuple[str, str, int]] = (
-            {}
-        )  # subId -> (topic, msgtype, channelId)
+        self._sub_map: Dict[int, Tuple[str, str, int]] = {}  # subId -> (topic, msgtype, channelId)
         self._next_sub = 0
         self._decode_errors: set = set()  # topics whose first decode failure was logged
         # Ingest telemetry: message counts + last bridge->client lag per topic,
@@ -184,12 +180,7 @@ class FoxgloveSource(StateSource):
             return
         if log.isEnabledFor(logging.DEBUG):
             parts = [
-                "%s: %.1f/s lag=%.0fms"
-                % (
-                    t,
-                    n / elapsed,
-                    self._stat_lag.get(t, 0.0) * 1e3,
-                )
+                "%s: %.1f/s lag=%.0fms" % (t, n / elapsed, self._stat_lag.get(t, 0.0) * 1e3)
                 for t, n in sorted(self._stat_counts.items())
             ]
             log.debug("ingest %s", " | ".join(parts))
@@ -201,9 +192,7 @@ class FoxgloveSource(StateSource):
         assert self.state is not None, "bind() before start()"
         self._stop.clear()
         self._running = True
-        self._thread = threading.Thread(
-            target=self._run, name="foxglove-source", daemon=True
-        )
+        self._thread = threading.Thread(target=self._run, name="foxglove-source", daemon=True)
         self._thread.start()
         return self
 
@@ -229,9 +218,7 @@ class FoxgloveSource(StateSource):
             from websockets.sync.client import connect
             from websockets.exceptions import ConnectionClosed
         except ImportError:
-            log.error(
-                "FoxgloveSource needs the websockets library: pip install 'twinlink[foxglove]'"
-            )
+            log.error("FoxgloveSource needs the websockets library: pip install 'twinlink[foxglove]'")
             self._running = False
             return
         try:
@@ -246,10 +233,7 @@ class FoxgloveSource(StateSource):
         while not self._stop.is_set():
             try:
                 self._ws = connect(
-                    self.url,
-                    subprotocols=_SUBPROTOCOLS,
-                    open_timeout=self.connect_timeout,
-                    max_size=None,
+                    self.url, subprotocols=_SUBPROTOCOLS, open_timeout=self.connect_timeout, max_size=None
                 )
                 log.info("connected to foxglove bridge at %s", self.url)
                 backoff = 0.5
@@ -299,27 +283,16 @@ class FoxgloveSource(StateSource):
         elif msg.get("op") == "unadvertise":
             ids = set(msg.get("channelIds", []))
             if ids:
-                self._sub_map = {
-                    s: v for s, v in self._sub_map.items() if v[2] not in ids
-                }
+                self._sub_map = {s: v for s, v in self._sub_map.items() if v[2] not in ids}
 
     def _subscribe(self, channel: dict) -> None:
         topic = channel["topic"]
         msgtype = channel.get("schemaName", "")
-        self._ensure_type(
-            msgtype, channel.get("schema", ""), channel.get("schemaEncoding", "ros2msg")
-        )
+        self._ensure_type(msgtype, channel.get("schema", ""), channel.get("schemaEncoding", "ros2msg"))
         sub_id = self._next_sub
         self._next_sub += 1
         self._sub_map[sub_id] = (topic, msgtype, channel.get("id"))
-        self._ws.send(
-            json.dumps(
-                {
-                    "op": "subscribe",
-                    "subscriptions": [{"id": sub_id, "channelId": channel["id"]}],
-                }
-            )
-        )
+        self._ws.send(json.dumps({"op": "subscribe", "subscriptions": [{"id": sub_id, "channelId": channel["id"]}]}))
         log.info("subscribed %s [%s]", topic, msgtype)
 
     def _ensure_type(self, msgtype: str, schema: str, schema_encoding: str) -> None:
@@ -410,19 +383,12 @@ class FoxglovePublisher:
         from websockets.sync.client import connect
 
         self._typestore = get_typestore(getattr(Stores, self.store, Stores.LATEST))
-        self._ws = connect(
-            self.url,
-            subprotocols=_SUBPROTOCOLS,
-            open_timeout=self.connect_timeout,
-            max_size=None,
-        )
+        self._ws = connect(self.url, subprotocols=_SUBPROTOCOLS, open_timeout=self.connect_timeout, max_size=None)
         self._await_server_info()
         self._advertise()
         # drain incoming frames so the library answers pings and the queue can't grow
         self._stop.clear()
-        self._drain = threading.Thread(
-            target=self._drain_loop, name="foxglove-pub-drain", daemon=True
-        )
+        self._drain = threading.Thread(target=self._drain_loop, name="foxglove-pub-drain", daemon=True)
         self._drain.start()
         return self
 
@@ -443,10 +409,7 @@ class FoxglovePublisher:
                 if data.get("op") == "serverInfo":
                     caps = data.get("capabilities", [])
                     if "clientPublish" not in caps:
-                        log.warning(
-                            "bridge caps %s lack 'clientPublish' — uplink may be rejected",
-                            caps,
-                        )
+                        log.warning("bridge caps %s lack 'clientPublish' — uplink may be rejected", caps)
                     return
 
     def _advertise(self) -> None:
@@ -484,11 +447,7 @@ class FoxglovePublisher:
         self.publish_raw(payload)
 
     def publish_raw(self, payload: bytes) -> None:
-        frame = (
-            bytes([_OP_CLIENT_MESSAGE_DATA])
-            + struct.pack("<I", self.channel_id)
-            + bytes(payload)
-        )
+        frame = bytes([_OP_CLIENT_MESSAGE_DATA]) + struct.pack("<I", self.channel_id) + bytes(payload)
         self._ws.send(frame)
 
     def close(self) -> None:

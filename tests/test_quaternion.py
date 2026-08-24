@@ -19,12 +19,7 @@ import pytest
 
 pytest.importorskip("mujoco", reason="wxyz-Algebra kommt aus MuJoCo")
 
-from twinlink.quaternion import (  # noqa: E402
-    mat_to_quat_wxyz,
-    quat_about_z_wxyz,
-    quat_conj_wxyz,
-    quat_mul_wxyz,
-)
+from twinlink.quaternion import mat_to_quat_wxyz, quat_about_z_wxyz, quat_conj_wxyz, quat_mul_wxyz  # noqa: E402
 
 
 def _rot_z(angle):
@@ -37,20 +32,14 @@ def test_the_first_argument_is_applied_last():
     a, b = quat_about_z_wxyz(0.5), quat_about_z_wxyz(0.2)
     # Um dieselbe Achse ist die Reihenfolge egal -- deshalb ueber zwei Achsen
     # pruefen, wo sie es nicht ist.
-    tilt = mat_to_quat_wxyz(
-        np.array([[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]])
-    )
+    tilt = mat_to_quat_wxyz(np.array([[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]]))
     forward = quat_mul_wxyz(a, tilt)
     backward = quat_mul_wxyz(tilt, a)
-    assert not np.allclose(
-        forward, backward
-    ), "Testaufbau taugt nicht: die beiden Drehungen kommutieren"
+    assert not np.allclose(forward, backward), "Testaufbau taugt nicht: die beiden Drehungen kommutieren"
 
     # Der Beleg: erst tilt, dann a -- angewandt auf einen Vektor.
     v = np.array([1.0, 0.0, 0.0])
-    step_by_step = _rot_z(0.5) @ (
-        np.array([[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]]) @ v
-    )
+    step_by_step = _rot_z(0.5) @ (np.array([[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]]) @ v)
     out = np.empty(3)
     import mujoco
 
@@ -72,9 +61,7 @@ def test_w_comes_first():
 
 def test_the_conjugate_undoes_the_rotation():
     q = quat_mul_wxyz(quat_about_z_wxyz(1.1), mat_to_quat_wxyz(_rot_z(-0.4)))
-    assert np.allclose(
-        quat_mul_wxyz(q, quat_conj_wxyz(q)), [1.0, 0.0, 0.0, 0.0], atol=1e-12
-    )
+    assert np.allclose(quat_mul_wxyz(q, quat_conj_wxyz(q)), [1.0, 0.0, 0.0, 0.0], atol=1e-12)
 
 
 def test_a_wrong_length_is_an_error_not_a_silent_result():

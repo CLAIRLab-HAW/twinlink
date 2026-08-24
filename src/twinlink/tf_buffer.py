@@ -33,11 +33,7 @@ def _quat_to_matrix(q: np.ndarray) -> np.ndarray:
     xy, xz, yz = x * y * s, x * z * s, y * z * s
     wx, wy, wz = w * x * s, w * y * s, w * z * s
     return np.array(
-        [
-            [1.0 - (yy + zz), xy - wz, xz + wy],
-            [xy + wz, 1.0 - (xx + zz), yz - wx],
-            [xz - wy, yz + wx, 1.0 - (xx + yy)],
-        ]
+        [[1.0 - (yy + zz), xy - wz, xz + wy], [xy + wz, 1.0 - (xx + zz), yz - wx], [xz - wy, yz + wx, 1.0 - (xx + yy)]]
     )
 
 
@@ -83,9 +79,7 @@ def _slerp(q0: np.ndarray, q1: np.ndarray, alpha: float) -> np.ndarray:
         return out / np.linalg.norm(out)
     theta0 = np.arccos(np.clip(dot, -1.0, 1.0))
     sin0 = np.sin(theta0)
-    return (np.sin((1.0 - alpha) * theta0) / sin0) * q0 + (
-        np.sin(alpha * theta0) / sin0
-    ) * q1
+    return (np.sin((1.0 - alpha) * theta0) / sin0) * q0 + (np.sin(alpha * theta0) / sin0) * q1
 
 
 @dataclass
@@ -107,10 +101,7 @@ class Transform:
     def from_ros(ros_tf) -> "Transform":
         t = ros_tf.transform.translation
         r = ros_tf.transform.rotation
-        return Transform(
-            np.array([t.x, t.y, t.z]),
-            np.array([r.x, r.y, r.z, r.w]),
-        )
+        return Transform(np.array([t.x, t.y, t.z]), np.array([r.x, r.y, r.z, r.w]))
 
     def inverse(self) -> "Transform":
         rot = _quat_to_matrix(self.rotation).T
@@ -146,9 +137,7 @@ class TFBuffer:
             self._dynamic[key].sort(key=lambda x: x[0])
 
     # ------------------------------------------------------------------ #
-    def _lookup_single(
-        self, parent: str, child: str, timestamp_ns: int
-    ) -> Optional[Transform]:
+    def _lookup_single(self, parent: str, child: str, timestamp_ns: int) -> Optional[Transform]:
         key = (parent, child)
         if key in self._static:
             return self._static[key]
@@ -170,9 +159,7 @@ class TFBuffer:
             return Transform(trans, rot)
         return None
 
-    def _bfs_path(
-        self, source: str, target: str
-    ) -> Optional[List[Tuple[str, str, bool]]]:
+    def _bfs_path(self, source: str, target: str) -> Optional[List[Tuple[str, str, bool]]]:
         """BFS over the TF graph. Returns list of (parent, child, forward)."""
         all_edges = set(self._static.keys()) | set(self._dynamic.keys())
         graph: Dict[str, List[str]] = defaultdict(list)
@@ -193,9 +180,7 @@ class TFBuffer:
                     queue.append((neighbor, path + [(node, neighbor, edge_fwd)]))
         return None
 
-    def lookup(
-        self, source: str, target: str, timestamp_ns: int
-    ) -> Optional[np.ndarray]:
+    def lookup(self, source: str, target: str, timestamp_ns: int) -> Optional[np.ndarray]:
         """4x4 matrix mapping points from ``source`` into ``target`` frame."""
         if source == target:
             return np.eye(4)

@@ -118,10 +118,7 @@ class CameraFrame:
             )
         except Exception as exc:
             logging.getLogger("twinlink.state").warning(
-                "lazy image decode failed (format=%r, depth=%s): %s",
-                self.raw_format,
-                self.is_depth,
-                exc,
+                "lazy image decode failed (format=%r, depth=%s): %s", self.raw_format, self.is_depth, exc
             )
             self.raw = None  # do not retry a poisoned payload
             return False
@@ -171,11 +168,7 @@ def _transform_matrix(tf: "Transform") -> np.ndarray:
 
     mat = np.eye(4)
     mat[:3, :3] = np.array(
-        [
-            [1.0 - (yy + zz), xy - wz, xz + wy],
-            [xy + wz, 1.0 - (xx + zz), yz - wx],
-            [xz - wy, yz + wx, 1.0 - (xx + yy)],
-        ]
+        [[1.0 - (yy + zz), xy - wz, xz + wy], [xy + wz, 1.0 - (xx + zz), yz - wx], [xz - wy, yz + wx, 1.0 - (xx + yy)]]
     )
     mat[:3, 3] = np.asarray(tf.translation, dtype=float)
     return mat
@@ -231,16 +224,8 @@ class RobotState:
                     break
                 self._joints[n] = JointState(
                     float(positions[i]),
-                    (
-                        float(velocities[i])
-                        if velocities is not None and i < len(velocities)
-                        else None
-                    ),
-                    (
-                        float(efforts[i])
-                        if efforts is not None and i < len(efforts)
-                        else None
-                    ),
+                    (float(velocities[i]) if velocities is not None and i < len(velocities) else None),
+                    (float(efforts[i]) if efforts is not None and i < len(efforts) else None),
                     st,
                 )
             self._touch()
@@ -323,13 +308,7 @@ class RobotState:
 
     def joint_positions(self, names: Iterable[str]) -> np.ndarray:
         with self._lock:
-            return np.array(
-                [
-                    self._joints[n].position if n in self._joints else np.nan
-                    for n in names
-                ],
-                dtype=float,
-            )
+            return np.array([self._joints[n].position if n in self._joints else np.nan for n in names], dtype=float)
 
     def joints(self) -> Dict[str, JointState]:
         with self._lock:

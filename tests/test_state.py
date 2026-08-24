@@ -6,13 +6,7 @@ import threading
 import numpy as np
 import pytest
 
-from twinlink.state import (
-    CameraFrame,
-    ObstacleCloud,
-    PlannedTrajectory,
-    RobotState,
-    Transform,
-)
+from twinlink.state import CameraFrame, ObstacleCloud, PlannedTrajectory, RobotState, Transform
 
 
 def test_joint_updates_and_lookup():
@@ -64,23 +58,12 @@ def test_transforms_and_base_pose():
 def test_camera_obstacles_planned_trajectory():
     s = RobotState()
     img = np.zeros((4, 4, 3), dtype=np.uint8)
-    s.set_camera(
-        "cam",
-        CameraFrame(
-            image=img, encoding="rgb8", stamp=0.0, frame_id="f", width=4, height=4
-        ),
-    )
+    s.set_camera("cam", CameraFrame(image=img, encoding="rgb8", stamp=0.0, frame_id="f", width=4, height=4))
     assert s.camera("cam").width == 4
     assert "cam" in s.cameras()
 
-    s.set_obstacles(
-        "cloud", ObstacleCloud(points=np.zeros((10, 3)), frame_id="f", stamp=0.0)
-    )
-    traj = PlannedTrajectory(
-        joint_names=["a"],
-        positions=np.array([[0.0], [1.0]]),
-        times=np.array([0.0, 2.5]),
-    )
+    s.set_obstacles("cloud", ObstacleCloud(points=np.zeros((10, 3)), frame_id="f", stamp=0.0))
+    traj = PlannedTrajectory(joint_names=["a"], positions=np.array([[0.0], [1.0]]), times=np.array([0.0, 2.5]))
     s.set_planned_trajectory(traj)
     assert s.planned_trajectory().duration() == pytest.approx(2.5)
 

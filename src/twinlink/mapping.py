@@ -96,9 +96,7 @@ class RobotMapping:
     _origin: Optional[np.ndarray] = field(default=None, init=False, repr=False)
     # Parsed 3x3 K per camera name (camera_info streams at frame rate but the
     # intrinsics are constant; see _decode_camera_info).
-    _info_cache: Dict[str, np.ndarray] = field(
-        default_factory=dict, init=False, repr=False
-    )
+    _info_cache: Dict[str, np.ndarray] = field(default_factory=dict, init=False, repr=False)
 
     # ------------------------------------------------------------------ #
     # introspection used by the sources
@@ -152,14 +150,7 @@ class RobotMapping:
     # ------------------------------------------------------------------ #
     # the single entry point used by every source
     # ------------------------------------------------------------------ #
-    def apply(
-        self,
-        topic: str,
-        msgtype: str,
-        msg,
-        state: RobotState,
-        recv_stamp: float = 0.0,
-    ) -> None:
+    def apply(self, topic: str, msgtype: str, msg, state: RobotState, recv_stamp: float = 0.0) -> None:
         """Decode one message into ``state``.
 
         ``recv_stamp`` (epoch seconds, optional): when the transport knows the
@@ -174,13 +165,7 @@ class RobotMapping:
         elif role == "odom":
             self._decode_odom(msg, state)
         elif role == "image":
-            self._decode_image(
-                msg,
-                msgtype,
-                state,
-                self._camera_for(topic, "image"),
-                recv_stamp=recv_stamp,
-            )
+            self._decode_image(msg, msgtype, state, self._camera_for(topic, "image"), recv_stamp=recv_stamp)
         elif role == "camera_info":
             self._decode_camera_info(msg, state, self._camera_for(topic, "camera_info"))
         elif role == "points":
@@ -240,12 +225,8 @@ class RobotMapping:
             t = tr.transform
             state.set_transform(
                 Transform(
-                    np.array(
-                        [t.translation.x, t.translation.y, t.translation.z], float
-                    ),
-                    np.array(
-                        [t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w], float
-                    ),
+                    np.array([t.translation.x, t.translation.y, t.translation.z], float),
+                    np.array([t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w], float),
                     stamp_to_sec(tr.header.stamp),
                     tr.header.frame_id,
                     tr.child_frame_id,
@@ -270,14 +251,7 @@ class RobotMapping:
             )
         )
 
-    def _decode_image(
-        self,
-        msg,
-        msgtype: str,
-        state: RobotState,
-        cam: CameraMap,
-        recv_stamp: float = 0.0,
-    ) -> None:
+    def _decode_image(self, msg, msgtype: str, state: RobotState, cam: CameraMap, recv_stamp: float = 0.0) -> None:
         import time as _time
 
         arrival = _time.monotonic()
@@ -335,12 +309,7 @@ class RobotMapping:
     def _decode_points(self, msg, state: RobotState, name: str) -> None:
         pts = pointcloud2_to_xyz(msg, max_points=self.points_max)
         state.set_obstacles(
-            name,
-            ObstacleCloud(
-                points=pts,
-                frame_id=msg.header.frame_id,
-                stamp=stamp_to_sec(msg.header.stamp),
-            ),
+            name, ObstacleCloud(points=pts, frame_id=msg.header.frame_id, stamp=stamp_to_sec(msg.header.stamp))
         )
 
     def _decode_planned_path(self, msg, state: RobotState) -> None:
@@ -353,13 +322,7 @@ class RobotMapping:
         if not names or not len(jt.points):
             return
         positions = np.array([list(p.positions) for p in jt.points], float)
-        times = np.array(
-            [
-                p.time_from_start.sec + p.time_from_start.nanosec * 1e-9
-                for p in jt.points
-            ],
-            float,
-        )
+        times = np.array([p.time_from_start.sec + p.time_from_start.nanosec * 1e-9 for p in jt.points], float)
         state.set_planned_trajectory(
             PlannedTrajectory(
                 joint_names=names,
@@ -397,9 +360,7 @@ class RobotMapping:
             cameras=cams,
             joint_remap=dict(d.get("joint_remap", {})),
             joint_include=d.get("joint_include"),
-            base_pose_relative_to_start=bool(
-                d.get("base_pose_relative_to_start", False)
-            ),
+            base_pose_relative_to_start=bool(d.get("base_pose_relative_to_start", False)),
             topic_types=dict(d.get("topic_types", {})),
             points_topics=dict(d.get("points_topics", {})),
             planned_path_topic=d.get("planned_path_topic"),
@@ -457,29 +418,14 @@ def image_to_numpy(msg) -> np.ndarray:
         buf = buf[:, : width * channels]
     else:
         buf = buf[: height * width * channels]
-    img = (
-        buf.reshape(height, width, channels)
-        if channels > 1
-        else buf.reshape(height, width)
-    )
+    img = buf.reshape(height, width, channels) if channels > 1 else buf.reshape(height, width)
     return np.ascontiguousarray(img)
 
 
-_PC2_NP = {
-    1: np.int8,
-    2: np.uint8,
-    3: np.int16,
-    4: np.uint16,
-    5: np.int32,
-    6: np.uint32,
-    7: np.float32,
-    8: np.float64,
-}
+_PC2_NP = {1: np.int8, 2: np.uint8, 3: np.int16, 4: np.uint16, 5: np.int32, 6: np.uint32, 7: np.float32, 8: np.float64}
 
 
-def pointcloud2_to_xyz(
-    msg, max_points: Optional[int] = 60000, max_range: Optional[float] = None
-) -> np.ndarray:
+def pointcloud2_to_xyz(msg, max_points: Optional[int] = 60000, max_range: Optional[float] = None) -> np.ndarray:
     """Extract finite (N, 3) xyz from a ``sensor_msgs/PointCloud2`` (any layout).
 
     ``max_range`` (metres, sensor frame) drops points farther than that from
@@ -492,12 +438,7 @@ def pointcloud2_to_xyz(
         return np.zeros((0, 3), float)
     raw = msg.data
     buf = np.frombuffer(
-        (
-            bytes(raw)
-            if isinstance(raw, (bytes, bytearray, memoryview))
-            else np.asarray(raw).tobytes()
-        ),
-        dtype=np.uint8,
+        (bytes(raw) if isinstance(raw, (bytes, bytearray, memoryview)) else np.asarray(raw).tobytes()), dtype=np.uint8
     )
     n = int(msg.width) * int(msg.height)
     step = int(msg.point_step)
@@ -507,9 +448,7 @@ def pointcloud2_to_xyz(
         off, dt = fields[name]
         npdt = _PC2_NP.get(dt, np.float32)
         size = np.dtype(npdt).itemsize
-        return (
-            rows[:, off : off + size].copy().view(npdt).reshape(-1).astype(np.float32)
-        )
+        return rows[:, off : off + size].copy().view(npdt).reshape(-1).astype(np.float32)
 
     xyz = np.stack([column("x"), column("y"), column("z")], axis=1)
     valid = np.isfinite(xyz).all(axis=1)

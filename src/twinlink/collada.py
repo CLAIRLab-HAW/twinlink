@@ -58,24 +58,9 @@ def _node_matrix(node: ET.Element) -> np.ndarray:
             c, s = np.cos(a), np.sin(a)
             M = M @ np.array(
                 [
-                    [
-                        c + x * x * (1 - c),
-                        x * y * (1 - c) - z * s,
-                        x * z * (1 - c) + y * s,
-                        0,
-                    ],
-                    [
-                        y * x * (1 - c) + z * s,
-                        c + y * y * (1 - c),
-                        y * z * (1 - c) - x * s,
-                        0,
-                    ],
-                    [
-                        z * x * (1 - c) - y * s,
-                        z * y * (1 - c) + x * s,
-                        c + z * z * (1 - c),
-                        0,
-                    ],
+                    [c + x * x * (1 - c), x * y * (1 - c) - z * s, x * z * (1 - c) + y * s, 0],
+                    [y * x * (1 - c) + z * s, c + y * y * (1 - c), y * z * (1 - c) - x * s, 0],
+                    [z * x * (1 - c) - y * s, z * y * (1 - c) + x * s, c + z * z * (1 - c), 0],
                     [0, 0, 0, 1],
                 ]
             )
@@ -112,17 +97,11 @@ def _primitives(mesh: ET.Element, ns: dict):
             continue
         inputs = prim.findall(_q("input", ns), ns)
         stride = max(int(i.get("offset", "0")) for i in inputs) + 1
-        v_off = next(
-            int(i.get("offset", "0")) for i in inputs if i.get("semantic") == "VERTEX"
-        )
+        v_off = next(int(i.get("offset", "0")) for i in inputs if i.get("semantic") == "VERTEX")
         faces = []
         if tag == "polylist":
             vcounts = _floats(prim.find(_q("vcount", ns), ns).text).astype(int)
-            idx = (
-                _floats(prim.find(_q("p", ns), ns).text)
-                .astype(int)
-                .reshape(-1, stride)[:, v_off]
-            )
+            idx = _floats(prim.find(_q("p", ns), ns).text).astype(int).reshape(-1, stride)[:, v_off]
             k = 0
             for vc in vcounts:
                 poly = idx[k : k + vc]
@@ -140,17 +119,13 @@ def _primitives(mesh: ET.Element, ns: dict):
 def _geometry_positions(mesh: ET.Element, ns: dict):
     verts = mesh.find(_q("vertices", ns), ns)
     pos_src = next(
-        i.get("source").lstrip("#")
-        for i in verts.findall(_q("input", ns), ns)
-        if i.get("semantic") == "POSITION"
+        i.get("source").lstrip("#") for i in verts.findall(_q("input", ns), ns) if i.get("semantic") == "POSITION"
     )
     for src in mesh.findall(_q("source", ns), ns):
         if src.get("id") == pos_src:
             acc = src.find(f"{_q('technique_common', ns)}/{_q('accessor', ns)}", ns)
             stride = int(acc.get("stride", "3")) if acc is not None else 3
-            return _floats(src.find(_q("float_array", ns), ns).text).reshape(
-                -1, stride
-            )[:, :3]
+            return _floats(src.find(_q("float_array", ns), ns).text).reshape(-1, stride)[:, :3]
     return None
 
 
@@ -162,9 +137,7 @@ def _compact(V: np.ndarray, faces: np.ndarray):
     return V[used], np.searchsorted(used, faces)
 
 
-def _extract_groups(
-    dae_path: str,
-) -> Tuple[str, List[Tuple[str, Optional[list], np.ndarray, np.ndarray]]]:
+def _extract_groups(dae_path: str) -> Tuple[str, List[Tuple[str, Optional[list], np.ndarray, np.ndarray]]]:
     """Return (up_axis, [(material, rgba, V, F), ...]) in Z-up coordinates."""
     root = ET.parse(dae_path).getroot()
     ns = _ns(root)
@@ -256,27 +229,18 @@ def dae_to_obj(dae_path: str, obj_path: str) -> tuple:
         off += len(V)
     V = np.vstack(Vs)
     F = np.vstack(Fs) if Fs else np.zeros((0, 3), int)
-    _write_obj(
-        obj_path,
-        V,
-        F,
-        f"converted from {os.path.basename(dae_path)} by twinlink.collada",
-    )
+    _write_obj(obj_path, V, F, f"converted from {os.path.basename(dae_path)} by twinlink.collada")
     return len(V), len(F), (V.max(0) - V.min(0))
 
 
-def dae_to_colored_objs(
-    dae_path: str, out_dir: str, stem: str
-) -> List[Tuple[str, Optional[list]]]:
+def dae_to_colored_objs(dae_path: str, out_dir: str, stem: str) -> List[Tuple[str, Optional[list]]]:
     """Convert a ``.dae`` to one OBJ per material.
 
     Returns ``[(obj_abspath, rgba), ...]`` (rgba may be ``None``).  Results are
     cached: a sidecar JSON lets repeat loads skip re-parsing when up to date.
     """
     sidecar = os.path.join(out_dir, stem + ".colors.json")
-    if os.path.exists(sidecar) and os.path.getmtime(sidecar) >= os.path.getmtime(
-        dae_path
-    ):
+    if os.path.exists(sidecar) and os.path.getmtime(sidecar) >= os.path.getmtime(dae_path):
         try:
             data = json.load(open(sidecar))
             if all(os.path.exists(p) for p, _ in data):
