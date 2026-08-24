@@ -1,14 +1,12 @@
 """MujocoSink must not hard-code one robot's body names.
 
-``_guess_lookat``, the two ghost-sphere overlays and ``_body_for_frame`` take
-the literal UR5/RG6/D435 body names (``arm_0*``, ``camera_0_link``) from an
-optional ``RobotSimSpec``.  A caller that passes none (octomap_explorer, the
-spact-integration-demos scripts/notebooks, hrl's own dashboard) gets exactly
-those literals as defaults -- a robot-agnostic sink costs its callers
-nothing.
+``_guess_lookat``, the two ghost-sphere overlays and ``_body_for_frame`` take the literal UR5/RG6/D435 body names
+(``arm_0*``, ``camera_0_link``) from an optional ``RobotSimSpec``.  A caller that passes none (octomap_explorer, the
+spact-integration-demos scripts/notebooks, hrl's own dashboard) gets exactly those literals as defaults -- a
+robot-agnostic sink costs its callers nothing.
 
-This module only imports ``numpy`` at collection time (mujoco/opencv stay
-lazy inside methods), so these tests do not need the ``mujoco`` extra.
+This module only imports ``numpy`` at collection time (mujoco/opencv stay lazy inside methods), so these tests do not
+need the ``mujoco`` extra.
 """
 
 from __future__ import annotations

@@ -1,11 +1,10 @@
 """MCAP replay source (mock mode).
 
-Replays a recorded rosbag2 / MCAP directory into the state, optionally paced to
-wall-clock so the twin moves exactly as the robot did.  Decoding is done by
-``rosbags`` so **no ROS installation is required** -- this runs on a laptop.
+Replays a recorded rosbag2 / MCAP directory into the state, optionally paced to wall-clock so the twin moves exactly as
+the robot did.  Decoding is done by ``rosbags`` so **no ROS installation is required** -- this runs on a laptop.
 
-Only the topics the mapping cares about are read, and ``rosbags`` uses the
-MCAP message index, so a multi-GB recording is opened in well under a second.
+Only the topics the mapping cares about are read, and ``rosbags`` uses the MCAP message index, so a multi-GB recording
+is opened in well under a second.
 """
 
 from __future__ import annotations

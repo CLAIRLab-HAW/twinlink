@@ -1,8 +1,7 @@
 """Die wxyz-Algebra: Konvention und Reihenfolge, nicht die Arithmetik.
 
-Die Arithmetik gehoert MuJoCo (``mju_mulQuat`` und Nachbarn) und braucht hier
-keinen Test -- sie ist die Referenz, gegen die die Simulation ohnehin rechnet.
-Was einen Test braucht, ist das, was beim Umstellen auf sie kaputtgehen kann:
+Die Arithmetik gehoert MuJoCo (``mju_mulQuat`` und Nachbarn) und braucht hier keinen Test -- sie ist die Referenz, gegen
+die die Simulation ohnehin rechnet. Was einen Test braucht, ist das, was beim Umstellen auf sie kaputtgehen kann:
 
 * **die Reihenfolge** -- ``quat_mul_wxyz(a, b)`` dreht erst um ``b``, dann um
   ``a``.  Vertauscht ergibt sie eine andere, ebenso plausible Drehung und
@@ -10,8 +9,8 @@ Was einen Test braucht, ist das, was beim Umstellen auf sie kaputtgehen kann:
 * **die Anordnung** -- w zuerst.  Wer hier xyzw hineingibt, bekommt Zahlen
   zurueck, keine Ausnahme.
 
-Bis zum 2026-08-23 stand diese Rechnung dreimal von Hand im Workspace
-(``task_sim``, ``openvla_stack.env.sim``, ``twin_sufficiency.scenes``).
+Bis zum 2026-08-23 stand diese Rechnung dreimal von Hand im Workspace (``task_sim``, ``openvla_stack.env.sim``,
+``twin_sufficiency.scenes``).
 """
 
 import numpy as np
@@ -30,8 +29,7 @@ def _rot_z(angle):
 def test_the_first_argument_is_applied_last():
     """``quat_mul_wxyz(a, b)`` ist ``a nach b``, wie ``A @ B`` bei Matrizen."""
     a, b = quat_about_z_wxyz(0.5), quat_about_z_wxyz(0.2)
-    # Um dieselbe Achse ist die Reihenfolge egal -- deshalb ueber zwei Achsen
-    # pruefen, wo sie es nicht ist.
+    # Um dieselbe Achse ist die Reihenfolge egal -- deshalb ueber zwei Achsen pruefen, wo sie es nicht ist.
     tilt = mat_to_quat_wxyz(np.array([[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]]))
     forward = quat_mul_wxyz(a, tilt)
     backward = quat_mul_wxyz(tilt, a)

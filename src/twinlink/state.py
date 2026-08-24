@@ -6,13 +6,12 @@ write into it; sinks (MuJoCo, Isaac Sim, ...) read from it.  Nothing in this
 module knows about a particular robot model -- joints, frames and cameras are
 addressed by name.
 
-The contract is intentionally tiny so that it is cheap to update at sensor
-rates and cheap to sample from a render loop:
+The contract is intentionally tiny so that it is cheap to update at sensor rates and cheap to sample from a render loop:
 
     source thread(s)  --writes-->  RobotState  <--reads--  sink (main thread)
 
-All access is guarded by a single re-entrant lock.  Writers bump a monotonic
-``revision`` counter so a consumer can cheaply detect "did anything change".
+All access is guarded by a single re-entrant lock.  Writers bump a monotonic ``revision`` counter so a consumer can
+cheaply detect "did anything change".
 """
 
 from __future__ import annotations
@@ -99,11 +98,9 @@ class CameraFrame:
     def ensure_decoded(self) -> bool:
         """Decode a lazy frame in place; True if an image is available.
 
-        Idempotent: eager frames and already-decoded frames return True
-        immediately.  Decoding errors are logged once per process and yield
-        False (callers treat it as "no frame yet").  RVL depth payloads are
-        rejected here -- the pure-Python RVL decoder is far too slow for a
-        live pipeline (offline/MCAP use goes through the eager path, which
+        Idempotent: eager frames and already-decoded frames return True immediately.  Decoding errors are logged once
+        per process and yield False (callers treat it as "no frame yet").  RVL depth payloads are rejected here -- the
+        pure-Python RVL decoder is far too slow for a live pipeline (offline/MCAP use goes through the eager path, which
         still supports it).
         """
         if self.image is not None:
@@ -253,10 +250,9 @@ class RobotState:
     def clear_camera(self, name: str) -> None:
         """Drop a camera's cached frame.
 
-        Consumers call this when their source session (re)starts, so a poll
-        loop never mistakes the previous session's last frame for live data;
-        the entry repopulates when the new session's first image arrives
-        (intrinsics re-attach from the streaming CameraInfo topic).
+        Consumers call this when their source session (re)starts, so a poll loop never mistakes the previous session's
+        last frame for live data; the entry repopulates when the new session's first image arrives (intrinsics re-attach
+        from the streaming CameraInfo topic).
         """
         with self._lock:
             self._cameras.pop(name, None)
@@ -329,23 +325,17 @@ class RobotState:
     def chain(self, source: str, target: str) -> Optional[np.ndarray]:
         """4x4 matrix mapping points from ``source`` into ``target``.
 
-        ``transform()`` is a plain dict hit and therefore only answers for
-        edges that were published as such.  A camera's optical frame sits
-        several hops from the world frame, so back-projection needs the
-        composed chain.  Breadth-first over the undirected edge set, each
-        edge used forwards or inverted as required.
+        ``transform()`` is a plain dict hit and therefore only answers for edges that were published as such.  A
+        camera's optical frame sits several hops from the world frame, so back-projection needs the composed chain.
+        Breadth-first over the undirected edge set, each edge used forwards or inverted as required.
 
-        Returns ``None`` when the frames are not connected -- deliberately,
-        rather than an identity matrix: a silent identity would place every
-        obstacle at the robot's origin while still producing a plausible
-        looking point cloud.
+        Returns ``None`` when the frames are not connected -- deliberately, rather than an identity matrix: a silent
+        identity would place every obstacle at the robot's origin while still producing a plausible looking point cloud.
 
-        ``source == target`` is identity only for a frame the graph actually
-        KNOWS -- the shortcut must NOT run before the look-up.  Taken early,
-        ``chain("nope", "nope")`` hands back ``eye(4)`` for a frame that
-        appears in no edge at all, and a recording whose ``frame_id`` happens
-        to equal the caller's world frame gets exactly the silent identity
-        this docstring promises to refuse.
+        ``source == target`` is identity only for a frame the graph actually KNOWS -- the shortcut must NOT run before
+        the look-up.  Taken early, ``chain("nope", "nope")`` hands back ``eye(4)`` for a frame that appears in no edge
+        at all, and a recording whose ``frame_id`` happens to equal the caller's world frame gets exactly the silent
+        identity this docstring promises to refuse.
         """
         with self._lock:
             edges = dict(self._transforms)
@@ -354,8 +344,7 @@ class RobotState:
             known = any(source in edge for edge in edges)
             return np.eye(4) if known else None
 
-        # Undirected adjacency: tf edges are stored as (parent, child) but a
-        # chain may traverse either way.
+        # Undirected adjacency: tf edges are stored as (parent, child) but a chain may traverse either way.
         adjacency: Dict[str, List[str]] = {}
         for parent, child in edges:
             adjacency.setdefault(child, []).append(parent)
@@ -381,12 +370,10 @@ class RobotState:
             path.append(previous[path[-1]])
         path.reverse()  # source ... target
 
-        # A stored transform (parent, child) maps points from the CHILD frame
-        # into the PARENT frame -- the ROS convention.  Walking a -> b: if b
-        # is a's parent the stored matrix already points our way; if a is b's
-        # parent we need its inverse.  Deciding this from the edge dictionary
-        # rather than from a direction flag is what keeps the two cases from
-        # being swapped.
+        # A stored transform (parent, child) maps points from the CHILD frame into the PARENT frame -- the ROS
+        # convention.  Walking a -> b: if b is a's parent the stored matrix already points our way; if a is b's parent
+        # we need its inverse.  Deciding this from the edge dictionary rather than from a direction flag is what keeps
+        # the two cases from being swapped.
         mat = np.eye(4)
         for a, b in zip(path, path[1:]):
             if (b, a) in edges:

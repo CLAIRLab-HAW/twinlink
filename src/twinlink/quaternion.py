@@ -1,12 +1,9 @@
 """Quaternionen-Algebra in MuJoCo-Konvention (wxyz) -- geliehen, nicht gebaut.
 
-Diese Rechnungen standen am 2026-08-23 dreimal von Hand im Workspace:
-``twinlink.task_sim``, ``openvla_stack.env.sim`` und
-``twin_sufficiency.scenes`` trugen je eine eigene Fassung des
-Hamilton-Produkts, teils dazu Konjugation und Drehung um die Hochachse.  Alle
-drei rechneten dasselbe -- bis eine von ihnen es nicht mehr tut.  Ein
-Vorzeichenfehler darin zeigt sich als leicht verdrehtes Objekt am Greifer,
-nicht als roter Test.
+Diese Rechnungen standen am 2026-08-23 dreimal von Hand im Workspace: ``twinlink.task_sim``, ``openvla_stack.env.sim``
+und ``twin_sufficiency.scenes`` trugen je eine eigene Fassung des Hamilton-Produkts, teils dazu Konjugation und Drehung
+um die Hochachse.  Alle drei rechneten dasselbe -- bis eine von ihnen es nicht mehr tut.  Ein Vorzeichenfehler darin
+zeigt sich als leicht verdrehtes Objekt am Greifer, nicht als roter Test.
 
 **Nichts davon ist hier neu geschrieben.**  MuJoCo bringt die Operationen
 selbst mit (``mju_mulQuat``, ``mju_negQuat``, ``mju_axisAngle2Quat``,
@@ -48,9 +45,8 @@ def _mj():
 def _arr(values: Sequence[float], size: int) -> np.ndarray:
     """``values`` als zusammenhaengendes float64-Array der Laenge ``size``.
 
-    Die ``mju_*``-Bindungen schreiben in Puffer und lesen aus Puffern; ein
-    nicht zusammenhaengender Slice oder ein float32-Array waere ein Fehler zur
-    Laufzeit, kein falsches Ergebnis -- aber eben auch erst zur Laufzeit.
+    Die ``mju_*``-Bindungen schreiben in Puffer und lesen aus Puffern; ein nicht zusammenhaengender Slice oder ein
+    float32-Array waere ein Fehler zur Laufzeit, kein falsches Ergebnis -- aber eben auch erst zur Laufzeit.
     """
     out = np.ascontiguousarray(values, dtype=np.float64).reshape(-1)
     if out.size != size:
@@ -61,8 +57,8 @@ def _arr(values: Sequence[float], size: int) -> np.ndarray:
 def quat_mul_wxyz(a: Sequence[float], b: Sequence[float]) -> np.ndarray:
     """Hamilton-Produkt zweier wxyz-Quaternionen: erst ``b``, dann ``a``.
 
-    Die Reihenfolge ist der Punkt, an dem diese Funktion falsch benutzt wird --
-    vertauscht ergibt sie eine andere, ebenso plausible Drehung, keinen Fehler.
+    Die Reihenfolge ist der Punkt, an dem diese Funktion falsch benutzt wird -- vertauscht ergibt sie eine andere,
+    ebenso plausible Drehung, keinen Fehler.
     """
     out = np.empty(4)
     _mj().mju_mulQuat(out, _arr(a, 4), _arr(b, 4))
@@ -72,8 +68,7 @@ def quat_mul_wxyz(a: Sequence[float], b: Sequence[float]) -> np.ndarray:
 def quat_conj_wxyz(quat: Sequence[float]) -> np.ndarray:
     """Konjugierter wxyz-Quaternion -- die Gegendrehung eines EINHEITS-Quaternions.
 
-    Fuer einen nicht normierten Quaternion ist die Konjugation NICHT die
-    Inverse.
+    Fuer einen nicht normierten Quaternion ist die Konjugation NICHT die Inverse.
     """
     out = np.empty(4)
     _mj().mju_negQuat(out, _arr(quat, 4))

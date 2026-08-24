@@ -8,8 +8,7 @@ into the state model.  Because both the MCAP reader (``rosbags``) and live
 (``msg.header.stamp.sec`` etc.), the very same mapping drives mock and live
 modes unchanged.
 
-Adapting TwinLink to a different robot is therefore usually just a new YAML
-file -- see ``configs/`` for an example.
+Adapting TwinLink to a different robot is therefore usually just a new YAML file -- see ``configs/`` for an example.
 """
 
 from __future__ import annotations
@@ -22,8 +21,8 @@ import numpy as np
 
 from .state import CameraFrame, ObstacleCloud, PlannedTrajectory, RobotState, Transform
 
-# Default ROS message type per role -- used by the live source to pick the
-# message class to subscribe with.  Override per-topic in YAML if needed.
+# Default ROS message type per role -- used by the live source to pick the message class to subscribe with.  Override
+# per-topic in YAML if needed.
 ROLE_DEFAULT_TYPE = {
     "joint_states": "sensor_msgs/msg/JointState",
     "tf": "tf2_msgs/msg/TFMessage",
@@ -75,8 +74,8 @@ class RobotMapping:
     points_topics: Dict[str, str] = field(default_factory=dict)
     planned_path_topic: Optional[str] = None
     points_max: int = 60000  # subsample huge clouds before storing
-    # Plain std_msgs/String topics (name -> topic): the latest payload lands in
-    # ``state.extra(name)`` — e.g. the /twin/arm_state JSON downlink.
+    # Plain std_msgs/String topics (name -> topic): the latest payload lands in ``state.extra(name)`` — e.g. the
+    # /twin/arm_state JSON downlink.
     string_topics: Dict[str, str] = field(default_factory=dict)
 
     # Joint-name handling: ROS joint name -> simulator/model joint name.
@@ -84,18 +83,16 @@ class RobotMapping:
     # If set, only these (ROS) joint names are ingested.
     joint_include: Optional[List[str]] = None
 
-    # Odometry frequently carries an absolute (e.g. UTM/GPS) origin that is
-    # useless for a local twin.  When true, the base pose is tracked relative
-    # to the first odom sample seen.
+    # Odometry frequently carries an absolute (e.g. UTM/GPS) origin that is useless for a local twin.  When true, the
+    # base pose is tracked relative to the first odom sample seen.
     base_pose_relative_to_start: bool = False
 
-    # Optional explicit per-topic ROS type (needed only for live mode when the
-    # role default is not appropriate).
+    # Optional explicit per-topic ROS type (needed only for live mode when the role default is not appropriate).
     topic_types: Dict[str, str] = field(default_factory=dict)
 
     _origin: Optional[np.ndarray] = field(default=None, init=False, repr=False)
-    # Parsed 3x3 K per camera name (camera_info streams at frame rate but the
-    # intrinsics are constant; see _decode_camera_info).
+    # Parsed 3x3 K per camera name (camera_info streams at frame rate but the intrinsics are constant; see
+    # _decode_camera_info).
     _info_cache: Dict[str, np.ndarray] = field(default_factory=dict, init=False, repr=False)
 
     # ------------------------------------------------------------------ #
@@ -153,9 +150,8 @@ class RobotMapping:
     def apply(self, topic: str, msgtype: str, msg, state: RobotState, recv_stamp: float = 0.0) -> None:
         """Decode one message into ``state``.
 
-        ``recv_stamp`` (epoch seconds, optional): when the transport knows the
-        moment a relaying bridge received the message (foxglove ws MessageData
-        carries one), it is forwarded onto image frames for latency splitting.
+        ``recv_stamp`` (epoch seconds, optional): when the transport knows the moment a relaying bridge received the
+        message (foxglove ws MessageData carries one), it is forwarded onto image frames for latency splitting.
         """
         role = self.role_of(topic)
         if role == "joint_states":
@@ -259,9 +255,8 @@ class RobotMapping:
         raw_format = ""
         if _is_compressed_image(msgtype, msg):
             if cam.lazy_decode:
-                # Store the compressed payload as-is; the consumer decodes
-                # (CameraFrame.ensure_decoded).  Width/height are unknown
-                # until then.
+                # Store the compressed payload as-is; the consumer decodes (CameraFrame.ensure_decoded).  Width/height
+                # are unknown until then.
                 image, encoding = None, ""
                 height = width = 0
                 raw_payload = _msg_bytes(msg)
@@ -291,10 +286,9 @@ class RobotMapping:
         )
 
     def _decode_camera_info(self, msg, state: RobotState, cam: CameraMap) -> None:
-        # Intrinsics are constant per session but stream at frame rate: parse
-        # the 3x3 K once, then only re-apply while the state still lacks it
-        # (fresh session / after clear_camera the frame entry is gone and the
-        # re-attach relies on this streaming topic).
+        # Intrinsics are constant per session but stream at frame rate: parse the 3x3 K once, then only re-apply while
+        # the state still lacks it (fresh session / after clear_camera the frame entry is gone and the re-attach relies
+        # on this streaming topic).
         K = self._info_cache.get(cam.name)
         if K is None:
             try:
@@ -397,8 +391,8 @@ _ENCODING_INFO = {
 def image_to_numpy(msg) -> np.ndarray:
     """Decode a ``sensor_msgs/Image`` into an HxW[xC] numpy array.
 
-    Honours the row stride (``step``).  Unknown encodings fall back to a raw
-    ``uint8`` reshape so the pipeline never hard-fails on an exotic format.
+    Honours the row stride (``step``).  Unknown encodings fall back to a raw ``uint8`` reshape so the pipeline never
+    hard-fails on an exotic format.
     """
     enc = str(msg.encoding).lower()
     dtype, channels = _ENCODING_INFO.get(enc, (np.uint8, 1))
@@ -428,10 +422,9 @@ _PC2_NP = {1: np.int8, 2: np.uint8, 3: np.int16, 4: np.uint16, 5: np.int32, 6: n
 def pointcloud2_to_xyz(msg, max_points: Optional[int] = 60000, max_range: Optional[float] = None) -> np.ndarray:
     """Extract finite (N, 3) xyz from a ``sensor_msgs/PointCloud2`` (any layout).
 
-    ``max_range`` (metres, sensor frame) drops points farther than that from
-    the origin — depth cameras such as the D435 produce "flying pixel"
-    artefacts at invalid-depth boundaries, and cropping by range removes them
-    at the source.  ``max_points=None`` disables subsampling (batch use).
+    ``max_range`` (metres, sensor frame) drops points farther than that from the origin — depth cameras such as the D435
+    produce "flying pixel" artefacts at invalid-depth boundaries, and cropping by range removes them at the source.
+    ``max_points=None`` disables subsampling (batch use).
     """
     fields = {f.name: (int(f.offset), int(f.datatype)) for f in msg.fields}
     if not all(k in fields for k in ("x", "y", "z")):
@@ -510,18 +503,15 @@ def decode_compressed_bytes(
 ) -> Tuple[np.ndarray, str]:
     """Bytes-level CompressedImage decode -- see :func:`compressed_image_to_numpy`.
 
-    This is the entry point of the *lazy* path (``CameraFrame.ensure_decoded``),
-    which passes ``allow_rvl=False``: the pure-Python RVL decoder takes seconds
-    per 640x480 frame, unusable live -- reject loudly (publish PNG instead:
-    ``format`` parameter of the compressed_depth_image_transport publisher)
-    rather than silently stalling the pipeline.  Offline/batch use (MCAP)
-    keeps RVL support via the default.
+    This is the entry point of the *lazy* path (``CameraFrame.ensure_decoded``), which passes ``allow_rvl=False``: the
+    pure-Python RVL decoder takes seconds per 640x480 frame, unusable live -- reject loudly (publish PNG instead:
+    ``format`` parameter of the compressed_depth_image_transport publisher) rather than silently stalling the pipeline.
+    Offline/batch use (MCAP) keeps RVL support via the default.
     """
     fmt = (fmt or "").lower()
 
-    # Reject the live-incompatible RVL path *before* importing cv2: the lazy
-    # path runs without opencv installed (CI / minimal installs), and this
-    # raise is the whole point -- it must not be shadowed by a ModuleNotFoundError.
+    # Reject the live-incompatible RVL path *before* importing cv2: the lazy path runs without opencv installed (CI /
+    # minimal installs), and this raise is the whole point -- it must not be shadowed by a ModuleNotFoundError.
     if is_depth and "rvl" in fmt and not allow_rvl:
         raise ValueError(
             f"RVL depth stream rejected (format={fmt!r}): the pure-Python RVL "

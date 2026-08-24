@@ -17,8 +17,8 @@ __all__ = [
 
 
 def __getattr__(name):
-    # Optional transports (rclpy / websockets / zenoh) are imported lazily so the
-    # package works without ROS or extra deps installed.
+    # Optional transports (rclpy / websockets / zenoh) are imported lazily so the package works without ROS or extra
+    # deps installed.
     if name == "Ros2Source":
         from .ros2 import Ros2Source
 

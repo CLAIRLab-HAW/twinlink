@@ -1,14 +1,12 @@
 """Proximity-capture grasp mechanic: alignment, capture, carry, release.
 
-The parallel-jaw alignment check, kinematic carry and release all live in
-``TwinTaskSim._try_grasp`` / ``_carry_grasped`` / ``_release`` -- none of it is
-about cubes.  Driving that mechanic indirectly through a real UR5 descend
-would test the arm; here the same production methods are exercised directly
-against a tiny, robot- and task-free MJCF model.
+The parallel-jaw alignment check, kinematic carry and release all live in ``TwinTaskSim._try_grasp`` /
+``_carry_grasped`` / ``_release`` -- none of it is about cubes.  Driving that mechanic indirectly through a real UR5
+descend would test the arm; here the same production methods are exercised directly against a tiny, robot- and task-free
+MJCF model.
 
-Gravity is off (``gravity="0 0 0"``): nothing here is about resting/settling
-physics (that stays covered task-side), only about the capture/carry/release
-state machine.
+Gravity is off (``gravity="0 0 0"``): nothing here is about resting/settling physics (that stays covered task-side),
+only about the capture/carry/release state machine.
 """
 
 from __future__ import annotations
@@ -212,13 +210,11 @@ def test_grasp_carry_release():
 def test_the_open_gripper_reports_what_the_linkage_can_open_to():
     """Die offene Weite kommt aus dem GETRIEBE, nicht aus ``gripper_stroke_m``.
 
-    Rechnet die Sim die Weite aus ``gripper_stroke_m`` und zwei Ankern
-    zurueck, fallen beide Zahlen zwangslaeufig zusammen.  Sie bedeuten aber
-    Verschiedenes: ``gripper_stroke_m`` ist das Budget, an
-    dem sich eine Griffspanne misst (``GRASP_SPAN_FRACTION``), waehrend die
-    Oeffnung der Hand eine Eigenschaft des Getriebes ist -- am echten RG6
-    159,0 mm, wo die Sim-Spanne 156 mm fuehrt.  Sie gleichzusetzen ist genau
-    die Verwechslung, die den Greiferfehler mitgetragen hat.
+    Rechnet die Sim die Weite aus ``gripper_stroke_m`` und zwei Ankern zurueck, fallen beide Zahlen zwangslaeufig
+    zusammen.  Sie bedeuten aber Verschiedenes: ``gripper_stroke_m`` ist das Budget, an dem sich eine Griffspanne misst
+    (``GRASP_SPAN_FRACTION``), waehrend die Oeffnung der Hand eine Eigenschaft des Getriebes ist -- am echten RG6 159,0
+    mm, wo die Sim-Spanne 156 mm fuehrt.  Sie gleichzusetzen ist genau die Verwechslung, die den Greiferfehler
+    mitgetragen hat.
     """
     sim = _build()
     sim.command_gripper(False)
@@ -229,11 +225,10 @@ def test_the_open_gripper_reports_what_the_linkage_can_open_to():
 def test_a_grasp_drives_the_joint_the_linkage_asks_for_not_a_line_of_its_own():
     """Der eigentliche Fehler, als Test.
 
-    Vorher rechnete ``command_gripper`` die Weite mit einer EIGENEN Geraden in
-    einen Gelenkwert um (``closed * (1 - width/stroke)``).  Von aussen fiel das
-    nicht auf, weil ``gripper_width_m`` dieselbe Gerade rueckwaerts ging und
-    den Fehler zudeckte -- sichtbar wurde er erst am Gelenk, also an dem, was
-    tatsaechlich ins Modell geschrieben wird und was move_group prueft.
+    Vorher rechnete ``command_gripper`` die Weite mit einer EIGENEN Geraden in einen Gelenkwert um (``closed * (1 -
+    width/stroke)``).  Von aussen fiel das nicht auf, weil ``gripper_width_m`` dieselbe Gerade rueckwaerts ging und den
+    Fehler zudeckte -- sichtbar wurde er erst am Gelenk, also an dem, was tatsaechlich ins Modell geschrieben wird und
+    was move_group prueft.
     """
     linkage = StraightLinkage()
     sim = _build()
@@ -255,11 +250,9 @@ def test_the_empty_closed_gripper_reports_zero_width():
 def test_a_grasped_object_sets_the_width_to_its_own_span():
     """Die eine Zahl, um derentwillen der Zugang existiert.
 
-    Sie folgt dem OBJEKT, nicht einer Vorgabe: der Payload misst
-    0,04 x 0,03 x 0,04 m, die Pads schliessen ueber seine 0,03-m-Kante --
-    und NICHT auf ``default_span`` (0,04), das nur gilt, wo kein Objekt
-    vermessen wurde.  Genau diese Objektabhaengigkeit ist es, die an
-    einem Greifer mit fester Oeffnung verloren geht.
+    Sie folgt dem OBJEKT, nicht einer Vorgabe: der Payload misst 0,04 x 0,03 x 0,04 m, die Pads schliessen ueber seine
+    0,03-m-Kante -- und NICHT auf ``default_span`` (0,04), das nur gilt, wo kein Objekt vermessen wurde.  Genau diese
+    Objektabhaengigkeit ist es, die an einem Greifer mit fester Oeffnung verloren geht.
     """
     sim = _build()
     _approach(sim)
@@ -277,13 +270,12 @@ def test_a_grasped_object_sets_the_width_to_its_own_span():
 def test_releasing_opens_only_as_far_as_the_object_needed():
     """Zum Loslassen ganz aufzureissen ist eine Wahl, keine Notwendigkeit.
 
-    Am Container gemessen: nach dem Ablegen stand die Hand auf voller Weite
-    MITTEN IM TOR, und move_group verweigerte den Rueckzug (``2 contact(s)
-    detected : gate_0 - ..._finger_2, gate_1 - ..._finger_1``).  Ein echter
-    RG6 oeffnet zum Loslassen nur so weit, wie das Objekt es verlangt.
+    Am Container gemessen: nach dem Ablegen stand die Hand auf voller Weite MITTEN IM TOR, und move_group verweigerte
+    den Rueckzug (``2 contact(s) detected : gate_0 - ..._finger_2, gate_1 - ..._finger_1``).  Ein echter RG6 oeffnet zum
+    Loslassen nur so weit, wie das Objekt es verlangt.
 
-    Der Payload misst 0,03 m ueber die geschlossene Kante; mit 0,005 m Spiel
-    je Seite sind das 0,04 m -- deutlich weniger als die 0,16 m des Getriebes.
+    Der Payload misst 0,03 m ueber die geschlossene Kante; mit 0,005 m Spiel je Seite sind das 0,04 m -- deutlich
+    weniger als die 0,16 m des Getriebes.
     """
     sim = _build()
     _approach(sim)
@@ -320,12 +312,10 @@ def test_the_release_opening_is_clamped_to_what_the_linkage_can_do():
 def test_a_released_gripper_does_not_report_itself_closed():
     """Die Falle, die das enge Oeffnen aufreisst.
 
-    ``gripper_closed`` verglich den Gelenkwert mit der HALBEN
-    Schliessstellung.  Solange die Hand zum Loslassen ganz aufging, war das
-    unauffaellig; oeffnet sie nur noch auf Objektbreite plus Spiel, faellt
-    sie bei kleinen Objekten unter dieselbe Schwelle und meldete sich als
-    geschlossen -- mit dem echten Getriebe fuer jede Spanne unter 40 mm.
-    Ob die Hand zu ist, sagt der Befehl, nicht ein geometrischer Schwellwert.
+    ``gripper_closed`` verglich den Gelenkwert mit der HALBEN Schliessstellung.  Solange die Hand zum Loslassen ganz
+    aufging, war das unauffaellig; oeffnet sie nur noch auf Objektbreite plus Spiel, faellt sie bei kleinen Objekten
+    unter dieselbe Schwelle und meldete sich als geschlossen -- mit dem echten Getriebe fuer jede Spanne unter 40 mm. Ob
+    die Hand zu ist, sagt der Befehl, nicht ein geometrischer Schwellwert.
     """
     sim = _build()
     _approach(sim)
@@ -350,8 +340,8 @@ def test_a_released_gripper_does_not_report_itself_closed():
 # --------------------------------------------------------------------- #
 WIDE_SCENE_XML = SCENE_XML.replace(
     '<geom name="payload_geom" type="box" size="0.02 0.015 0.02"/>',
-    # Eine breite Scheibe UNTEN, ein schmaler Knauf OBEN -- der Deckel im
-    # Kleinen.  Die Backen stehen auf Hoehe des Knaufs.
+    # Eine breite Scheibe UNTEN, ein schmaler Knauf OBEN -- der Deckel im Kleinen.  Die Backen stehen auf Hoehe des
+    # Knaufs.
     '<geom name="payload_disc" type="box" size="0.09 0.09 0.008"'
     ' pos="0 0 -0.042"/>'
     '<geom name="payload_knob" type="box" size="0.015 0.015 0.042"'
@@ -361,8 +351,8 @@ WIDE_SCENE_XML = SCENE_XML.replace(
 
 class _WideSim(_GraspSim):
     def register_graspables(self) -> None:
-        # Die Huelle ist die des ganzen Koerpers -- 180 mm breit.  Genau
-        # diese Zahl darf die Fangbedingung NICHT mehr benutzen.
+        # Die Huelle ist die des ganzen Koerpers -- 180 mm breit.  Genau diese Zahl darf die Fangbedingung NICHT mehr
+        # benutzen.
         self.register_graspable("payload", "payload_free", self._body_id("payload"), np.array([0.09, 0.09, 0.05]))
 
 
@@ -392,9 +382,8 @@ def test_a_narrow_feature_is_grasped_even_when_the_whole_body_is_wide():
 def test_the_captured_span_is_the_local_one_not_the_bounding_box():
     """Die Backenweite beim Loslassen richtet sich nach dem Gegriffenen.
 
-    Mit der Huellquader-Spanne oeffnete der Greifer auf 180 mm -- weiter
-    als sein Gang, und weiter als noetig -- genau die Beobachtung, aus der
-    die Freigabeweite entstanden ist.
+    Mit der Huellquader-Spanne oeffnete der Greifer auf 180 mm -- weiter als sein Gang, und weiter als noetig -- genau
+    die Beobachtung, aus der die Freigabeweite entstanden ist.
     """
     sim = _build_wide()
     _approach(sim)
@@ -406,8 +395,7 @@ def test_the_captured_span_is_the_local_one_not_the_bounding_box():
 def test_a_body_that_is_wide_everywhere_is_still_refused():
     """Die Gegenprobe: ohne schmale Stelle bleibt es beim Nein.
 
-    Ohne sie koennte die Aenderung schlicht jede Pruefung abgeschafft
-    haben, und der Test darueber bestuende trotzdem.
+    Ohne sie koennte die Aenderung schlicht jede Pruefung abgeschafft haben, und der Test darueber bestuende trotzdem.
     """
     xml = SCENE_XML.replace(
         '<geom name="payload_geom" type="box" size="0.02 0.015 0.02"/>',
@@ -473,9 +461,8 @@ def test_the_pads_square_a_tilted_object_upright():
 def test_squaring_snaps_to_the_NEAREST_axis_not_to_upright():
     """Ein LIEGENDER Koerper bleibt liegen.
 
-    Wer stur auf senkrecht schnappt, stellt einen liegenden Stift beim
-    Griff auf -- eine Bewegung, die es nicht gibt, und der Marker der
-    Vorstudie liegt in zwei von drei Zellen.
+    Wer stur auf senkrecht schnappt, stellt einen liegenden Stift beim Griff auf -- eine Bewegung, die es nicht gibt,
+    und der Marker der Vorstudie liegt in zwei von drei Zellen.
     """
     sim = _build()
     _set_payload_tilt(sim, np.radians(88.0))  # fast waagerecht
@@ -520,9 +507,8 @@ def test_without_a_grasp_there_is_no_gap_to_report():
 def test_the_check_sees_a_body_the_pads_pass_through():
     """Die eigentliche Zusicherung: Durchdringung faellt auf.
 
-    Ohne sie meldete ein Griff, bei dem die Pads mitten IM Koerper
-    stehen, denselben Spalt wie ein sauberer -- und die Studie zaehlte
-    ihn als Erfolg.
+    Ohne sie meldete ein Griff, bei dem die Pads mitten IM Koerper stehen, denselben Spalt wie ein sauberer -- und die
+    Studie zaehlte ihn als Erfolg.
     """
     sim = _build()
     _approach(sim)
@@ -589,9 +575,8 @@ def test_without_a_grasp_there_is_no_misalignment_to_report():
 def test_the_grip_reference_follows_the_real_body_not_its_upright_hull():
     """Der Greifpunkt kommt aus der WELT, nicht aus der Koerperframe-AABB.
 
-    Die Messung dazu steht im Abschnittskopf darueber.  Geprueft wird hier der
-    Bezugspunkt selbst: der synthetische Aufbau hat keine Backen, die auf eine
-    Weite stoppen, und kann den Spalt deshalb nicht zeigen.
+    Die Messung dazu steht im Abschnittskopf darueber.  Geprueft wird hier der Bezugspunkt selbst: der synthetische
+    Aufbau hat keine Backen, die auf eine Weite stoppen, und kann den Spalt deshalb nicht zeigen.
     """
     xml = SCENE_XML.replace(
         '<geom name="payload_geom" type="box" size="0.02 0.015 0.02"/>',
@@ -601,9 +586,8 @@ def test_the_grip_reference_follows_the_real_body_not_its_upright_hull():
 
     class _FlatSim(_GraspSim):
         def register_graspables(self) -> None:
-            # Die Huelle behauptet 7 cm halbe Hoehe, der Koerper hat
-            # 0,5 cm -- genau die Lage des LIEGENDEN Markers, dessen AABB
-            # im Koerperframe seine Laenge als Hoehe fuehrt.
+            # Die Huelle behauptet 7 cm halbe Hoehe, der Koerper hat 0,5 cm -- genau die Lage des LIEGENDEN Markers,
+            # dessen AABB im Koerperframe seine Laenge als Hoehe fuehrt.
             self.register_graspable("payload", "payload_free", self._body_id("payload"), np.array([0.02, 0.015, 0.07]))
 
     sim = _FlatSim(
@@ -618,9 +602,8 @@ def test_the_grip_reference_follows_the_real_body_not_its_upright_hull():
     entry = sim._graspable["payload"]
     ref = sim._grip_reference(entry)
     top = float(sim.data.xpos[entry["body"]][2]) + 0.005
-    # Der Bezugspunkt muss in der Naehe des Koerpers liegen, nicht 50 mm
-    # darueber -- so weit wanderte er, als er aus der aufrechten Huelle
-    # (halbe Hoehe 70 mm) gerechnet wurde.
+    # Der Bezugspunkt muss in der Naehe des Koerpers liegen, nicht 50 mm darueber -- so weit wanderte er, als er aus der
+    # aufrechten Huelle (halbe Hoehe 70 mm) gerechnet wurde.
     assert abs(float(ref[2]) - top) < 0.03, (
         f"Greifpunkt bei {float(ref[2]):.3f}, echte Oberkante {top:.3f} -- "
         f"er folgt der aufrechten Huelle statt dem Koerper"
@@ -690,12 +673,9 @@ def test_the_limit_stays_inside_the_geometric_capture_window():
 def test_the_yaw_path_keeps_its_long_standing_tolerance():
     """Der GIERWINKEL bleibt, wie er war -- und zwar mit Grund.
 
-    Mit 15 Grad probiert: sieben Bestandstests rot,
-    darunter die Golden-Spur des Wuerfelturms.  Der Pfad ist alt,
-    gepinnt und in der Studie mit hoechstens 2,1 Grad gemessen; ihn
-    enger zu ziehen aenderte Ergebnisse aus einem Grund, der mit der
-    Frage nichts zu tun hat.  Begrenzt wird der NEUE Pfad, der gar keine
-    Grenze hatte.
+    Mit 15 Grad probiert: sieben Bestandstests rot, darunter die Golden-Spur des Wuerfelturms.  Der Pfad ist alt,
+    gepinnt und in der Studie mit hoechstens 2,1 Grad gemessen; ihn enger zu ziehen aenderte Ergebnisse aus einem Grund,
+    der mit der Frage nichts zu tun hat.  Begrenzt wird der NEUE Pfad, der gar keine Grenze hatte.
     """
     from twinlink.task_sim import GRASP_MAX_MISALIGN_DEG
 
@@ -765,13 +745,11 @@ def test_a_carried_object_clear_of_the_world_reports_a_positive_gap():
 def test_a_carried_object_driven_into_the_world_reports_no_gap_left():
     """Der eigentliche Fall: der echte Koerper faehrt durch echtes Zeug.
 
-    Ohne diese Zusicherung koennte die Pruefung schlicht immer positiv
-    melden, und der Test darueber bestuende trotzdem.
+    Ohne diese Zusicherung koennte die Pruefung schlicht immer positiv melden, und der Test darueber bestuende trotzdem.
     """
-    # Die Wand steht ABSEITS -- zwei ueberlappende Koerper stiessen sich
-    # vor dem Griff sonst physikalisch ab, und der Aufbau waere
-    # unphysikalisch.  Hineingefahren wird erst der GETRAGENE Koerper,
-    # dessen Kontakte aus sind: genau der Fall, den niemand bemerkt.
+    # Die Wand steht ABSEITS -- zwei ueberlappende Koerper stiessen sich vor dem Griff sonst physikalisch ab, und der
+    # Aufbau waere unphysikalisch.  Hineingefahren wird erst der GETRAGENE Koerper, dessen Kontakte aus sind: genau der
+    # Fall, den niemand bemerkt.
     sim = _with_wall(0.80)
     _approach(sim)
     sim.command_gripper(close=True)
@@ -792,9 +770,8 @@ def test_without_a_carry_there_is_nothing_to_report():
 def test_the_worst_moment_of_the_carry_is_remembered():
     """Ein Abstand am Ende sagt nichts ueber die Fahrt dazwischen.
 
-    Der getragene Koerper kann mitten auf dem Weg durch ein Hindernis
-    gefahren sein und am Ziel wieder frei stehen -- gemeldet werden muss
-    der SCHLECHTESTE Moment, nicht der letzte.
+    Der getragene Koerper kann mitten auf dem Weg durch ein Hindernis gefahren sein und am Ziel wieder frei stehen --
+    gemeldet werden muss der SCHLECHTESTE Moment, nicht der letzte.
     """
     sim = _with_wall(0.80)
     _approach(sim)
@@ -821,9 +798,8 @@ def test_without_a_carry_there_is_no_worst_moment():
 # --------------------------------------------------------------------- #
 CYLINDER_XML = SCENE_XML.replace(
     '<geom name="payload_geom" type="box" size="0.02 0.015 0.02"/>',
-    # ``zaxis`` legt die Zylinderachse auf die Welt-y -- der Koerper LIEGT.
-    # ``euler`` waere hier eine Falle: MuJoCo liest es in GRAD, "1.5708"
-    # haette den Zylinder um 1,6 Grad gekippt statt ihn hinzulegen.
+    # ``zaxis`` legt die Zylinderachse auf die Welt-y -- der Koerper LIEGT. ``euler`` waere hier eine Falle: MuJoCo
+    # liest es in GRAD, "1.5708" haette den Zylinder um 1,6 Grad gekippt statt ihn hinzulegen.
     '<geom name="payload_geom" type="cylinder" size="0.015 0.05"' ' zaxis="0 1 0"/>',
 )
 
@@ -857,13 +833,10 @@ def _roles(sim, deg: float) -> None:
 def test_a_lying_cylinder_rolled_about_its_own_axis_is_still_graspable():
     """Ein Rotationskoerper hat um seine Achse keine Lage.
 
-    Gemessen am 2026-08-17 in der Suffizienz-Vorstudie: ``marker/pick``
-    scheiterte auf ALLEN Objektsprossen mit "zu stark geneigt".  Der
-    Marker lag korrekt (Zylinderachse waagerecht, Weltanteil 0,012),
-    war aber um 39,3 Grad um seine EIGENE Achse gerollt -- eine
-    Symmetrie, keine Schieflage.  ``_square_tilt`` las die diskreten
-    Koerperachsen, was fuer einen Quader richtig ist und fuer einen
-    Zylinder bedeutungslos.
+    Gemessen am 2026-08-17 in der Suffizienz-Vorstudie: ``marker/pick`` scheiterte auf ALLEN Objektsprossen mit "zu
+    stark geneigt".  Der Marker lag korrekt (Zylinderachse waagerecht, Weltanteil 0,012), war aber um 39,3 Grad um seine
+    EIGENE Achse gerollt -- eine Symmetrie, keine Schieflage.  ``_square_tilt`` las die diskreten Koerperachsen, was
+    fuer einen Quader richtig ist und fuer einen Zylinder bedeutungslos.
     """
     sim = _cylinder()
     adr = sim._graspable["payload"]["qpos"]
@@ -902,9 +875,8 @@ def test_without_a_ramp_the_fingers_are_at_their_target_after_one_tick():
 def test_a_ramp_moves_the_fingers_through_intermediate_angles():
     """Fuer ein Video muss das Zufahren SICHTBAR sein.
 
-    Ohne Rampe schreibt ``step_physics`` die Greifergelenke im ersten
-    Substep auf den Zielwert -- im Bild springt die Hand binaer auf und
-    zu.  Die Rampe aendert nur den WEG, nicht das Ziel.
+    Ohne Rampe schreibt ``step_physics`` die Greifergelenke im ersten Substep auf den Zielwert -- im Bild springt die
+    Hand binaer auf und zu.  Die Rampe aendert nur den WEG, nicht das Ziel.
     """
     sim = _with_ramp(10)
     open = sim.gripper_angle_applied()

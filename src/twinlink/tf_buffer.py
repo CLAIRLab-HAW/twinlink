@@ -1,12 +1,10 @@
 """Offline TF tree with BFS path lookup and time interpolation (no ROS).
 
-Feeds on recorded ``tf2_msgs/TFMessage`` data (rosbags/MCAP replay, foxglove
-captures) and answers "map points from frame A into frame B at time t" —
-including multi-hop chains and linear/slerp interpolation between samples.
+Feeds on recorded ``tf2_msgs/TFMessage`` data (rosbags/MCAP replay, foxglove captures) and answers "map points from
+frame A into frame B at time t" — including multi-hop chains and linear/slerp interpolation between samples.
 
-Deliberately scipy-free to keep twinlink's core dependency-light (numpy
-only); ``apps/octomap_explorer`` imports it from here rather than keeping a
-copy.
+Deliberately scipy-free to keep twinlink's core dependency-light (numpy only); ``apps/octomap_explorer`` imports it from
+here rather than keeping a copy.
 
 Note the complement in :class:`twinlink.RobotState`: the state keeps only the
 *latest* transform per edge (live-twin use); this buffer keeps *time series*
@@ -40,12 +38,10 @@ def _quat_to_matrix(q: np.ndarray) -> np.ndarray:
 def _matrix_to_quat(m: np.ndarray) -> np.ndarray:
     """3x3 rotation matrix -> xyzw quaternion (Shepperd's method).
 
-    Diese Funktion gibt es ein zweites Mal, Zeile fuer Zeile gleich:
-    ``robot_contract.twin_protocol.mat_to_quat_xyzw``.  Das ist der Preis der
-    Schichtentscheidung, dass ``twinlink`` nicht an ``robot_contract`` haengt
-    (s. ``task_sim.py``).  Damit die beiden nicht driften, vergleicht
-    ``tests/test_quat_parity_with_robot_contract.py`` sie an den heiklen
-    Zweigen -- wer hier etwas aendert, aendert es dort mit.
+    Diese Funktion gibt es ein zweites Mal, Zeile fuer Zeile gleich: ``robot_contract.twin_protocol.mat_to_quat_xyzw``.
+    Das ist der Preis der Schichtentscheidung, dass ``twinlink`` nicht an ``robot_contract`` haengt (s.
+    ``task_sim.py``).  Damit die beiden nicht driften, vergleicht ``tests/test_quat_parity_with_robot_contract.py`` sie
+    an den heiklen Zweigen -- wer hier etwas aendert, aendert es dort mit.
     """
     trace = float(np.trace(m))
     if trace > 0.0:

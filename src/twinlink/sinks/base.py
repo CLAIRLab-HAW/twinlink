@@ -1,8 +1,7 @@
 """Sink abstraction: anything that *consumes* a :class:`~twinlink.state.RobotState`.
 
-A sink pulls the current state on every tick of the bridge loop and pushes it
-into a simulator (MuJoCo, Isaac Sim, ...).  ``update()`` returns ``False`` to
-ask the bridge to stop (e.g. the viewer window was closed).
+A sink pulls the current state on every tick of the bridge loop and pushes it into a simulator (MuJoCo, Isaac Sim, ...).
+``update()`` returns ``False`` to ask the bridge to stop (e.g. the viewer window was closed).
 """
 
 from __future__ import annotations

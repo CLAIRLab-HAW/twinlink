@@ -1,8 +1,7 @@
 """RobotMapping — YAML loading, topic routing, and the ROS→state decoders.
 
-The decoders are duck-typed (they only read message attributes), so the tests
-feed lightweight namespace fakes instead of real ROS messages — no rosbags /
-rclpy needed, matching twinlink's dependency-light core.
+The decoders are duck-typed (they only read message attributes), so the tests feed lightweight namespace fakes instead
+of real ROS messages — no rosbags / rclpy needed, matching twinlink's dependency-light core.
 """
 
 import struct

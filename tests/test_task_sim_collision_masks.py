@@ -1,15 +1,13 @@
 """Regression pin: only the gripper shells become permeable, not the whole hand.
 
-Carried over from Task 10 (2026-07-31): ``TwinTaskSim._setup_collision_masks``
-must key off ``spec.gripper_prefixes`` -- the jaws/housing alone -- not
-``spec.hand_prefixes`` (gripper + wrist camera).  Swapping the two back is a
-one-word typo that leaves every suite green (nothing exercised the wrist
-camera's contact mask), yet it silently disables ``robot_obstacle_collision``
-for the camera housing: the fix that motivated this test cost a full
-debugging round because of exactly that blind spot.
+Carried over from Task 10 (2026-07-31): ``TwinTaskSim._setup_collision_masks`` must key off ``spec.gripper_prefixes`` --
+the jaws/housing alone -- not ``spec.hand_prefixes`` (gripper + wrist camera).  Swapping the two back is a one-word typo
+that leaves every suite green (nothing exercised the wrist camera's contact mask), yet it silently disables
+``robot_obstacle_collision`` for the camera housing: the fix that motivated this test cost a full debugging round
+because of exactly that blind spot.
 
-The scene is a tiny, robot- and task-free MJCF model (no URDF bundle needed --
-runs in CI), built the same way ``test_task_sim_clutter.py`` builds its scene.
+The scene is a tiny, robot- and task-free MJCF model (no URDF bundle needed -- runs in CI), built the same way
+``test_task_sim_clutter.py`` builds its scene.
 """
 
 from __future__ import annotations
@@ -91,16 +89,14 @@ def test_only_the_gripper_shell_becomes_permeable_the_wrist_camera_does_not():
         grip_gid = _first_geom_of_body(sim.model, sim._body_id("rg6_base"))
         cam_gid = _first_geom_of_body(sim.model, sim._body_id("camera_0_link"))
 
-        # The gripper shell is made permeable to graspables (see
-        # TwinTaskSim._setup_collision_masks): contype=4, conaffinity=1.
+        # The gripper shell is made permeable to graspables (see TwinTaskSim._setup_collision_masks): contype=4,
+        # conaffinity=1.
         assert int(sim.model.geom_contype[grip_gid]) == 4
         assert int(sim.model.geom_conaffinity[grip_gid]) == 1
 
-        # The wrist camera rides on the same hand assembly (it IS in
-        # hand_prefixes) but is not a jaw and must keep its ordinary robot
-        # contact mask (untouched XML defaults: contype=1, conaffinity=1) --
-        # otherwise it goes blind to obstacle contacts.  This is exactly what
-        # regresses if _setup_collision_masks is changed to key off
+        # The wrist camera rides on the same hand assembly (it IS in hand_prefixes) but is not a jaw and must keep its
+        # ordinary robot contact mask (untouched XML defaults: contype=1, conaffinity=1) -- otherwise it goes blind to
+        # obstacle contacts.  This is exactly what regresses if _setup_collision_masks is changed to key off
         # spec.hand_prefixes instead of spec.gripper_prefixes.
         assert int(sim.model.geom_contype[cam_gid]) == 1
         assert int(sim.model.geom_conaffinity[cam_gid]) == 1
@@ -186,26 +182,21 @@ def _build_pool_sim() -> _PoolSim:
 def test_perceived_obstacle_does_not_shove_the_object_it_mirrors():
     """A pool slot is a PERCEPTION of a body -- it must not push that body.
 
-    In sim, every perceived obstacle over a dynamic object is written on top
-    of the very body it was perceived from: the depth pipeline sees the
-    authored distractor, the tracker mirrors it into the pool, and the slot
-    lands exactly on the free-jointed original.  With ordinary contacts
-    (contype/conaffinity 1/1) the solver resolves that overlap by ejecting
-    the real body out from under its own ghost -- on the first physics step
-    after the sync, before the arm has moved at all.  Measured 2026-08-12 in
-    ``instructed_demo.py --pre-clear 'orange box'``: the 0.10x0.05x0.12
-    distractor was shot 77 mm sideways and toppled, so ClearObstacleSkill
-    descended onto empty air and reported "grasp failed (nothing between the
-    pads)" -- while perception, grounding and pad alignment were all correct.
+    In sim, every perceived obstacle over a dynamic object is written on top of the very body it was perceived from: the
+    depth pipeline sees the authored distractor, the tracker mirrors it into the pool, and the slot lands exactly on the
+    free-jointed original.  With ordinary contacts (contype/conaffinity 1/1) the solver resolves that overlap by
+    ejecting the real body out from under its own ghost -- on the first physics step after the sync, before the arm has
+    moved at all.  Measured 2026-08-12 in ``instructed_demo.py --pre-clear 'orange box'``: the 0.10x0.05x0.12 distractor
+    was shot 77 mm sideways and toppled, so ClearObstacleSkill descended onto empty air and reported "grasp failed
+    (nothing between the pads)" -- while perception, grounding and pad alignment were all correct.
 
-    Same reasoning as the gripper shells above (``_setup_collision_masks``):
-    a representation must not exert force on what it represents.
+    Same reasoning as the gripper shells above (``_setup_collision_masks``): a representation must not exert force on
+    what it represents.
     """
     sim = _build_pool_sim()
     try:
         before = sim.data.qpos[sim._graspable["payload"]["qpos"] :][:3].copy()
-        # Perceive the payload exactly where it stands -- what the obstacle
-        # pipeline does every survey.
+        # Perceive the payload exactly where it stands -- what the obstacle pipeline does every survey.
         assert sim.set_obstacles([_Box(PAYLOAD_POS, 2.0 * PAYLOAD_HALF)]) == 1
         sim.step_physics(20)
         after = sim.data.qpos[sim._graspable["payload"]["qpos"] :][:3].copy()
@@ -218,10 +209,9 @@ def test_perceived_obstacle_does_not_shove_the_object_it_mirrors():
 def test_active_pool_slot_still_collides_with_the_arm():
     """The pool exists to be hit BY THE ROBOT -- that must survive the fix.
 
-    ``arm_config_collides`` (client-side IK goal gate) and
-    ``robot_obstacle_collision`` both read contacts between manipulator geoms
-    and pool slots.  A mask change that silences pool contacts wholesale
-    would fix the shoving above and blind the gate at the same time.
+    ``arm_config_collides`` (client-side IK goal gate) and ``robot_obstacle_collision`` both read contacts between
+    manipulator geoms and pool slots.  A mask change that silences pool contacts wholesale would fix the shoving above
+    and blind the gate at the same time.
     """
     sim = _build_pool_sim()
     try:

@@ -1,8 +1,7 @@
 """Build a MuJoCo model from a generic URDF.
 
-MuJoCo's URDF importer is solid but several things trip it up on real robot
-descriptions; this helper papers over all of them so an arbitrary robot URDF
-"just loads":
+MuJoCo's URDF importer is solid but several things trip it up on real robot descriptions; this helper papers over all of
+them so an arbitrary robot URDF "just loads":
 
 1. ``<gazebo>`` / ``<transmission>`` blocks are stripped.
 2. Meshes are routed through a cache with **globally unique names**.  This is
@@ -335,11 +334,9 @@ def _geom_lowest_z(model, data, gid: int) -> float:
 def _ground_welded_robot(worldbody: ET.Element, model, data) -> float:
     """Raise the welded robot so its lowest geom rests on the z=0 ground plane.
 
-    Measures over ALL geoms, not just colliding ones: visual-only loads
-    (``keep_visual`` without ``with_collision``) carry no contact geometry at
-    all, and for full loads the collision hull bottoms out at the same height
-    as the wheels' visual meshes.  Returns the applied shift (0.0 if the model
-    already rests on or above the ground).
+    Measures over ALL geoms, not just colliding ones: visual-only loads (``keep_visual`` without ``with_collision``)
+    carry no contact geometry at all, and for full loads the collision hull bottoms out at the same height as the
+    wheels' visual meshes.  Returns the applied shift (0.0 if the model already rests on or above the ground).
     """
     import mujoco
 
@@ -439,9 +436,8 @@ def load_mujoco_from_urdf(
         mujoco.mj_saveLastXML(tmp_xml, model)
         mjcf = ET.parse(tmp_xml)
         if add_ground and not floating_base:
-            # Welded base: raise the robot so it stands ON the ground plane
-            # instead of half-sinking its wheels (a floating base settles under
-            # gravity / is driven from odometry and needs no static grounding).
+            # Welded base: raise the robot so it stands ON the ground plane instead of half-sinking its wheels (a
+            # floating base settles under gravity / is driven from odometry and needs no static grounding).
             data = mujoco.MjData(model)
             mujoco.mj_forward(model, data)
             _ground_welded_robot(mjcf.getroot().find("worldbody"), model, data)

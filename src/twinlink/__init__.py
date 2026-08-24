@@ -1,8 +1,7 @@
 """TwinLink -- a robot-agnostic bridge from a real robot to a digital twin.
 
-TwinLink keeps an in-memory :class:`RobotState` that mirrors the live robot and
-feeds it into simulation environments (MuJoCo today, Isaac Sim next).  The state
-can be filled from three interchangeable *sources*:
+TwinLink keeps an in-memory :class:`RobotState` that mirrors the live robot and feeds it into simulation environments
+(MuJoCo today, Isaac Sim next).  The state can be filled from three interchangeable *sources*:
 
 * :class:`~twinlink.sources.ros2.Ros2Source`       -- live ROS 2 topics,
 * :class:`McapSource`       -- a recorded MCAP / rosbag2 (mock mode),
@@ -49,8 +48,8 @@ __all__ = [
     "CameraFrame",
     "McapSource",
     "UrdfStaticSource",
-    # lazily exported (optional deps): Ros2Source, FoxgloveSource, ZenohSource,
-    # ZenohUplink, ZenohPublisher, MujocoSink, IsaacSimSink, load_mujoco_from_urdf
+    # lazily exported (optional deps): Ros2Source, FoxgloveSource, ZenohSource, ZenohUplink, ZenohPublisher, MujocoSink,
+    # IsaacSimSink, load_mujoco_from_urdf
 ]
 
 

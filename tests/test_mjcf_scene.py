@@ -1,10 +1,8 @@
 """Scene-furniture body-name prefix is a call-time parameter, not a constant.
 
-twinlink is a robot- AND app-agnostic package -- it must not bake in the
-name of any particular task app.  As a module constant, every prefix
-(``hrl_obstacle_``, ``hrl_distractor_``) would fit only hrl, and a second app
-authoring its own obstacle pool would collide with hrl's body names in a
-shared model.
+twinlink is a robot- AND app-agnostic package -- it must not bake in the name of any particular task app.  As a module
+constant, every prefix (``hrl_obstacle_``, ``hrl_distractor_``) would fit only hrl, and a second app authoring its own
+obstacle pool would collide with hrl's body names in a shared model.
 """
 
 from __future__ import annotations

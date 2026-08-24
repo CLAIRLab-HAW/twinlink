@@ -1,26 +1,20 @@
 """``_matrix_to_quat`` gibt es zweimal im Workspace -- sie duerfen nicht driften.
 
-``twinlink.tf_buffer._matrix_to_quat`` und
-``robot_contract.twin_protocol.mat_to_quat_xyzw`` sind Zeile fuer Zeile
-dieselbe Shepperd-Implementierung, gleiche Konvention (xyzw), gleiche
-Verzweigung ueber die groesste Diagonale -- letztere gewaehlt, weil sie bei
-180-Grad-Drehungen (Spur -1) stabil bleibt, und das ist JEDE Top-Down-
-Greifmatrix.
+``twinlink.tf_buffer._matrix_to_quat`` und ``robot_contract.twin_protocol.mat_to_quat_xyzw`` sind Zeile fuer Zeile
+dieselbe Shepperd-Implementierung, gleiche Konvention (xyzw), gleiche Verzweigung ueber die groesste Diagonale --
+letztere gewaehlt, weil sie bei 180-Grad-Drehungen (Spur -1) stabil bleibt, und das ist JEDE Top-Down- Greifmatrix.
 
-Die Dopplung ist kein Versehen, sondern der Preis einer bewussten
-Schichtentscheidung: ``twinlink`` haengt absichtlich NICHT an
-``robot_contract`` (siehe ``task_sim.py``, dort ausdruecklich kommentiert).
-Solange diese Entscheidung steht, bleiben beide Fassungen -- aber sie duerfen
-sich nicht auseinanderentwickeln, denn dann rechnet der Zwilling anders als
+Die Dopplung ist kein Versehen, sondern der Preis einer bewussten Schichtentscheidung: ``twinlink`` haengt absichtlich
+NICHT an ``robot_contract`` (siehe ``task_sim.py``, dort ausdruecklich kommentiert). Solange diese Entscheidung steht,
+bleiben beide Fassungen -- aber sie duerfen sich nicht auseinanderentwickeln, denn dann rechnet der Zwilling anders als
 der Draht, und die Abweichung faellt erst an einer schiefen Greifpose auf.
 
 Ein Querverweis im Kommentar waere dafuer kein Mechanismus (vgl.
-``deploy/husky-offboard/tests/test_guard_single_source.py``).  Dieser Test
-ist einer: er vergleicht die beiden Fassungen an Matrizen, die genau die
-heiklen Zweige treffen.
+``deploy/husky-offboard/tests/test_guard_single_source.py``).  Dieser Test ist einer: er vergleicht die beiden Fassungen
+an Matrizen, die genau die heiklen Zweige treffen.
 
-Er ueberspringt sich sauber, wenn ``robot_contract`` fehlt -- in twinlinks
-eigener CI ist das der Normalfall und gerade der Punkt der Schichtentscheidung.
+Er ueberspringt sich sauber, wenn ``robot_contract`` fehlt -- in twinlinks eigener CI ist das der Normalfall und gerade
+der Punkt der Schichtentscheidung.
 """
 
 import numpy as np
@@ -65,8 +59,7 @@ def test_both_implementations_agree(name):
     m = MATRICES[name]
     a = np.asarray(_matrix_to_quat(m), float)
     b = np.asarray(tp.mat_to_quat_xyzw(m), float)
-    # q und -q sind dieselbe Drehung -- verglichen wird die Drehung, nicht das
-    # Vorzeichen.
+    # q und -q sind dieselbe Drehung -- verglichen wird die Drehung, nicht das Vorzeichen.
     if float(np.dot(a, b)) < 0.0:
         b = -b
     assert a == pytest.approx(b, abs=1e-9), (

@@ -1,17 +1,14 @@
 """Live source over the Foxglove WebSocket protocol (no ROS install needed).
 
-This is the no-ROS sibling of :class:`~twinlink.sources.ros2.Ros2Source`: instead of ``rclpy`` it
-talks to a ``foxglove_bridge`` (which the robot / offboard container already
-runs) over a WebSocket and decodes the CDR payloads itself -- exactly the same
-bytes a ROS 2 publisher puts on the wire, deserialized with the same path as the
-MCAP source. So a digital twin can mirror a *live* robot from a laptop that has
-no ROS 2.
+This is the no-ROS sibling of :class:`~twinlink.sources.ros2.Ros2Source`: instead of ``rclpy`` it talks to a
+``foxglove_bridge`` (which the robot / offboard container already runs) over a WebSocket and decodes the CDR payloads
+itself -- exactly the same bytes a ROS 2 publisher puts on the wire, deserialized with the same path as the MCAP source.
+So a digital twin can mirror a *live* robot from a laptop that has no ROS 2.
 
     foxglove_bridge ──ws (CDR)──▶ FoxgloveSource ──▶ RobotState ──▶ MujocoSink
 
-Transport is the ``websockets`` library (its synchronous client) -- the same one
-Foxglove Studio and the official Foxglove Python SDK use, so its handshake
-(subprotocol + permessage-deflate) is what ``foxglove_bridge`` expects.
+Transport is the ``websockets`` library (its synchronous client) -- the same one Foxglove Studio and the official
+Foxglove Python SDK use, so its handshake (subprotocol + permessage-deflate) is what ``foxglove_bridge`` expects.
 
 Protocol: https://github.com/foxglove/ws-protocol. We offer both subprotocols
 ``foxglove.websocket.v1`` (classic) and ``foxglove.sdk.v1`` (new SDK-based
@@ -37,14 +34,13 @@ log = logging.getLogger("twinlink.foxglove")
 
 _OP_MESSAGE_DATA = 0x01  # server binary opcode: [op][subId u32][recvTime u64][payload]
 _OP_CLIENT_MESSAGE_DATA = 0x01  # client binary opcode: [op][channelId u32][payload]
-# Offer both: the classic ws-protocol name and the newer Foxglove SDK name.
-# foxglove_bridge 3.x is built on the new SDK and only accepts "foxglove.sdk.v1"
-# (rejecting v1-only clients with a misleading "missing subprotocol" 400); older
+# Offer both: the classic ws-protocol name and the newer Foxglove SDK name. foxglove_bridge 3.x is built on the new SDK
+# and only accepts "foxglove.sdk.v1" (rejecting v1-only clients with a misleading "missing subprotocol" 400); older
 # bridges speak "foxglove.websocket.v1". Both share the same message wire format.
 _SUBPROTOCOLS = ["foxglove.websocket.v1", "foxglove.sdk.v1"]
 
-# Concatenated ros2msg schema for sensor_msgs/JointState — passed on client
-# advertise so the bridge knows the type when relaying our uplink onto a ROS topic.
+# Concatenated ros2msg schema for sensor_msgs/JointState — passed on client advertise so the bridge knows the type when
+# relaying our uplink onto a ROS topic.
 JOINTSTATE_SCHEMA = """std_msgs/Header header
 string[] name
 float64[] position
@@ -64,10 +60,9 @@ uint32 nanosec
 def parse_message_data(data: bytes) -> Optional[Tuple[int, float, bytes]]:
     """Parse a binary server frame; return ``(sub_id, recv_stamp, cdr_payload)``.
 
-    ``recv_stamp`` is the bridge's receive timestamp converted to epoch
-    seconds (the u64 nanoseconds at bytes 5..13 of a MessageData frame) --
-    it dates the message *at the bridge*, so a consumer can split
-    sensor->bridge from bridge->client latency.  Returns ``None`` for
+    ``recv_stamp`` is the bridge's receive timestamp converted to epoch seconds (the u64 nanoseconds at bytes 5..13 of a
+    MessageData frame) -- it dates the message *at the bridge*, so a consumer can split sensor->bridge from
+    bridge->client latency.  Returns ``None`` for
     non-``MessageData`` frames. Pure/testable."""
     if not data or data[0] != _OP_MESSAGE_DATA or len(data) < 13:
         return None
@@ -79,9 +74,9 @@ def parse_message_data(data: bytes) -> Optional[Tuple[int, float, bytes]]:
 def _parse_concatenated_msg(root_type: str, schema: str) -> dict:
     """Parse a foxglove/ROS concatenated ros2msg schema into rosbags types.
 
-    The schema is the root message's fields followed by ``MSG: pkg/Type`` sections
-    for each dependency (separated by ``===`` lines). Returns a name->typedef dict
-    ready for ``typestore.register(...)`` (handles moveit_msgs etc. that rosbags
+    The schema is the root message's fields followed by ``MSG: pkg/Type`` sections for each dependency (separated by
+    ``===`` lines). Returns a name->typedef dict ready for ``typestore.register(...)`` (handles moveit_msgs etc. that
+    rosbags
     doesn't ship)."""
     from rosbags.typesys import get_types_from_msg
 
@@ -161,9 +156,8 @@ class FoxgloveSource(StateSource):
         self._sub_map: Dict[int, Tuple[str, str, int]] = {}  # subId -> (topic, msgtype, channelId)
         self._next_sub = 0
         self._decode_errors: set = set()  # topics whose first decode failure was logged
-        # Ingest telemetry: message counts + last bridge->client lag per topic,
-        # logged every _STAT_PERIOD seconds (DEBUG).  A growing lag means the
-        # receive loop is falling behind the wire rate.
+        # Ingest telemetry: message counts + last bridge->client lag per topic, logged every _STAT_PERIOD seconds
+        # (DEBUG).  A growing lag means the receive loop is falling behind the wire rate.
         self._stat_counts: Dict[str, int] = {}
         self._stat_lag: Dict[str, float] = {}
         self._stat_t0 = time.monotonic()
@@ -324,9 +318,8 @@ class FoxgloveSource(StateSource):
             msg = self._typestore.deserialize_cdr(payload, msgtype)
             self.mapping.apply(topic, msgtype, msg, self.state, recv_stamp=recv_stamp)
         except Exception as exc:
-            # Log the first failure per topic at WARNING (silent DEBUG hides
-            # misconfigured compressed-image codecs behind "camera not ready"),
-            # then stay quiet so a persistently-bad topic doesn't spam.
+            # Log the first failure per topic at WARNING (silent DEBUG hides misconfigured compressed-image codecs
+            # behind "camera not ready"), then stay quiet so a persistently-bad topic doesn't spam.
             if topic not in self._decode_errors:
                 self._decode_errors.add(topic)
                 log.warning("decode failed on %s [%s]: %s (once)", topic, msgtype, exc)
@@ -337,17 +330,15 @@ class FoxgloveSource(StateSource):
 class FoxglovePublisher:
     """Publish ROS messages onto a topic *through* a foxglove_bridge (uplink).
 
-    The write-side counterpart of :class:`FoxgloveSource`: it advertises one
-    client channel and sends CDR-encoded messages on it, so a client with **no
-    ROS install** (e.g. a workstation) can publish onto a real ROS topic via the bridge.
-    This is what turns the WebSocket transport bidirectional -- e.g. a digital
-    twin sending a planning goal back to MoveIt.
+    The write-side counterpart of :class:`FoxgloveSource`: it advertises one client channel and sends CDR-encoded
+    messages on it, so a client with **no ROS install** (e.g. a workstation) can publish onto a real ROS topic via the
+    bridge. This is what turns the WebSocket transport bidirectional -- e.g. a digital twin sending a planning goal back
+    to MoveIt.
 
         FoxglovePublisher ──ws (client message data)──▶ foxglove_bridge ──▶ ROS topic
 
-    Requires the bridge's ``clientPublish`` capability (on by default). Build
-    messages with :attr:`typestore` (``pub.typestore.types[name](...)``), then
-    call :meth:`publish`.
+    Requires the bridge's ``clientPublish`` capability (on by default). Build messages with :attr:`typestore`
+    (``pub.typestore.types[name](...)``), then call :meth:`publish`.
     """
 
     def __init__(

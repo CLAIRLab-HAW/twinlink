@@ -1,14 +1,12 @@
 """MuJoCo digital-twin sink.
 
-Drives a MuJoCo model from a :class:`~twinlink.state.RobotState`: every joint in the state that
-also exists in the model is written to ``qpos`` by name, an optional free joint
-is driven from the base pose, ``mj_forward`` updates the kinematics, and the
-scene is rendered.  Robot-agnostic -- it only needs joint-name correspondence
-between the state and the model.
+Drives a MuJoCo model from a :class:`~twinlink.state.RobotState`: every joint in the state that also exists in the model
+is written to ``qpos`` by name, an optional free joint is driven from the base pose, ``mj_forward`` updates the
+kinematics, and the scene is rendered.  Robot-agnostic -- it only needs joint-name correspondence between the state and
+the model.
 
-With ``physics=True`` the sink instead *simulates* (``mj_step``): the state's
-joints are held at their commanded values while the free base settles under
-gravity, so a robot spawned above the ground falls and comes to rest on it.
+With ``physics=True`` the sink instead *simulates* (``mj_step``): the state's joints are held at their commanded values
+while the free base settles under gravity, so a robot spawned above the ground falls and comes to rest on it.
 
 Rendering backends:
 
@@ -18,14 +16,13 @@ Rendering backends:
   to be launched with ``mjpython``.
 * ``none``      -- maintain kinematics without rendering (headless).
 
-Sensor data carried in the state is shown in a side window, so the recorded
-camera and the simulated twin are visible together.
+Sensor data carried in the state is shown in a side window, so the recorded camera and the simulated twin are visible
+together.
 
-With ``show_obstacles=True`` the free camera **auto-frames** itself on the
-union of the robot and the first obstacle cloud (see ``auto_frame``): an
-observed scene sits wherever the sensor happened to look, regularly outside a
-robot-centred view, and without this the voxels are off-screen and the overlay
-looks broken.  ``cam_distance`` / ``cam_lookat`` opt out.
+With ``show_obstacles=True`` the free camera **auto-frames** itself on the union of the robot and the first obstacle
+cloud (see ``auto_frame``): an observed scene sits wherever the sensor happened to look, regularly outside a
+robot-centred view, and without this the voxels are off-screen and the overlay looks broken.  ``cam_distance`` /
+``cam_lookat`` opt out.
 """
 
 from __future__ import annotations
@@ -43,14 +40,10 @@ from .base import StateSink
 
 log = logging.getLogger("twinlink.mujoco")
 
-# Fallback robot literals (a UR5 CB3 + OnRobot RG6 + wrist-mounted RealSense
-# on the a200-0553 profile).  ``spec=None`` (the default -- see
-# ``MujocoSink.__init__``) falls back to these so every caller that passes no
-# ``RobotSimSpec`` (``octomap_explorer``, the spact-integration-demos
-# scripts/notebooks, and hrl's own dashboard) keeps this rendering
-# behaviour.  Passing a
-# ``RobotSimSpec`` (``twinlink.task_sim``) swaps them for another robot's
-# facts.
+# Fallback robot literals (a UR5 CB3 + OnRobot RG6 + wrist-mounted RealSense on the a200-0553 profile).  ``spec=None``
+# (the default -- see ``MujocoSink.__init__``) falls back to these so every caller that passes no ``RobotSimSpec``
+# (``octomap_explorer``, the spact-integration-demos scripts/notebooks, and hrl's own dashboard) keeps this rendering
+# behaviour.  Passing a ``RobotSimSpec`` (``twinlink.task_sim``) swaps them for another robot's facts.
 _DEFAULT_MANIPULATOR_PREFIXES: Tuple[str, ...] = ("arm_0",)
 #: Exact body-name fallback for :meth:`MujocoSink._body_for_frame` when no
 #: spec is given -- the wrist camera's link, tried before the mount plate one
@@ -64,20 +57,17 @@ def _xyzw_to_wxyz(q: np.ndarray) -> np.ndarray:
     return np.array([q[3], q[0], q[1], q[2]], float)
 
 
-# ROS optical frame (z-forward, x-right, y-down) expressed in the camera *link*
-# frame (x-forward, y-left, z-up) — REP 103, rpy = (-pi/2, 0, -pi/2). Applied when
-# a point cloud's *_optical_frame isn't a model body (it's driver-only tf) and we
-# fall back to the camera link, so the cloud lands in front of the camera, not above.
+# ROS optical frame (z-forward, x-right, y-down) expressed in the camera *link* frame (x-forward, y-left, z-up) — REP
+# 103, rpy = (-pi/2, 0, -pi/2). Applied when a point cloud's *_optical_frame isn't a model body (it's driver-only tf)
+# and we fall back to the camera link, so the cloud lands in front of the camera, not above.
 _R_LINK_FROM_OPTICAL = np.array([[0.0, 0.0, 1.0], [-1.0, 0.0, 0.0], [0.0, -1.0, 0.0]])
 
-# Free-camera fallbacks, used for whichever cam_* argument the caller left out.
-# Framed on the robot: right for a plain kinematic twin, too tight once an
-# obstacle cloud several metres away joins the scene -- hence auto_frame.
+# Free-camera fallbacks, used for whichever cam_* argument the caller left out. Framed on the robot: right for a plain
+# kinematic twin, too tight once an obstacle cloud several metres away joins the scene -- hence auto_frame.
 _CAM_DEFAULT_DISTANCE = 2.5
 _CAM_DEFAULT_AZIMUTH = 135.0
 _CAM_DEFAULT_ELEVATION = -20.0
-# Padding on the auto-framed bounding sphere, so the outermost voxels don't sit
-# exactly on the image border.
+# Padding on the auto-framed bounding sphere, so the outermost voxels don't sit exactly on the image border.
 _AUTO_FRAME_MARGIN = 1.15
 
 
@@ -143,10 +133,9 @@ class MujocoSink(StateSink):
         self.cam_azimuth = _CAM_DEFAULT_AZIMUTH if cam_azimuth is None else float(cam_azimuth)
         self.cam_elevation = _CAM_DEFAULT_ELEVATION if cam_elevation is None else float(cam_elevation)
         self.cam_lookat = cam_lookat
-        # Auto-framing only ever touches lookat + distance, so an explicit value
-        # for either one is taken as "the caller has framed this deliberately".
-        # azimuth/elevation stay free: framing the whole bounding sphere works
-        # from any viewing direction.
+        # Auto-framing only ever touches lookat + distance, so an explicit value for either one is taken as "the caller
+        # has framed this deliberately". azimuth/elevation stay free: framing the whole bounding sphere works from any
+        # viewing direction.
         self.auto_frame = (
             bool(show_obstacles and cam_distance is None and cam_lookat is None)
             if auto_frame is None
@@ -168,8 +157,8 @@ class MujocoSink(StateSink):
         self._viewer = None
         self._mjcam = None
         self._last_snapshot = -1e9
-        # Plain ASCII: OpenCV's macOS Cocoa backend mojibakes non-ASCII window
-        # titles (e.g. an em-dash renders as "â€""), so avoid Unicode here.
+        # Plain ASCII: OpenCV's macOS Cocoa backend mojibakes non-ASCII window titles (e.g. an em-dash renders as
+        # "â€""), so avoid Unicode here.
         self._win_main = "TwinLink - MuJoCo twin"
         self._win_cam = "TwinLink - sensor camera"
         self._frame_body: Dict[str, int] = {}  # cloud frame_id -> mujoco body id (cache)
@@ -188,13 +177,11 @@ class MujocoSink(StateSink):
         self._preview_state: str = "idle"
         # Slow down trajectory playback so it's visible (real traj is ~0.1s).
         self._preview_speed: float = 0.5  # 0.5 = 2x slower than real-time
-        # When True, incoming display_planned_path messages are ignored (no ghost).
-        # Set by cancel_preview() (after user confirms execution) and cleared by
-        # show_goal_preview() / unlock_ghost() (next goal starts a new cycle).
+        # When True, incoming display_planned_path messages are ignored (no ghost). Set by cancel_preview() (after user
+        # confirms execution) and cleared by show_goal_preview() / unlock_ghost() (next goal starts a new cycle).
         self._ghost_locked: bool = False
-        # When True, the planned-trajectory ghost replays in a loop instead of
-        # disappearing after one playback.  Set by the demo in safe-execute mode
-        # so the user can review the motion repeatedly until they confirm.
+        # When True, the planned-trajectory ghost replays in a loop instead of disappearing after one playback.  Set by
+        # the demo in safe-execute mode so the user can review the motion repeatedly until they confirm.
         self._loop_preview: bool = False
 
     # ------------------------------------------------------------------ #
@@ -220,8 +207,8 @@ class MujocoSink(StateSink):
         )
 
     def _hide_collision_geoms(self, mujoco) -> None:
-        # When a model carries both visual (non-colliding) and collision geoms
-        # (e.g. for physics), hide the collision ones so the render stays clean.
+        # When a model carries both visual (non-colliding) and collision geoms (e.g. for physics), hide the collision
+        # ones so the render stays clean.
         nonplane = [
             i for i in range(self.model.ngeom) if int(self.model.geom_type[i]) != int(mujoco.mjtGeom.mjGEOM_PLANE)
         ]
@@ -232,9 +219,8 @@ class MujocoSink(StateSink):
                 self.model.geom_rgba[i, 3] = 0.0
 
     def _brake_free_hinges(self, mujoco) -> None:
-        # Unlimited hinge joints are typically wheels/casters. Frictionless,
-        # they let the robot roll away after landing; give them joint friction
-        # + damping so a "parked" robot stays put (motor/gearbox holding torque).
+        # Unlimited hinge joints are typically wheels/casters. Frictionless, they let the robot roll away after landing;
+        # give them joint friction + damping so a "parked" robot stays put (motor/gearbox holding torque).
         n = 0
         for jid in range(self.model.njnt):
             if int(self.model.jnt_type[jid]) == int(mujoco.mjtJoint.mjJNT_HINGE) and not self.model.jnt_limited[jid]:
@@ -264,8 +250,8 @@ class MujocoSink(StateSink):
         return mujoco.MjModel.from_xml_path(path)
 
     def _index_joints(self, mujoco) -> None:
-        # Map every 1-DoF joint in the model by name so state joints can be
-        # written by name.  joint_remap lets the state use different names.
+        # Map every 1-DoF joint in the model by name so state joints can be written by name.  joint_remap lets the state
+        # use different names.
         single_dof = {mujoco.mjtJoint.mjJNT_HINGE, mujoco.mjtJoint.mjJNT_SLIDE}
         model_joint_adr: Dict[str, int] = {}
         model_joint_dof: Dict[str, int] = {}
@@ -309,8 +295,7 @@ class MujocoSink(StateSink):
         if self.render_mode == "none" and not self.snapshot_path:
             return
 
-        # offscreen (also used headless when a snapshot is requested). Reserve
-        # extra scene geoms for obstacle voxels.
+        # offscreen (also used headless when a snapshot is requested). Reserve extra scene geoms for obstacle voxels.
         extra = self.obstacle_max + 1000 if self.show_obstacles else 0
         self._renderer = mujoco.Renderer(self.model, self.height, self.width, max_geom=10000 + extra)
         self._mjcam = mujoco.MjvCamera()
@@ -325,19 +310,17 @@ class MujocoSink(StateSink):
     def _manipulator_prefixes(self) -> Tuple[str, ...]:
         """Body-name prefixes of the moving manipulator (arm ∪ hand ∪ gripper).
 
-        From ``spec`` when given, else the pre-spec default (see the
-        module-level ``_DEFAULT_MANIPULATOR_PREFIXES`` constant).
+        From ``spec`` when given, else the pre-spec default (see the module-level ``_DEFAULT_MANIPULATOR_PREFIXES``
+        constant).
         """
         if self.spec is not None:
             return self.spec.manipulator_prefixes
         return _DEFAULT_MANIPULATOR_PREFIXES
 
     def _guess_lookat(self, mujoco) -> np.ndarray:
-        # Centre on the arm base if present, else the model centroid.  Each
-        # manipulator prefix's root body is conventionally named
-        # "<prefix>_base_link" (URDF->MJCF convention); "_inertia" is the
-        # variant some URDF->MJCF chains emit when the base link carries its
-        # own inertial frame as a child body.  "base_link" is the
+        # Centre on the arm base if present, else the model centroid.  Each manipulator prefix's root body is
+        # conventionally named "<prefix>_base_link" (URDF->MJCF convention); "_inertia" is the variant some URDF->MJCF
+        # chains emit when the base link carries its own inertial frame as a child body.  "base_link" is the
         # robot-independent last resort (every profile names its root that).
         prefixes = self._manipulator_prefixes()
         candidates = [f"{p}_base_link" for p in prefixes] + [f"{p}_base_link_inertia" for p in prefixes] + ["base_link"]
@@ -364,10 +347,9 @@ class MujocoSink(StateSink):
     def cancel_preview(self) -> None:
         """Cancel all ghost previews and lock against new trajectory ghosts.
 
-        Called by the demo after the user confirms execution — the live motion
-        from /joint_states should NOT be ghosted, and the execute phase's
-        display_planned_path must NOT re-trigger a ghost.
-        Unlocked by the next show_goal_preview() / unlock_ghost() (new cycle).
+        Called by the demo after the user confirms execution — the live motion from /joint_states should NOT be ghosted,
+        and the execute phase's display_planned_path must NOT re-trigger a ghost. Unlocked by the next
+        show_goal_preview() / unlock_ghost() (new cycle).
         """
         self._goal_preview_pos = None
         self._goal_preview_until = 0.0
@@ -379,40 +361,35 @@ class MujocoSink(StateSink):
         """Unlock the ghost for the next planned trajectory *without* a static
         goal preview.
 
-        Unlike ``show_goal_preview()`` this does NOT render a static ghost at
-        the target pose -- only the upcoming planned-trajectory ghost will be
-        visible.  For safe-execute mode, where the user should review the
-        animated trajectory rather than a static goal pose flashing before the
-        plan arrives.
+        Unlike ``show_goal_preview()`` this does NOT render a static ghost at the target pose -- only the upcoming
+        planned-trajectory ghost will be visible.  For safe-execute mode, where the user should review the animated
+        trajectory rather than a static goal pose flashing before the plan arrives.
 
-        The current in-state trajectory is snapshotted into ``_last_traj`` so
-        ``_check_new_trajectory()`` does NOT re-pick it up as "new" the moment
-        the lock is released; otherwise the previous execution's
-        display_planned_path would flash before the new plan.
+        The current in-state trajectory is snapshotted into ``_last_traj`` so ``_check_new_trajectory()`` does NOT
+        re-pick it up as "new" the moment the lock is released; otherwise the previous execution's display_planned_path
+        would flash before the new plan.
         """
         self._goal_preview_pos = None
         self._goal_preview_until = 0.0
         self._preview_state = "idle"
         self._ghost_locked = False
-        # Snapshot whatever trajectory is currently in the state so it's not
-        # mistaken for "new" on the next _check_new_trajectory() call.
+        # Snapshot whatever trajectory is currently in the state so it's not mistaken for "new" on the next
+        # _check_new_trajectory() call.
         self._last_traj = self.state.planned_trajectory() if self.state else None
 
     def set_loop_preview(self, loop: bool) -> None:
         """Enable or disable looping of the planned-trajectory ghost preview.
 
-        When enabled, the ghost trajectory replays from the start after
-        finishing instead of disappearing.  Used in safe-execute mode so the
-        user can review the planned motion repeatedly until they confirm or skip.
+        When enabled, the ghost trajectory replays from the start after finishing instead of disappearing.  Used in
+        safe-execute mode so the user can review the planned motion repeatedly until they confirm or skip.
         """
         self._loop_preview = loop
 
     def _check_new_trajectory(self) -> None:
         """Detect a newly arrived planned trajectory and start ghost playback.
 
-        Ignored when _ghost_locked (after user confirmed execution — the
-        execute phase re-publishes display_planned_path, which should NOT
-        trigger a ghost).
+        Ignored when _ghost_locked (after user confirmed execution — the execute phase re-publishes
+        display_planned_path, which should NOT trigger a ghost).
         """
         if self._ghost_locked:
             return
@@ -433,9 +410,8 @@ class MujocoSink(StateSink):
             )
 
     def _apply_kinematics(self, mujoco) -> None:
-        # NOTE: in ghost-preview mode we do NOT move the real arm — the ghost
-        # is rendered as a separate semi-transparent overlay in _render.
-        # Only apply live joint positions.
+        # NOTE: in ghost-preview mode we do NOT move the real arm — the ghost is rendered as a separate semi-transparent
+        # overlay in _render. Only apply live joint positions.
         joints = self.state.joints()
         for name, adr in self._joint_qpos.items():
             j = joints.get(name)
@@ -476,9 +452,8 @@ class MujocoSink(StateSink):
     def show_goal_preview(self, goal_positions: Dict[str, float], name: str = "", hold: float = 1.5) -> None:
         """Set a goal pose to be rendered as a ghost overlay for ``hold`` seconds.
 
-        Called by the demo when it sends a planning goal to MoveIt — the user
-        sees the target pose *before* the planned trajectory comes back.
-        ``goal_positions`` maps joint names (as in the state) to radian values.
+        Called by the demo when it sends a planning goal to MoveIt — the user sees the target pose *before* the planned
+        trajectory comes back. ``goal_positions`` maps joint names (as in the state) to radian values.
         """
         self._goal_preview_pos = goal_positions
         self._goal_preview_until = time.monotonic() + hold
@@ -488,10 +463,9 @@ class MujocoSink(StateSink):
         self._last_traj = None
         # Unlock ghost: a new goal starts a fresh preview cycle.
         self._ghost_locked = False
-        # Do NOT call self.update() here — it would invoke cv2.imshow/waitKey
-        # from the goal-loop thread while the main render thread does the same.
-        # OpenCV is not thread-safe -> deadlock. The main loop (60 Hz) picks up
-        # the ghost within ~16 ms.
+        # Do NOT call self.update() here — it would invoke cv2.imshow/waitKey from the goal-loop thread while the main
+        # render thread does the same. OpenCV is not thread-safe -> deadlock. The main loop (60 Hz) picks up the ghost
+        # within ~16 ms.
 
     def _goal_preview_positions(self) -> Optional[Dict[str, float]]:
         """Return active goal-preview joint targets, or None if expired."""
@@ -505,12 +479,11 @@ class MujocoSink(StateSink):
     def _draw_goal_ghost(self, mujoco, scene) -> None:
         """Draw colored spheres at each arm link's position at the goal pose.
 
-        green = goal preview (target pose before planning),
-        yellow = planned trajectory (ghost playback of display_planned_path).
+        green = goal preview (target pose before planning), yellow = planned trajectory (ghost playback of
+        display_planned_path).
 
-        qpos is temporarily set to the goal, ``mj_forward`` run, the body world
-        positions read, qpos restored -- then translucent spheres are added at
-        those locations as a "where the arm is heading" indicator.
+        qpos is temporarily set to the goal, ``mj_forward`` run, the body world positions read, qpos restored -- then
+        translucent spheres are added at those locations as a "where the arm is heading" indicator.
         """
         goal = self._goal_preview_positions()
         if goal is None or self.model is None:
@@ -557,10 +530,9 @@ class MujocoSink(StateSink):
     def _draw_preview_ghost(self, mujoco, scene, preview_pos: Dict[str, float]) -> None:
         """Draw yellow spheres at each arm link during trajectory-preview playback.
 
-        Unlike ``_draw_goal_ghost`` (which uses the goal-preview positions),
-        this uses the interpolated positions from the planned trajectory that
-        ``_preview_positions`` already wrote into qpos via ``_apply_kinematics``.
-        Since qpos is already set, we just read body positions directly.
+        Unlike ``_draw_goal_ghost`` (which uses the goal-preview positions), this uses the interpolated positions from
+        the planned trajectory that ``_preview_positions`` already wrote into qpos via ``_apply_kinematics``. Since qpos
+        is already set, we just read body positions directly.
         """
         if self.model is None:
             return
@@ -586,9 +558,8 @@ class MujocoSink(StateSink):
     def _preview_positions(self) -> Optional[Dict[str, float]]:
         """Interpolated joint targets while playing the latest planned path.
 
-        Playback is slowed by ``_preview_speed`` so a 0.1s trajectory takes
-        ~0.5s to play out — long enough for the user to see the motion.
-        _preview_state is set by _check_new_trajectory (called in update()).
+        Playback is slowed by ``_preview_speed`` so a 0.1s trajectory takes ~0.5s to play out — long enough for the user
+        to see the motion. _preview_state is set by _check_new_trajectory (called in update()).
         """
         if self._preview_state != "planning":
             return None
@@ -599,8 +570,8 @@ class MujocoSink(StateSink):
         elapsed = time.monotonic() - self._traj_start
         if elapsed > scaled_duration + self.preview_hold:
             if self._loop_preview:
-                # Loop: restart from the beginning so the ghost trajectory
-                # keeps playing until the user confirms or skips.
+                # Loop: restart from the beginning so the ghost trajectory keeps playing until the user confirms or
+                # skips.
                 self._traj_start = time.monotonic()
                 elapsed = 0.0
             else:
@@ -618,12 +589,10 @@ class MujocoSink(StateSink):
     def _camera_link_candidates(self) -> Tuple[str, ...]:
         """Exact body-name fallbacks for the (usually wrist-mounted) camera.
 
-        ``spec.hand_prefixes`` is documented as "gripper + wrist-mounted
-        sensor" (see ``twinlink.task_sim.RobotSimSpec``), so it is the right
-        source for this -- tried as ``"<prefix>_link"`` then
-        ``"<prefix>_bottom_screw_frame"`` (the RealSense URDF's own link, one
-        mount step further out).  Without a spec, the pre-spec literal
-        default applies (see ``_DEFAULT_CAMERA_LINK_CANDIDATES``).
+        ``spec.hand_prefixes`` is documented as "gripper + wrist-mounted sensor" (see
+        ``twinlink.task_sim.RobotSimSpec``), so it is the right source for this -- tried as ``"<prefix>_link"`` then
+        ``"<prefix>_bottom_screw_frame"`` (the RealSense URDF's own link, one mount step further out).  Without a spec,
+        the pre-spec literal default applies (see ``_DEFAULT_CAMERA_LINK_CANDIDATES``).
         """
         if self.spec is None:
             return _DEFAULT_CAMERA_LINK_CANDIDATES
@@ -634,8 +603,8 @@ class MujocoSink(StateSink):
     def _body_for_frame(self, mujoco, frame_id: str):
         """Return (body_id, optical_fix) for a cloud frame; -1 if none found.
 
-        optical_fix means the exact frame isn't a model body (it's driver-only
-        tf) and we fell back to the camera link, so the ROS optical rotation
+        optical_fix means the exact frame isn't a model body (it's driver-only tf) and we fell back to the camera link,
+        so the ROS optical rotation
         must be applied to the points."""
         if frame_id in self._frame_body:
             return self._frame_body[frame_id]
@@ -666,8 +635,8 @@ class MujocoSink(StateSink):
     def _world_clouds(self, mujoco):
         """Yield each obstacle cloud's points in world coordinates.
 
-        Placement goes through the twin's own kinematics: the cloud's frame_id
-        is resolved to a model body, whose current pose transforms the points.
+        Placement goes through the twin's own kinematics: the cloud's frame_id is resolved to a model body, whose
+        current pose transforms the points.
         """
         for cloud in self.state.obstacles().values():
             if cloud.points is None or len(cloud.points) == 0:
@@ -710,13 +679,10 @@ class MujocoSink(StateSink):
     def _maybe_auto_frame(self, mujoco) -> None:
         """Frame the free camera on robot + obstacles, once, on the first cloud.
 
-        An obstacle cloud sits wherever the sensor looked -- in a recording that
-        can be metres off to the side, entirely outside the robot-centred
-        startup view, which makes a working overlay look broken.  So on the
-        first non-empty cloud, aim at the centre of the combined AABB and pull
-        back far enough for the enclosing sphere to fit the vertical FOV.
-        Because the *sphere* is fitted, azimuth/elevation keep the caller's
-        choice.
+        An obstacle cloud sits wherever the sensor looked -- in a recording that can be metres off to the side, entirely
+        outside the robot-centred startup view, which makes a working overlay look broken.  So on the first non-empty
+        cloud, aim at the centre of the combined AABB and pull back far enough for the enclosing sphere to fit the
+        vertical FOV. Because the *sphere* is fitted, azimuth/elevation keep the caller's choice.
 
         One-shot by design: re-framing on every cloud would fight the mouse.
         """
@@ -738,9 +704,8 @@ class MujocoSink(StateSink):
         fovy = math.radians(float(self.model.vis.global_.fovy) or 45.0)
         distance = max(radius / max(math.tan(0.5 * fovy), 1e-3) * _AUTO_FRAME_MARGIN, 0.1)
         if not (np.isfinite(lookat).all() and math.isfinite(distance)):
-            # The standard decoder drops non-finite points; a hand-filled cloud
-            # might not. Framing on a NaN would blank the render -- worse than
-            # not framing at all, so keep the startup view and say so once.
+            # The standard decoder drops non-finite points; a hand-filled cloud might not. Framing on a NaN would blank
+            # the render -- worse than not framing at all, so keep the startup view and say so once.
             log.warning("auto-frame skipped: obstacle bounds are not finite")
             self._autoframed = True
             return
@@ -805,9 +770,8 @@ class MujocoSink(StateSink):
     def _ghost_positions(self) -> Optional[Dict[str, float]]:
         """Return the joint positions for the ghost overlay, or None.
 
-        Priority: planned-trajectory preview (animated) > goal preview (static).
-        When a planned trajectory arrives, it takes over the ghost so the user
-        sees the full animated path — not just the static end pose.
+        Priority: planned-trajectory preview (animated) > goal preview (static). When a planned trajectory arrives, it
+        takes over the ghost so the user sees the full animated path — not just the static end pose.
         """
         if self.preview and self._preview_state == "planning":
             prev = self._preview_positions()
@@ -898,12 +862,10 @@ class MujocoSink(StateSink):
                 cam.azimuth = (cam.azimuth - dx * 0.3) % 360
                 cam.elevation = float(np.clip(cam.elevation - dy * 0.3, -89.0, 89.0))
         elif event in (cv2.EVENT_MOUSEWHEEL, cv2.EVENT_MOUSEHWHEEL):
-            # On the macOS Cocoa backend the wheel delta is delivered in the
-            # x/y callback args (y = vertical, x = horizontal), NOT in `flags`,
-            # which there only carries modifier keys. getMouseWheelDelta(flags)
-            # would read those modifiers as the delta and return 0, so every
-            # scroll -- regardless of direction -- hit the `else` branch and
-            # only ever zoomed out. Read the axis delta on macOS instead.
+            # On the macOS Cocoa backend the wheel delta is delivered in the x/y callback args (y = vertical, x =
+            # horizontal), NOT in `flags`, which there only carries modifier keys. getMouseWheelDelta(flags) would read
+            # those modifiers as the delta and return 0, so every scroll -- regardless of direction -- hit the `else`
+            # branch and only ever zoomed out. Read the axis delta on macOS instead.
             if sys.platform == "darwin":
                 delta = y if event == cv2.EVENT_MOUSEWHEEL else x
             elif hasattr(cv2, "getMouseWheelDelta"):

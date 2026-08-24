@@ -1,13 +1,11 @@
 """Kinematics utilities over a twin MuJoCo model (robot-agnostic).
 
-Turns Cartesian TCP targets into joint-space goals for the MoveIt interface,
-for any task app.  The class is a *kinematics utility only*: it never produces
-trajectories -- the collision-free path between configurations remains
+Turns Cartesian TCP targets into joint-space goals for the MoveIt interface, for any task app.  The class is a
+*kinematics utility only*: it never produces trajectories -- the collision-free path between configurations remains
 MoveIt's job.
 
-Robot knowledge (joint names, TCP body) comes in through the constructor --
-twinlink stays free of any robot profile; callers (e.g. ``husky_sdk.motion``)
-bind their profile values.  Runs on a private ``MjData`` scratch copy so IK
+Robot knowledge (joint names, TCP body) comes in through the constructor -- twinlink stays free of any robot profile;
+callers (e.g. ``husky_sdk.motion``) bind their profile values.  Runs on a private ``MjData`` scratch copy so IK
 iterations never disturb the live simulation state.
 """
 
@@ -29,9 +27,8 @@ _IK_DEFAULTS = {"ik_max_iters": 200, "ik_tolerance_pos": 0.004, "ik_tolerance_ro
 def top_down_grasp_matrix(yaw: float = 0.0) -> np.ndarray:
     """TCP rotation for a vertical top-down grasp with the given yaw.
 
-    Assumes a TCP frame with +z along the approach axis (e.g. the RG6's
-    ``rg6_hand_tcp``): a top-down grasp points TCP-z at the floor (-world z);
-    ``yaw`` rotates the finger axis around the world vertical.
+    Assumes a TCP frame with +z along the approach axis (e.g. the RG6's ``rg6_hand_tcp``): a top-down grasp points TCP-z
+    at the floor (-world z); ``yaw`` rotates the finger axis around the world vertical.
     """
     cz, sz = np.cos(yaw), np.sin(yaw)
     # Columns: x/y/z axes of the TCP frame in world coordinates.
@@ -80,9 +77,8 @@ class ArmIK:
     ) -> Optional[Dict[str, float]]:
         """Return arm joint positions reaching the target, or ``None``.
 
-        ``target_mat`` constrains full orientation (3x3); ``None`` solves
-        position-only.  ``seed`` initialises the search (defaults to the
-        scratch state's current arm pose).
+        ``target_mat`` constrains full orientation (3x3); ``None`` solves position-only.  ``seed`` initialises the
+        search (defaults to the scratch state's current arm pose).
         """
         mujoco = self._mujoco
         data = self._scratch

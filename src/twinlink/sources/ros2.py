@@ -1,11 +1,10 @@
 """Live ROS 2 source.
 
-Subscribes to exactly the topics named in the mapping and feeds every message
-through ``mapping.apply(...)`` -- the same path the MCAP source uses, so the
-twin behaves identically online and offline.
+Subscribes to exactly the topics named in the mapping and feeds every message through ``mapping.apply(...)`` -- the same
+path the MCAP source uses, so the twin behaves identically online and offline.
 
-``rclpy`` is imported lazily so the rest of TwinLink (and the MuJoCo/MCAP
-example) works on a machine without a ROS installation.
+``rclpy`` is imported lazily so the rest of TwinLink (and the MuJoCo/MCAP example) works on a machine without a ROS
+installation.
 
 Pluggable middleware ("BabyROS" & co.)
 --------------------------------------

@@ -1,12 +1,11 @@
 """rmw_zenoh wire-format helpers of the native uplink (ZenohPublisher path).
 
-These formats are rmw_zenoh *internals* (verified against the jazzy branch of
-ros2/rmw_zenoh — liveliness_utils.cpp, attachment_helpers.cpp, docs/design.md);
-the tests pin them so a silent change in our helpers is caught locally.  The
+These formats are rmw_zenoh *internals* (verified against the jazzy branch of ros2/rmw_zenoh — liveliness_utils.cpp,
+attachment_helpers.cpp, docs/design.md); the tests pin them so a silent change in our helpers is caught locally.  The
 golden liveliness tokens below are verbatim from the upstream design doc.
 
-Pure-python throughout: zenoh / rosbags are only needed for the optional
-cross-checks at the end (skipped when the extra is not installed).
+Pure-python throughout: zenoh / rosbags are only needed for the optional cross-checks at the end (skipped when the extra
+is not installed).
 """
 
 import struct
@@ -95,8 +94,8 @@ def test_parse_rejects_node_tokens_and_foreign_keyexprs():
 def test_attachment_layout():
     gid = bytes(range(RMW_GID_STORAGE_SIZE))
     raw = rmw_attachment_bytes(7, 1_234_567_890_123, gid)
-    # zenoh ext serializer output for (int64, int64, [u8;16]):
-    # 8 LE bytes + 8 LE bytes + LEB128 length (16 -> 0x10) + gid = 33 bytes.
+    # zenoh ext serializer output for (int64, int64, [u8;16]): 8 LE bytes + 8 LE bytes + LEB128 length (16 -> 0x10) +
+    # gid = 33 bytes.
     assert len(raw) == 33
     seq, ts = struct.unpack_from("<qq", raw)
     assert (seq, ts) == (7, 1_234_567_890_123)
@@ -155,11 +154,9 @@ def test_cdr_roundtrip_of_the_twin_types():
 def test_uplink_loopback_discovers_and_publishes():
     """The full uplink path over a real zenoh session (in-process loopback).
 
-    An rmw_zenoh-style subscriber is faked with a liveliness token + a plain
-    subscriber on the data keyexpr; the uplink must discover type+hash from
-    the token, publish CDR onto the exact keyexpr and attach a valid rmw
-    attachment.  Verifies our plumbing — the rmw side itself is covered by
-    the smoke test at the real robot.
+    An rmw_zenoh-style subscriber is faked with a liveliness token + a plain subscriber on the data keyexpr; the uplink
+    must discover type+hash from the token, publish CDR onto the exact keyexpr and attach a valid rmw attachment.
+    Verifies our plumbing — the rmw side itself is covered by the smoke test at the real robot.
     """
     zenoh = pytest.importorskip("zenoh")
     pytest.importorskip("rosbags")

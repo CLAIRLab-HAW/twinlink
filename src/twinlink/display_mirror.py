@@ -1,15 +1,12 @@
 """Mirror perceived beliefs into the MuJoCo twin (real mode, display only).
 
-Die Mechanik ist roboter- und task-agnostisch; nur *welches* Weltmodell die
-Zustände liefert, bleibt bei der App-Schicht (siehe
-``hrl.env.belief_mirror.CubeTwinMirror``).
+Die Mechanik ist roboter- und task-agnostisch; nur *welches* Weltmodell die Zustände liefert, bleibt bei der App-Schicht
+(siehe ``hrl.env.belief_mirror.CubeTwinMirror``).
 
-In ``--real`` runs the sim's object bodies are *not* physics ground truth --
-the real objects in the real world are.  Without this mirror the sim bodies
-simply stay at their random spawn poses and the dashboard twin shows the arm
-moving through a fictional scene.  The mirror closes that gap the same way
-the obstacle layer does for foreign objects: the twin *shows* what perception
-believes.
+In ``--real`` runs the sim's object bodies are *not* physics ground truth -- the real objects in the real world are.
+Without this mirror the sim bodies simply stay at their random spawn poses and the dashboard twin shows the arm moving
+through a fictional scene.  The mirror closes that gap the same way the obstacle layer does for foreign objects: the
+twin *shows* what perception believes.
 
 * a localized object is teleported to its believed pose (then obeys physics,
   i.e. settles onto the floor/stack),
@@ -20,9 +17,8 @@ believes.
 * a placed object rests at its target slot (whatever the caller's belief
   model writes there).
 
-Strictly display: never enabled in sim training (there the object bodies ARE
-the task physics and rewards read them); an app only constructs this for its
-real-camera mode, where every sim-truth check is already skipped.
+Strictly display: never enabled in sim training (there the object bodies ARE the task physics and rewards read them); an
+app only constructs this for its real-camera mode, where every sim-truth check is already skipped.
 """
 
 from __future__ import annotations
@@ -47,8 +43,8 @@ class TwinDisplayMirror:
     def sync(self, items) -> None:
         """Reconcile every item's twin body with its current believed state.
 
-        ``items`` is a sequence of ``(label, state)`` where ``state`` is
-        ``("carry",)``, ``("park", index)`` or ``("pose", position, yaw)``.
+        ``items`` is a sequence of ``(label, state)`` where ``state`` is ``("carry",)``, ``("park", index)`` or
+        ``("pose", position, yaw)``.
         """
         for label, state in items:
             try:
@@ -59,9 +55,8 @@ class TwinDisplayMirror:
     def carry(self, label: str) -> None:
         """Start the display carry the moment the real gripper confirms.
 
-        ``sync`` would only pick the carry up once the caller's belief marks
-        it grasped (after the lift); this shows the object at the gripper
-        immediately.
+        ``sync`` would only pick the carry up once the caller's belief marks it grasped (after the lift); this shows the
+        object at the gripper immediately.
         """
         try:
             self._apply(label, ("carry",))
@@ -94,9 +89,8 @@ class TwinDisplayMirror:
     def _dedup_key(state: Tuple) -> Tuple:
         """Round pose states so imperceptible perception noise is not a "change".
 
-        The actual teleport still uses the caller's exact position/yaw (see
-        ``_apply``); only the change-detection key is rounded -- a "carry" or
-        "park" marker needs no rounding, it is already exact.
+        The actual teleport still uses the caller's exact position/yaw (see ``_apply``); only the change-detection key
+        is rounded -- a "carry" or "park" marker needs no rounding, it is already exact.
         """
         if state[0] != "pose":
             return state

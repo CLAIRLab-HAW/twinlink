@@ -105,12 +105,10 @@ def test_display_carry_follows_tcp_without_events():
         events = sim.step_physics(5)
         tcp, _mat = sim.tcp_pose()
         assert float(np.linalg.norm(sim.object_position("believed") - tcp)) < 0.10
-        # A display carry must never look like a real grasp/drop to a
-        # consumer watching sim EVENTS -- only the real gripper feedback
-        # (real mode) or the kinematic grasp (sim mode) may raise those.
-        # (The internal _grasped bookkeeping above is deliberately shared
-        # with the real carry machinery; only the event accumulator is
-        # exempt -- see TwinTaskSim.display_carry's docstring.)
+        # A display carry must never look like a real grasp/drop to a consumer watching sim EVENTS -- only the real
+        # gripper feedback (real mode) or the kinematic grasp (sim mode) may raise those. (The internal _grasped
+        # bookkeeping above is deliberately shared with the real carry machinery; only the event accumulator is exempt
+        # -- see TwinTaskSim.display_carry's docstring.)
         assert events.grasp_acquired is None and events.grasp_lost is None
     finally:
         sim.close()

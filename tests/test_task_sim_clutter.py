@@ -1,14 +1,11 @@
 """Regressionsschutz: greifbare Hindernisse bleiben Hindernisse.
 
-Hintergrund: parkt ``arm_config_collides`` *alle* registrierten Greifbaren aus
-dem Scratch-Modell weg -- auch die, die zugleich als Hindernis klassifiziert
-sind (Pool-Slots, gescriptete Clutter, die ein Task zum Greifziel erklärt) --,
-sieht das Gate genau die Objekte nie, für die es existiert; ``settle`` wartet
-umgekehrt auf Szenen-Clutter, das gar nicht zur Nutzlast gehört.  Von selbst
-bemerkt das keine Suite.
+Hintergrund: parkt ``arm_config_collides`` *alle* registrierten Greifbaren aus dem Scratch-Modell weg -- auch die, die
+zugleich als Hindernis klassifiziert sind (Pool-Slots, gescriptete Clutter, die ein Task zum Greifziel erklärt) --,
+sieht das Gate genau die Objekte nie, für die es existiert; ``settle`` wartet umgekehrt auf Szenen-Clutter, das gar
+nicht zur Nutzlast gehört.  Von selbst bemerkt das keine Suite.
 
-Der Test baut ein winziges, roboter- und task-freies MJCF-Modell -- kein
-URDF-Bundle nötig, läuft also auch in der CI.
+Der Test baut ein winziges, roboter- und task-freies MJCF-Modell -- kein URDF-Bundle nötig, läuft also auch in der CI.
 """
 
 from __future__ import annotations
@@ -125,8 +122,7 @@ def test_gate_rejects_a_configuration_reaching_into_graspable_clutter():
         assert sim.arm_config_collides({"arm_0_slide": INTO_CLUTTER}, obstacles_only=True) is True
         assert sim.arm_config_collides({"arm_0_slide": 0.0}) is False
 
-        # Gegenprobe = die Regression: würde man ALLE Greifbaren wegparken,
-        # verschwände genau dieses Urteil.
+        # Gegenprobe = die Regression: würde man ALLE Greifbaren wegparken, verschwände genau dieses Urteil.
         sim._non_obstacle_graspables = tuple(sim._graspable)
         assert sim.arm_config_collides({"arm_0_slide": INTO_CLUTTER}) is False
     finally:
@@ -136,9 +132,8 @@ def test_gate_rejects_a_configuration_reaching_into_graspable_clutter():
 def test_gate_still_ignores_the_sims_own_payload():
     """Die andere Hälfte der alten Semantik: Nutzlast ist kein Gültigkeitsgrund.
 
-    Die Nutzlast wird weggeparkt UND gehört ohnehin keiner der drei geprüften
-    Paarklassen an -- beides zusammen hält den Griff über dem eigenen Objekt
-    gültig (der Greifer senkt beim Zugreifen zwangsläufig in es hinein).
+    Die Nutzlast wird weggeparkt UND gehört ohnehin keiner der drei geprüften Paarklassen an -- beides zusammen hält den
+    Griff über dem eigenen Objekt gültig (der Greifer senkt beim Zugreifen zwangsläufig in es hinein).
     """
     sim = _build()
     try:

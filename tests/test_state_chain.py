@@ -14,9 +14,8 @@ def _tf(parent, child, xyz, quat=(0.0, 0.0, 0.0, 1.0)):
 
 
 def test_identity_for_the_same_frame():
-    # Die Zusage ist unveraendert -- aber sie gilt fuer ein Frame, das der
-    # Graph auch KENNT.  Liefe die Kurzschluss-Pruefung vor jedem Blick in
-    # die Kanten, liefe dieser Test auf einem voellig leeren RobotState und
+    # Die Zusage ist unveraendert -- aber sie gilt fuer ein Frame, das der Graph auch KENNT.  Liefe die
+    # Kurzschluss-Pruefung vor jedem Blick in die Kanten, liefe dieser Test auf einem voellig leeren RobotState und
     # belegte nichts.
     st = RobotState()
     st.set_transform(_tf("base", "cam", [1.0, 0.0, 0.0]))
@@ -25,11 +24,10 @@ def test_identity_for_the_same_frame():
 
 
 def test_an_unknown_frame_gets_no_identity_even_against_itself():
-    # Der Befund: `chain("nope", "nope")` lieferte eye(4), obwohl "nope" in
-    # keiner Kante vorkommt.  In `perception.twinlink_camera` heisst das: eine
-    # Aufnahme, deren frame_id versehentlich wie der Weltframe heisst, bekommt
-    # genau die stille Einheitsmatrix, die der Docstring zu verweigern
-    # verspricht -- und die Rueckprojektion sieht danach plausibel aus.
+    # Der Befund: `chain("nope", "nope")` lieferte eye(4), obwohl "nope" in keiner Kante vorkommt.  In
+    # `perception.twinlink_camera` heisst das: eine Aufnahme, deren frame_id versehentlich wie der Weltframe heisst,
+    # bekommt genau die stille Einheitsmatrix, die der Docstring zu verweigern verspricht -- und die Rueckprojektion
+    # sieht danach plausibel aus.
     st = RobotState()
     st.set_transform(_tf("base", "cam", [1.0, 0.0, 0.0]))
     assert st.chain("nope", "nope") is None
@@ -70,9 +68,8 @@ def test_rotation_is_carried_through():
 
 
 def test_disconnected_frames_return_none_rather_than_identity():
-    # Der wichtigste Test der Aufgabe: eine stillschweigende Einheitsmatrix
-    # wuerde die Rueckprojektion um Groessenordnungen verfaelschen und dabei
-    # wie ein Abstraktionseffekt aussehen.
+    # Der wichtigste Test der Aufgabe: eine stillschweigende Einheitsmatrix wuerde die Rueckprojektion um
+    # Groessenordnungen verfaelschen und dabei wie ein Abstraktionseffekt aussehen.
     st = RobotState()
     st.set_transform(_tf("base", "arm", [1.0, 0.0, 0.0]))
     assert st.chain("cam", "base") is None
@@ -81,8 +78,7 @@ def test_disconnected_frames_return_none_rather_than_identity():
 def test_two_hops_with_rotation_pin_the_composition_order():
     """Mehr-Hop MIT Drehung -- der einzige Fall, der die Reihenfolge faengt.
 
-    Reine Translationen kommutieren, deshalb besteht
-    ``test_two_hops_compose`` auch mit vertauschter Akkumulation.  Hier
+    Reine Translationen kommutieren, deshalb besteht ``test_two_hops_compose`` auch mit vertauschter Akkumulation.  Hier
     liefert die richtige Reihenfolge [-1, 0, 0], die vertauschte [1, 2, 0].
     """
     q90 = np.array([0.0, 0.0, np.sin(np.pi / 4), np.cos(np.pi / 4)])

@@ -4,7 +4,8 @@ For robots running ``rmw_zenoh`` (like this Husky) a plain Zenoh client can join
 the robot's Zenoh graph directly and subscribe to ROS 2 topics. Unlike a
 visualization bridge, Zenoh is a robotics-grade transport (pub/sub + query, low
 latency, bidirectional-capable). Payloads are the same CDR ROS 2 puts on the
-wire, decoded via the same path as :class:`~twinlink.sources.mcap.McapSource` / :class:`~twinlink.sources.foxglove.FoxgloveSource`.
+wire, decoded via the same path as :class:`~twinlink.sources.mcap.McapSource` /
+:class:`~twinlink.sources.foxglove.FoxgloveSource`.
 
     rmw_zenoh graph ──zenoh (CDR)──▶ ZenohSource ──▶ RobotState ──▶ MujocoSink
     ZenohPublisher ──zenoh (CDR + rmw attachment)──▶ rmw_zenoh subscriber
@@ -68,8 +69,8 @@ _LIVELINESS_ENTITIES = ("NN", "MP", "MS", "SS", "SC")
 def mangle_ros_type(msgtype: str) -> str:
     """ROS type name -> the DDS-mangled form rmw_zenoh puts in key expressions.
 
-    ``sensor_msgs/msg/JointState`` -> ``sensor_msgs::msg::dds_::JointState_``
-    (also accepts the short ``pkg/Type`` form).
+    ``sensor_msgs/msg/JointState`` -> ``sensor_msgs::msg::dds_::JointState_`` (also accepts the short ``pkg/Type``
+    form).
     """
     parts = msgtype.split("/")
     if len(parts) == 2:  # pkg/Type -> pkg/msg/Type
@@ -89,8 +90,7 @@ def liveliness_subscriber_query(domain_id: int, topic: str) -> str:
     """Liveliness selector matching every rmw_zenoh *subscriber* of ``topic``.
 
     Token layout (13 segments): ``@ros2_lv/<domain>/<zid>/<nid>/<id>/<entity>/
-    <enclave>/<namespace>/<node>/<topic>/<type>/<hash>/<qos>`` with ``/`` in
-    names mangled to ``%``.
+    <enclave>/<namespace>/<node>/<topic>/<type>/<hash>/<qos>`` with ``/`` in names mangled to ``%``.
     """
     mangled = topic if topic.startswith("/") else f"/{topic}"
     mangled = mangled.replace("/", "%")
@@ -120,11 +120,10 @@ def parse_liveliness_token(keyexpr: str) -> Optional[dict]:
 def rmw_attachment_bytes(sequence_number: int, source_timestamp_ns: int, gid: bytes) -> bytes:
     """Serialize the rmw_zenoh per-message attachment (33 bytes).
 
-    rmw_zenoh subscribers DROP any sample without this attachment.  Layout =
-    zenoh ``ext`` serializer output for ``(int64, int64, [u8;16])``: two
-    little-endian int64s, then the gid as a length-prefixed sequence (LEB128
-    varint — 16 is the single byte ``0x10``).  Verified against rmw_zenoh_cpp
-    ``attachment_helpers.cpp`` (jazzy) and eclipse-zenoh 1.9 ``z_serialize``.
+    rmw_zenoh subscribers DROP any sample without this attachment.  Layout = zenoh ``ext`` serializer output for
+    ``(int64, int64, [u8;16])``: two little-endian int64s, then the gid as a length-prefixed sequence (LEB128 varint —
+    16 is the single byte ``0x10``).  Verified against rmw_zenoh_cpp ``attachment_helpers.cpp`` (jazzy) and
+    eclipse-zenoh 1.9 ``z_serialize``.
     """
     if len(gid) != RMW_GID_STORAGE_SIZE:
         raise ValueError(f"gid must be {RMW_GID_STORAGE_SIZE} bytes, got {len(gid)}")
@@ -142,11 +141,10 @@ def _session_config(zenoh, mode: str, connect):
 
 
 # moveit_msgs is not shipped by the rosbags typestore, but the plan-preview topic
-# (``moveit_msgs/msg/DisplayTrajectory``) needs it to decode CDR off the wire. Its
-# transitive deps that *are* standard (trajectory_msgs, sensor_msgs, shape_msgs,
-# geometry_msgs, std_msgs) already live in the typestore; only these definitions
-# are missing. Field order/types must match the wire layout exactly -- these are
-# the stable upstream ``.msg`` definitions (unchanged across ROS 2 distros).
+# (``moveit_msgs/msg/DisplayTrajectory``) needs it to decode CDR off the wire. Its transitive deps that *are* standard
+# (trajectory_msgs, sensor_msgs, shape_msgs, geometry_msgs, std_msgs) already live in the typestore; only these
+# definitions are missing. Field order/types must match the wire layout exactly -- these are the stable upstream
+# ``.msg`` definitions (unchanged across ROS 2 distros).
 _MOVEIT_MSG_DEFS = {
     "object_recognition_msgs/msg/ObjectType": ("string key\n" "string db\n"),
     "moveit_msgs/msg/CollisionObject": (
@@ -344,15 +342,12 @@ class ZenohSource(StateSource):
 class ZenohUplink:
     """One shared zenoh session for all uplink publishers of a client.
 
-    The write-side sibling of :class:`ZenohSource` and the zenoh counterpart of
-    a ``foxglove_bridge`` with clientPublish: publishers made from one uplink
-    share a single session (one TCP connection / tokio runtime instead of one
-    per topic).  The uplink also does the keyexpr *discovery*: publishing needs
-    the exact ``<domain>/<topic>/<type>/<hash>`` the subscriber declared, so it
-    queries the subscriber's ``@ros2_lv`` liveliness token — always
-    version-correct, zero configuration.  ``type_hashes`` (ROS type ->
-    ``RIHS01_…``) is the offline fallback when nothing is discoverable, e.g.
-    pinned in a robot_contract profile from ``ros2 topic info --verbose``.
+    The write-side sibling of :class:`ZenohSource` and the zenoh counterpart of a ``foxglove_bridge`` with
+    clientPublish: publishers made from one uplink share a single session (one TCP connection / tokio runtime instead of
+    one per topic).  The uplink also does the keyexpr *discovery*: publishing needs the exact
+    ``<domain>/<topic>/<type>/<hash>`` the subscriber declared, so it queries the subscriber's ``@ros2_lv`` liveliness
+    token — always version-correct, zero configuration.  ``type_hashes`` (ROS type -> ``RIHS01_…``) is the offline
+    fallback when nothing is discoverable, e.g. pinned in a robot_contract profile from ``ros2 topic info --verbose``.
 
         uplink = ZenohUplink("tcp/10.42.42.159:7447")
         pub = uplink.publisher("/twin/arm_cmd", "std_msgs/msg/String").start()
@@ -406,11 +401,9 @@ class ZenohUplink:
     def resolve_keyexpr(self, topic: str, msgtype: str) -> str:
         """The exact data keyexpr to publish ``topic`` on.
 
-        Primary: the type name + hash from a live subscriber's liveliness
-        token (the subscriber defines what it accepts).  Fallback: a pinned
-        hash from ``type_hashes``.  Raises ``ConnectionError`` when neither is
-        available — callers with retry loops (e.g. TwinMotionClient.connect)
-        treat that like a bridge that is not up yet.
+        Primary: the type name + hash from a live subscriber's liveliness token (the subscriber defines what it
+        accepts).  Fallback: a pinned hash from ``type_hashes``.  Raises ``ConnectionError`` when neither is available —
+        callers with retry loops (e.g. TwinMotionClient.connect) treat that like a bridge that is not up yet.
         """
         session = self.open()
         expected = mangle_ros_type(msgtype)
@@ -432,8 +425,7 @@ class ZenohUplink:
             if info["type_name"] == expected:
                 return topic_keyexpr(self.domain_id, topic, info["type_name"], info["type_hash"])
         if tokens:
-            # A subscriber exists but under another type: trust the graph —
-            # it is the side that deserializes.
+            # A subscriber exists but under another type: trust the graph — it is the side that deserializes.
             info = tokens[0]
             log.warning(
                 "subscriber on %s has type %s (expected %s) — " "publishing with the graph's type",
@@ -486,8 +478,8 @@ class ZenohPublisher:
 
         self._typestore = get_typestore(getattr(Stores, self.store, Stores.LATEST))
         keyexpr = self.uplink.resolve_keyexpr(self.topic, self.msgtype)
-        # Reliable QoS the way rmw_zenoh maps it (congestion control BLOCK) —
-        # the /twin/* uplinks are low-rate commands that must not be shed.
+        # Reliable QoS the way rmw_zenoh maps it (congestion control BLOCK) — the /twin/* uplinks are low-rate commands
+        # that must not be shed.
         self._pub = self.uplink.open().declare_publisher(
             keyexpr, congestion_control=zenoh.CongestionControl.BLOCK, reliability=zenoh.Reliability.RELIABLE
         )

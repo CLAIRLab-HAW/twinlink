@@ -1,8 +1,8 @@
 """Source abstraction: anything that *fills* a :class:`~twinlink.state.RobotState`.
 
-A source is bound to a state and a mapping, then started.  It typically runs in
-its own thread and feeds messages through ``mapping.apply(...)``.  Sinks read
-the resulting state on the main thread, so sources never touch the simulator.
+A source is bound to a state and a mapping, then started.  It typically runs in its own thread and feeds messages
+through ``mapping.apply(...)``.  Sinks read the resulting state on the main thread, so sources never touch the
+simulator.
 """
 
 from __future__ import annotations

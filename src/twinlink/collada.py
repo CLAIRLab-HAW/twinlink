@@ -1,20 +1,16 @@
 """Minimal, dependency-light Collada (``.dae``) reader.
 
-Why this exists: MuJoCo cannot read ``.dae`` meshes, and the obvious tool
-(``assimp``) silently *re-orients* some Collada files (it bakes an inconsistent
-axis conversion), which lands meshes rotated 90° in the model.  This reader
-extracts the **raw** vertex coordinates and the node-transform hierarchy and
-writes them straight to OBJ, preserving the authored frame -- exactly what a
-URDF (and RViz/Gazebo) expect.  It only needs ``numpy`` + the stdlib XML parser.
+Why this exists: MuJoCo cannot read ``.dae`` meshes, and the obvious tool (``assimp``) silently *re-orients* some
+Collada files (it bakes an inconsistent axis conversion), which lands meshes rotated 90° in the model.  This reader
+extracts the **raw** vertex coordinates and the node-transform hierarchy and writes them straight to OBJ, preserving the
+authored frame -- exactly what a URDF (and RViz/Gazebo) expect.  It only needs ``numpy`` + the stdlib XML parser.
 
-It also recovers the **per-material diffuse colours** the meshes carry (e.g. the
-UR5's blue/grey/black), because STL and a plain merged OBJ are colourless.  A
-single MuJoCo mesh has a single colour, so :func:`dae_to_colored_objs` splits a
+It also recovers the **per-material diffuse colours** the meshes carry (e.g. the UR5's blue/grey/black), because STL and
+a plain merged OBJ are colourless.  A single MuJoCo mesh has a single colour, so :func:`dae_to_colored_objs` splits a
 ``.dae`` into one compact OBJ per material, each tagged with its RGBA.
 
-It deliberately handles just what robot description meshes use: ``<triangles>``
-and ``<polylist>`` primitives, ``<vertices>`` POSITION indirection, the
-``<node>`` transform chain and the document ``<up_axis>``.  Anything it cannot
+It deliberately handles just what robot description meshes use: ``<triangles>`` and ``<polylist>`` primitives,
+``<vertices>`` POSITION indirection, the ``<node>`` transform chain and the document ``<up_axis>``.  Anything it cannot
 parse raises, so the caller can fall back or skip the mesh.
 """
 
@@ -236,8 +232,8 @@ def dae_to_obj(dae_path: str, obj_path: str) -> tuple:
 def dae_to_colored_objs(dae_path: str, out_dir: str, stem: str) -> List[Tuple[str, Optional[list]]]:
     """Convert a ``.dae`` to one OBJ per material.
 
-    Returns ``[(obj_abspath, rgba), ...]`` (rgba may be ``None``).  Results are
-    cached: a sidecar JSON lets repeat loads skip re-parsing when up to date.
+    Returns ``[(obj_abspath, rgba), ...]`` (rgba may be ``None``).  Results are cached: a sidecar JSON lets repeat loads
+    skip re-parsing when up to date.
     """
     sidecar = os.path.join(out_dir, stem + ".colors.json")
     if os.path.exists(sidecar) and os.path.getmtime(sidecar) >= os.path.getmtime(dae_path):

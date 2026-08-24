@@ -1,7 +1,7 @@
 """Reusable MJCF scene building blocks for task twins (robot-agnostic).
 
-Every task app that augments the compiled robot model via the
-save-XML-and-recompile round-trip needs the same primitives --
+Every task app that augments the compiled robot model via the save-XML-and-recompile round-trip needs the same
+primitives --
 
 * :func:`add_obstacle_pool` -- pre-allocated, runtime-mutated collision boxes
   for *perceived* obstacles (MuJoCo models cannot grow after compilation),
@@ -11,8 +11,8 @@ save-XML-and-recompile round-trip needs the same primitives --
   of named scene cameras,
 * :func:`fmt` / :func:`lookat_xyaxes` -- XML attribute helpers.
 
-Task furniture (tables, task objects, camera placement) stays app-side; this
-module carries only what is identical across tasks.
+Task furniture (tables, task objects, camera placement) stays app-side; this module carries only what is identical
+across tasks.
 """
 
 from __future__ import annotations
@@ -52,11 +52,9 @@ def obstacle_body_name(index: int, prefix: str = DEFAULT_SCENE_PREFIX) -> str:
 def fmt(*vals: float) -> str:
     """MJCF attribute formatting (compact float list).
 
-    Die einzige Fassung im Workspace: ``hrl.env.geometry`` und
-    ``openvla_stack.env.scene`` trugen bis zum 2026-08-23 eigene Kopien.  Die
-    Umwandlung nach ``float`` stammt aus hrls Kopie und ist der Grund, warum
-    diese hier die gemeinsame wurde -- sie nimmt auch numpy-Skalare und
-    Zahlen-Strings, die ``f"{v:.6g}"`` allein zurueckweist.
+    Die einzige Fassung im Workspace: ``hrl.env.geometry`` und ``openvla_stack.env.scene`` trugen bis zum 2026-08-23
+    eigene Kopien.  Die Umwandlung nach ``float`` stammt aus hrls Kopie und ist der Grund, warum diese hier die
+    gemeinsame wurde -- sie nimmt auch numpy-Skalare und Zahlen-Strings, die ``f"{v:.6g}"`` allein zurueckweist.
     """
     return " ".join(f"{float(v):.6g}" for v in vals)
 
@@ -64,9 +62,8 @@ def fmt(*vals: float) -> str:
 def lookat_xyaxes(cam_pos: np.ndarray, target: np.ndarray) -> str:
     """xyaxes for a camera at ``cam_pos`` looking at ``target`` (z-up world).
 
-    MuJoCo cameras look along their -z axis with +y as image-up; we build an
-    orthonormal frame whose -z points at the target and whose +y stays as
-    world-up as possible.
+    MuJoCo cameras look along their -z axis with +y as image-up; we build an orthonormal frame whose -z points at the
+    target and whose +y stays as world-up as possible.
     """
     fwd = target - cam_pos
     fwd = fwd / np.linalg.norm(fwd)
@@ -82,15 +79,13 @@ def lookat_xyaxes(cam_pos: np.ndarray, target: np.ndarray) -> str:
 def add_obstacle_pool(worldbody: ET.Element, n_slots: int, prefix: str = DEFAULT_SCENE_PREFIX) -> None:
     """Pre-allocate ``n_slots`` static obstacle boxes (runtime-mutated).
 
-    MuJoCo models cannot grow after compilation, so perceived obstacles are
-    written into this fixed pool via ``model.body_pos`` / ``model.geom_size``
-    (valid for primitive geoms -- collision and rendering read them every
-    step).  Compiled with contacts ON so a sim's geom classification picks
-    them up; the pool owner parks and disables them right after indexing.
+    MuJoCo models cannot grow after compilation, so perceived obstacles are written into this fixed pool via
+    ``model.body_pos`` / ``model.geom_size`` (valid for primitive geoms -- collision and rendering read them every
+    step).  Compiled with contacts ON so a sim's geom classification picks them up; the pool owner parks and disables
+    them right after indexing.
 
-    ``prefix`` is the calling app's body-name root (default: ``hrl_``, the
-    only value ever used before this became a parameter -- twinlink itself
-    does not know the app's name).
+    ``prefix`` is the calling app's body-name root (default: ``hrl_``, the only value ever used before this became a
+    parameter -- twinlink itself does not know the app's name).
     """
     px, py, pz = OBSTACLE_PARK
     for i in range(int(n_slots)):
@@ -116,15 +111,12 @@ def distractor_joint_name(index: int, prefix: str = DEFAULT_SCENE_PREFIX) -> str
 def add_distractors(worldbody: ET.Element, distractors: Sequence[Dict], prefix: str = DEFAULT_SCENE_PREFIX) -> None:
     """Author sim-only clutter boxes (``{"position", "size", "yaw", "rgba"}``).
 
-    Boxes the task does NOT know about, standing in for real-world clutter --
-    rendered and colliding like real obstacles, so an obstacle-perception
-    pipeline can be exercised (and trained against) without hardware.
+    Boxes the task does NOT know about, standing in for real-world clutter -- rendered and colliding like real
+    obstacles, so an obstacle-perception pipeline can be exercised (and trained against) without hardware.
 
-    ``"dynamic": true`` makes a distractor a free body (optional ``"mass"``,
-    default 0.15 kg): it obeys physics and can be *grasped* by a sim that
-    registers dynamic distractors as graspable -- the stand-in for "clear
-    this obstacle away" tasks (semantic-masking increment 2).  Static
-    (default) distractors stay immovable scenery.
+    ``"dynamic": true`` makes a distractor a free body (optional ``"mass"``, default 0.15 kg): it obeys physics and can
+    be *grasped* by a sim that registers dynamic distractors as graspable -- the stand-in for "clear this obstacle away"
+    tasks (semantic-masking increment 2).  Static (default) distractors stay immovable scenery.
 
     ``prefix`` is the calling app's body-name root (default: ``hrl_``, see
     :func:`add_obstacle_pool`).
@@ -169,8 +161,8 @@ def camera_intrinsics(model, camera: str, width: int, height: int) -> np.ndarray
 def camera_extrinsics(data, model, camera: str) -> Tuple[np.ndarray, np.ndarray]:
     """World pose of a camera: ``(position (3,), rotation (3,3) cam->world)``.
 
-    MuJoCo camera frames look along -z with +y up (columns of the returned
-    rotation are the camera's x/y/z axes in world coordinates).
+    MuJoCo camera frames look along -z with +y up (columns of the returned rotation are the camera's x/y/z axes in world
+    coordinates).
     """
     import mujoco
 

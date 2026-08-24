@@ -26,10 +26,9 @@ def test_spec_is_plain_data():
 def test_gripper_prefixes_are_separate_from_hand_prefixes():
     """Die Backen sind eine ANDERE Menge als die Hand-Baugruppe.
 
-    Die Hand darf mitfahrende Sensorik enthalten (Handgelenkskamera); die
-    Backen dürfen es nicht, denn nur sie werden für greifbare Objekte
-    durchlässig gemacht.  Wären beide dasselbe Feld, verlöre das Kameragehäuse
-    seine Kollisionsereignisse (Regression aus dem Sim-Split 2026-07-31).
+    Die Hand darf mitfahrende Sensorik enthalten (Handgelenkskamera); die Backen dürfen es nicht, denn nur sie werden
+    für greifbare Objekte durchlässig gemacht.  Wären beide dasselbe Feld, verlöre das Kameragehäuse seine
+    Kollisionsereignisse (Regression aus dem Sim-Split 2026-07-31).
     """
     fields = RobotSimSpec.__dataclass_fields__
     assert "gripper_prefixes" in fields
@@ -39,11 +38,10 @@ def test_gripper_prefixes_are_separate_from_hand_prefixes():
 def test_twinlink_stands_alone():
     """Die Eigenständigkeit des Pakets ist Teil des Vertrags.
 
-    twinlink ist ein eigenständiges MIT-Paket mit eigener CI: weder das
-    Roboterprofil (``robot_contract``) noch dessen SDK (``husky_sdk``) noch
-    die Task-App (``hrl``) dürfen hier importiert werden.  Roboter-Fakten
-    kommen ausschließlich als :class:`RobotSimSpec` in den Konstruktor; jedes
-    Task-Wissen (Würfel, Turm, RL) gehört ausschließlich hrl, nie umgekehrt.
+    twinlink ist ein eigenständiges MIT-Paket mit eigener CI: weder das Roboterprofil (``robot_contract``) noch dessen
+    SDK (``husky_sdk``) noch die Task-App (``hrl``) dürfen hier importiert werden.  Roboter-Fakten kommen ausschließlich
+    als :class:`RobotSimSpec` in den Konstruktor; jedes Task-Wissen (Würfel, Turm, RL) gehört ausschließlich hrl, nie
+    umgekehrt.
     """
     import pathlib
 
@@ -51,9 +49,8 @@ def test_twinlink_stands_alone():
     offenders = []
     for path in src.rglob("*.py"):
         text = path.read_text()
-        # ``perception`` gehört mit in die Liste: es ist die dritte Schicht
-        # oberhalb von twinlink (Wahrnehmung/Hindernis-Tracking) und damit
-        # genauso ein Rückwärts-Import wie hrl.  Fehlte es als einziges in
+        # ``perception`` gehört mit in die Liste: es ist die dritte Schicht oberhalb von twinlink
+        # (Wahrnehmung/Hindernis-Tracking) und damit genauso ein Rückwärts-Import wie hrl.  Fehlte es als einziges in
         # dieser Liste, rutschte es unbemerkt herein.
         for package in ("robot_contract", "husky_sdk", "hrl", "perception"):
             if f"import {package}" in text or f"from {package}" in text:
@@ -64,15 +61,13 @@ def test_twinlink_stands_alone():
 def test_grasp_registry_is_label_keyed():
     """Greifbare Objekte werden über Labels geführt, nicht über Farben.
 
-    Geprüft wird das GANZE Modul, nicht nur der Klassenrumpf: Task-Vokabular
-    versteckt sich sonst in Modulkonstanten und Hilfsfunktionen daneben.
+    Geprüft wird das GANZE Modul, nicht nur der Klassenrumpf: Task-Vokabular versteckt sich sonst in Modulkonstanten und
+    Hilfsfunktionen daneben.
 
-    Der App-Präfix ``hrl_`` in dieser Wortliste wäre grün, obwohl ``task_sim``
-    gegen genau diesen Präfix klassifiziert:
-    das Modul IMPORTIERTE die Konstanten (``OBSTACLE_BODY_PREFIX`` &c.), statt
-    das Literal zu schreiben, also fand die Textsuche nichts.  Ein Textscan
-    kann diese Eigenschaft grundsätzlich nicht belegen; den Nachweis führt
-    jetzt ``test_scene_prefix_drives_classification`` über die WERTE.
+    Der App-Präfix ``hrl_`` in dieser Wortliste wäre grün, obwohl ``task_sim`` gegen genau diesen Präfix klassifiziert:
+    das Modul IMPORTIERTE die Konstanten (``OBSTACLE_BODY_PREFIX`` &c.), statt das Literal zu schreiben, also fand die
+    Textsuche nichts.  Ein Textscan kann diese Eigenschaft grundsätzlich nicht belegen; den Nachweis führt jetzt
+    ``test_scene_prefix_drives_classification`` über die WERTE.
     """
     import inspect
 
@@ -161,11 +156,9 @@ def _classification_under_prefix(prefix: str) -> dict:
 def test_scene_prefix_drives_classification():
     """Der Konstruktor-Präfix -- nicht ``hrl_`` -- bestimmt die Klassifikation.
 
-    Die Kernzusage des Umbaus: twinlink ist app-agnostisch und publizierbar.
-    Sie gilt nur zur Hälfte, wenn ``__init__`` den ``scene_prefix`` bloß für
-    die Render-Trennung nutzt, während ``_classify_geoms`` gegen die
-    Modulkonstanten vergleicht und ``_index_obstacle_pool``
-    ``obstacle_body_name(i)`` ohne ``prefix=`` ruft.  Identische Szene, nur der
+    Die Kernzusage des Umbaus: twinlink ist app-agnostisch und publizierbar. Sie gilt nur zur Hälfte, wenn ``__init__``
+    den ``scene_prefix`` bloß für die Render-Trennung nutzt, während ``_classify_geoms`` gegen die Modulkonstanten
+    vergleicht und ``_index_obstacle_pool`` ``obstacle_body_name(i)`` ohne ``prefix=`` ruft.  Identische Szene, nur der
     Präfix getauscht, ergibt dann:
 
         prefix 'hrl_' :  obstacle_geoms=2  pool_slots=1  non_obstacle_graspables=()
@@ -181,8 +174,7 @@ def test_scene_prefix_drives_classification():
     native = _classification_under_prefix("hrl_")
     foreign = _classification_under_prefix("task_")
 
-    # Absolut festgenagelt, damit der Vergleich nicht trivial grün wird, wenn
-    # beide Seiten nichts mehr klassifizieren.
+    # Absolut festgenagelt, damit der Vergleich nicht trivial grün wird, wenn beide Seiten nichts mehr klassifizieren.
     assert native == {
         "obstacle_geoms": 2,  # Pool-Slot + Distraktor
         "pool_slots": 1,

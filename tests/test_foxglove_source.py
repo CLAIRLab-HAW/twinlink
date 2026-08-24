@@ -1,8 +1,7 @@
 """FoxgloveSource wire parsing -- the pure/testable pieces (no WebSocket).
 
-``parse_message_data`` carries the bridge's receive timestamp so consumers
-can split sensor->bridge from bridge->client lag (background:
-docs/hrl-real-perception-plan.md, Phase 0).
+``parse_message_data`` carries the bridge's receive timestamp so consumers can split sensor->bridge from bridge->client
+lag (background: docs/hrl-real-perception-plan.md, Phase 0).
 """
 
 import struct
