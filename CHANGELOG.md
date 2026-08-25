@@ -5,6 +5,13 @@ Was sich wann geändert hat. Der aktuelle Stand steht in der [README](README.md)
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionierung [Semantic Versioning](https://semver.org/lang/de/).
 
+## 2026-08-25 (Black formats this repo the same way from anywhere)
+
+- **`[tool.black]` now stands in this repo's `pyproject.toml`.** Black takes the first directory
+  containing a `.git` as its project root, so a run from inside this repo fell back to Black's own
+  88-column default while the workspace runs at 120. The pre-commit hook was unaffected -- it passes the
+  root config explicitly -- but an editor or a bare `black` was not.
+
 ## 2026-08-25 (output translated to English)
 
 - **The `task_sim` messages about pad bodies and tilt are English now.**

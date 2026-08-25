@@ -49,6 +49,27 @@ clearlog = { workspace = true }
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.black]
+# Mirrors the workspace root, so that formatting this repo on its own gives the same result as formatting it from
+# the workspace. Black takes the first directory containing a ``.git`` as the project root -- for a sub-repo that is
+# THIS repo, and without this section Black falls back to its own default of 88 columns while the workspace runs at
+# 120 (measured 2026-08-25: a bare ``black`` inside a sub-repo reformatted at 88, and the pre-commit hook, which
+# passes the root config explicitly, broke the same lines back to 120 on the next commit).
+line-length = 120
+# What Black must never touch: frozen protocol, generated artifacts, and everything that is not source code of this
+# workspace.
+force-exclude = '''
+/(
+    \.venv
+  | \.superpowers
+  | \.idea
+  | urdf
+  | data
+  | node_modules
+  | [^/]*\.egg-info
+)/
+'''
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
