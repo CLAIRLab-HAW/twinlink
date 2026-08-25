@@ -7,3 +7,4 @@ dist/
 .pytest_cache/
 .DS_Store
 MUJOCO_LOG.TXT
+.idea/

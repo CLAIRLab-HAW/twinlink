@@ -5,6 +5,12 @@ Was sich wann geändert hat. Der aktuelle Stand steht in der [README](README.md)
 Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 die Versionierung [Semantic Versioning](https://semver.org/lang/de/).
 
+## 2026-08-25 (.idea/ joins the package-specific ignores)
+
+- **`.gitignore` ignores `.idea/`.** The JetBrains project directory appeared in this repo's working tree; nothing
+  under that name is tracked in any of the 24 sub-repos, so ignoring it hides no versioned content. It sits with
+  `MUJOCO_LOG.TXT` as a package-specific extra on top of the workspace's lean 8-line base.
+
 ## 2026-08-25 (Black formats this repo the same way from anywhere)
 
 - **`[tool.black]` now stands in this repo's `pyproject.toml`.** Black takes the first directory
