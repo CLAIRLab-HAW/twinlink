@@ -1,9 +1,9 @@
 # Changelog — twinlink
 
-Was sich wann geändert hat. Der aktuelle Stand steht in der [README](README.md).
+What changed when. The current state is described in the [README](README.md).
 
-Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
-die Versionierung [Semantic Versioning](https://semver.org/lang/de/).
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+the versioning [Semantic Versioning](https://semver.org/).
 
 ## 2026-08-25 (.idea/ joins the package-specific ignores)
 
