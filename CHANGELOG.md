@@ -12,6 +12,11 @@ the versioning [Semantic Versioning](https://semver.org/).
   is gone. Why the section has to exist is written down once: in the workspace `CLAUDE.md`, and in this file's
   2026-08-25 entry *Black formats this repo the same way from anywhere*.
 - **`authors` is indented four spaces**, like every other array in the file.
+- **`requires-python` is `>=3.11`.** `contract/robot-contract` and `apps/hrl` import `typing.Self` (PEP 673),
+  which does not exist before 3.11. Measured on 3.10.19: `from typing import Self` raises
+  `ImportError: cannot import name 'Self' from 'typing'` -- at import time, so the module does not load at all, and
+  no `from __future__ import annotations` helps. Thirteen packages depend on `robot-contract`, so a `>=3.10` beside
+  it was not resolvable on 3.10 anyway; all 19 workspace packages now carry the same floor.
 
 ## 2026-08-25 (.idea/ joins the package-specific ignores)
 

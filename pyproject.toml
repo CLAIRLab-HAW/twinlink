@@ -7,7 +7,7 @@ name = "twinlink"
 version = "0.2.0"
 description = "Robot-agnostic bridge from a real robot (ROS 2 / MCAP) to a digital twin in simulation (MuJoCo, Isaac Sim)."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [
     { name = "Hannes Philip Voss", email = "mail@hannesvoss.de" },
