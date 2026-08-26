@@ -67,13 +67,13 @@ _LIVELINESS_ENTITIES = ("NN", "MP", "MS", "SS", "SC")
 # rmw_zenoh wire-format helpers (pure, testable without zenoh installed)
 # --------------------------------------------------------------------------- #
 def mangle_ros_type(msgtype: str) -> str:
-    """ROS type name -> the DDS-mangled form rmw_zenoh puts in key expressions.
+    """ROS type name ─▶ the DDS-mangled form rmw_zenoh puts in key expressions.
 
-    ``sensor_msgs/msg/JointState`` -> ``sensor_msgs::msg::dds_::JointState_`` (also accepts the short ``pkg/Type``
+    ``sensor_msgs/msg/JointState`` ─▶ ``sensor_msgs::msg::dds_::JointState_`` (also accepts the short ``pkg/Type``
     form).
     """
     parts = msgtype.split("/")
-    if len(parts) == 2:  # pkg/Type -> pkg/msg/Type
+    if len(parts) == 2:  # pkg/Type ─▶ pkg/msg/Type
         parts = [parts[0], "msg", parts[1]]
     if len(parts) != 3:
         raise ValueError(f"not a ROS type name: {msgtype!r}")
@@ -346,7 +346,7 @@ class ZenohUplink:
     clientPublish: publishers made from one uplink share a single session (one TCP connection / tokio runtime instead of
     one per topic).  The uplink also does the keyexpr *discovery*: publishing needs the exact
     ``<domain>/<topic>/<type>/<hash>`` the subscriber declared, so it queries the subscriber's ``@ros2_lv`` liveliness
-    token — always version-correct, zero configuration.  ``type_hashes`` (ROS type -> ``RIHS01_…``) is the offline
+    token — always version-correct, zero configuration.  ``type_hashes`` (ROS type ─▶ ``RIHS01_…``) is the offline
     fallback when nothing is discoverable, e.g. pinned in a robot_contract profile from ``ros2 topic info --verbose``.
 
         uplink = ZenohUplink("tcp/10.42.42.159:7447")
@@ -483,7 +483,7 @@ class ZenohPublisher:
         self._pub = self.uplink.open().declare_publisher(
             keyexpr, congestion_control=zenoh.CongestionControl.BLOCK, reliability=zenoh.Reliability.RELIABLE
         )
-        log.info("zenoh uplink ready: %s [%s] -> %s", self.topic, self.msgtype, keyexpr)
+        log.info("zenoh uplink ready: %s [%s] ─▶ %s", self.topic, self.msgtype, keyexpr)
         return self
 
     def publish(self, msg) -> None:

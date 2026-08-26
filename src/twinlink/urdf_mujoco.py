@@ -176,7 +176,7 @@ def _rewrite_or_drop(link, geoms, urdf_dir, cache_dir, colored, dropped) -> int:
             kept += 1
             continue
 
-        # Coloured DAE split into several materials -> one <visual> each.
+        # Coloured DAE split into several materials ─▶ one <visual> each.
         scale = mesh.get("scale")
         origin = g.find("origin")
         link.remove(g)

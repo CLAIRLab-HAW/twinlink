@@ -38,7 +38,7 @@ def test_state_change_is_written():
     mirror.sync([("green", ("pose", (0.7, 0.0, 0.22), 0.0))])
     mirror.sync([("green", ("carry",))])
     mirror.sync([("green", ("park", 1))])
-    # carry -> park ends the display carry first (release) before parking -- the original _apply's behaviour,
+    # carry ─▶ park ends the display carry first (release) before parking -- the original _apply's behaviour,
     # load-bearing for the real sim: without it the twin's kinematic carry keeps following the TCP and the "parked"
     # object snaps right back next physics step (see hrl/tests/test_belief_mirror.py::test_mark_lost_parks_the_cube,
     # which asserts the carry has actually ended after such a transition).

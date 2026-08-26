@@ -149,8 +149,8 @@ class MujocoSink(StateSink):
 
         self.model = None
         self.data = None
-        self._joint_qpos: Dict[str, int] = {}  # state-name -> qpos address
-        self._joint_dof: Dict[str, int] = {}  # state-name -> dof (qvel) address
+        self._joint_qpos: Dict[str, int] = {}  # state-name ─▶ qpos address
+        self._joint_dof: Dict[str, int] = {}  # state-name ─▶ dof (qvel) address
         self._base_qpos: Optional[int] = None
         self._phys_last: Optional[float] = None
         self._renderer = None
@@ -161,7 +161,7 @@ class MujocoSink(StateSink):
         # "â€""), so avoid Unicode here.
         self._win_main = "TwinLink - MuJoCo twin"
         self._win_cam = "TwinLink - sensor camera"
-        self._frame_body: Dict[str, int] = {}  # cloud frame_id -> mujoco body id (cache)
+        self._frame_body: Dict[str, int] = {}  # cloud frame_id ─▶ mujoco body id (cache)
         self._preview_pos: Optional[Dict[str, float]] = None
         self._last_traj = None
         self._traj_start = 0.0
@@ -319,7 +319,7 @@ class MujocoSink(StateSink):
 
     def _guess_lookat(self, mujoco) -> np.ndarray:
         # Centre on the arm base if present, else the model centroid.  Each manipulator prefix's root body is
-        # conventionally named "<prefix>_base_link" (URDF->MJCF convention); "_inertia" is the variant some URDF->MJCF
+        # conventionally named "<prefix>_base_link" (URDF─▶MJCF convention); "_inertia" is the variant some URDF─▶MJCF
         # chains emit when the base link carries its own inertial frame as a child body.  "base_link" is the
         # robot-independent last resort (every profile names its root that).
         prefixes = self._manipulator_prefixes()
@@ -464,7 +464,7 @@ class MujocoSink(StateSink):
         # Unlock ghost: a new goal starts a fresh preview cycle.
         self._ghost_locked = False
         # Do NOT call self.update() here — it would invoke cv2.imshow/waitKey from the goal-loop thread while the main
-        # render thread does the same. OpenCV is not thread-safe -> deadlock. The main loop (60 Hz) picks up the ghost
+        # render thread does the same. OpenCV is not thread-safe ─▶ deadlock. The main loop (60 Hz) picks up the ghost
         # within ~16 ms.
 
     def _goal_preview_positions(self) -> Optional[Dict[str, float]]:
@@ -576,8 +576,8 @@ class MujocoSink(StateSink):
                 elapsed = 0.0
             else:
                 self._preview_state = "idle"
-                return None  # finished -> hand back to live joints
-        # Map wall-clock elapsed -> trajectory time (slowed)
+                return None  # finished ─▶ hand back to live joints
+        # Map wall-clock elapsed ─▶ trajectory time (slowed)
         t = min(elapsed * self._preview_speed, traj.duration())
         out = {}
         for j, name in enumerate(traj.joint_names):
@@ -608,10 +608,10 @@ class MujocoSink(StateSink):
         must be applied to the points."""
         if frame_id in self._frame_body:
             return self._frame_body[frame_id]
-        name = frame_id.split("/")[-1]  # strip namespace, e.g. a200_0553/cam -> cam
+        name = frame_id.split("/")[-1]  # strip namespace, e.g. a200_0553/cam ─▶ cam
         bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, name)
         optical_fix = False
-        if bid < 0:  # optical frames are driver-only tf -> use the camera link + correct
+        if bid < 0:  # optical frames are driver-only tf ─▶ use the camera link + correct
             for cand in self._camera_link_candidates():
                 bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, cand)
                 if bid >= 0:
@@ -644,8 +644,8 @@ class MujocoSink(StateSink):
             bid, optical_fix = self._body_for_frame(mujoco, cloud.frame_id)
             if bid < 0:
                 continue
-            R = self.data.xmat[bid].reshape(3, 3)  # world <- body
-            if optical_fix:  # body <- optical, so world <- optical
+            R = self.data.xmat[bid].reshape(3, 3)  # world ◀─ body
+            if optical_fix:  # body ◀─ optical, so world ◀─ optical
                 R = R @ _R_LINK_FROM_OPTICAL
             yield cloud.points @ R.T + self.data.xpos[bid]
 
@@ -935,7 +935,7 @@ class MujocoSink(StateSink):
         if cam is None:
             return
         img = cam.image
-        if img.ndim == 2:  # depth -> colormap
+        if img.ndim == 2:  # depth ─▶ colormap
             norm = np.zeros_like(img, dtype=np.uint8)
             valid = np.isfinite(img) & (img > 0)
             if valid.any():

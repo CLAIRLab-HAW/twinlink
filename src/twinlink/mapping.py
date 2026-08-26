@@ -38,7 +38,7 @@ ROLE_DEFAULT_TYPE = {
 
 
 def stamp_to_sec(stamp) -> float:
-    """builtin_interfaces/Time -> float seconds (tolerant of missing fields)."""
+    """builtin_interfaces/Time ─▶ float seconds (tolerant of missing fields)."""
     try:
         return float(stamp.sec) + float(stamp.nanosec) * 1e-9
     except AttributeError:
@@ -70,15 +70,15 @@ class RobotMapping:
     base_link: str = "base_link"
     odom_frame: str = "odom"
     cameras: List[CameraMap] = field(default_factory=list)
-    # Obstacle point clouds (name -> topic) and MoveIt's planned path.
+    # Obstacle point clouds (name ─▶ topic) and MoveIt's planned path.
     points_topics: Dict[str, str] = field(default_factory=dict)
     planned_path_topic: Optional[str] = None
     points_max: int = 60000  # subsample huge clouds before storing
-    # Plain std_msgs/String topics (name -> topic): the latest payload lands in ``state.extra(name)`` — e.g. the
+    # Plain std_msgs/String topics (name ─▶ topic): the latest payload lands in ``state.extra(name)`` — e.g. the
     # /twin/arm_state JSON downlink.
     string_topics: Dict[str, str] = field(default_factory=dict)
 
-    # Joint-name handling: ROS joint name -> simulator/model joint name.
+    # Joint-name handling: ROS joint name ─▶ simulator/model joint name.
     joint_remap: Dict[str, str] = field(default_factory=dict)
     # If set, only these (ROS) joint names are ingested.
     joint_include: Optional[List[str]] = None
@@ -307,7 +307,7 @@ class RobotMapping:
         )
 
     def _decode_planned_path(self, msg, state: RobotState) -> None:
-        # moveit_msgs/DisplayTrajectory -> the last RobotTrajectory's joint path.
+        # moveit_msgs/DisplayTrajectory ─▶ the last RobotTrajectory's joint path.
         trajs = getattr(msg, "trajectory", None)
         if not trajs:
             return
@@ -374,7 +374,7 @@ class RobotMapping:
 # image helpers
 # ---------------------------------------------------------------------- #
 _ENCODING_INFO = {
-    # encoding -> (numpy dtype, channels)
+    # encoding ─▶ (numpy dtype, channels)
     "rgb8": (np.uint8, 3),
     "bgr8": (np.uint8, 3),
     "rgba8": (np.uint8, 4),
@@ -461,7 +461,7 @@ def pointcloud2_to_xyz(msg, max_points: Optional[int] = 60000, max_range: Option
 # a 12-byte ``ConfigHeader`` (4-byte format enum + 2 float ``depthParam``) before
 # the PNG or RVL payload; see upstream ``codec.cpp``.  We branch on ``is_depth``
 # (the ``CameraMap`` flag) and, for depth, on ``msg.format`` ("... compressedDepth
-# rvl" -> RVL, otherwise PNG) -- exactly the way the C++ codec does.
+# rvl" ─▶ RVL, otherwise PNG) -- exactly the way the C++ codec does.
 
 
 # ConfigHeader: 4-byte enum + 2x float32 (depthQuantA, depthQuantB).
@@ -485,12 +485,12 @@ def _msg_bytes(msg) -> bytes:
 def compressed_image_to_numpy(msg, is_depth: bool = False) -> Tuple[np.ndarray, str]:
     """Decode a ``sensor_msgs/CompressedImage`` into ``(HxW[xC] array, encoding)``.
 
-    * Color (``is_depth=False``): JPEG/PNG via ``cv2.imdecode`` -> BGR8, encoding
+    * Color (``is_depth=False``): JPEG/PNG via ``cv2.imdecode`` ─▶ BGR8, encoding
       ``"bgr8"`` (the HSV detector wants BGR).
     * Depth (``is_depth=True``): strips the 12-byte ConfigHeader, then PNG
-      (``cv2.imdecode(IMREAD_UNCHANGED)`` -> uint16 mm) or RVL
-      (:func:`rvl_decompress` -> uint16 mm).  A 32FC1 source is dequantized to
-      float metres via the header's ``depthParam`` (0 -> NaN).  Returns encoding
+      (``cv2.imdecode(IMREAD_UNCHANGED)`` ─▶ uint16 mm) or RVL
+      (:func:`rvl_decompress` ─▶ uint16 mm).  A 32FC1 source is dequantized to
+      float metres via the header's ``depthParam`` (0 ─▶ NaN).  Returns encoding
       ``"16uc1"`` (uint16 mm) or ``"32fc1"`` (float metres).
     """
     data = _msg_bytes(msg)
@@ -565,7 +565,7 @@ def _decode_depth_compressed(data: bytes, fmt: str) -> Tuple[np.ndarray, str]:
 
 
 def rvl_decompress(data: bytes, num_pixels: int) -> np.ndarray:
-    """Decompress an RVL bitstream -> flat ``uint16`` array (``num_pixels`` long).
+    """Decompress an RVL bitstream ─▶ flat ``uint16`` array (``num_pixels`` long).
 
     Faithful Python port of ``compressed_depth_image_transport::RvlCodec::
     DecompressRVL`` (Wilson, "Fast Lossless Depth Image Compression", SIGCHI'17):

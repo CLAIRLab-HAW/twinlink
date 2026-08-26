@@ -29,7 +29,7 @@ log = logging.getLogger("twinlink.task_sim")
 
 
 class GripperLinkage(Protocol):
-    """The mapping grasp width <-> driver joint -- HANDED IN, never here.
+    """The mapping grasp width ◀─▶ driver joint -- HANDED IN, never here.
 
     This module only describes what it needs from the mapping; the formula itself belongs to the robot, not to the sim.
     ``husky_sdk.sim`` passes ``profile.gripper.linkage`` through for that.
@@ -79,7 +79,7 @@ class RobotSimSpec:
     #: to the hand but must keep bumping into objects, otherwise it loses its
     #: collision events.
     gripper_prefixes: Tuple[str, ...]
-    #: Bodies far from the arm -- contact hand<->here = folded configuration.
+    #: Bodies far from the arm -- contact hand◀─▶here = folded configuration.
     far_arm_bodies: Tuple[str, ...]
     #: Jaw travel of the gripper model (m) with the hand open.
     gripper_stroke_m: float
@@ -115,8 +115,8 @@ GRASP_MAX_MISALIGN_DEG = 20.0
 #: pinned by golden traces (tightened, the block stack breaks immediately) and
 #: measured in the study at at most 2.1 degrees.
 #:
-#: Why the limit exists: belief -> action -> change of the world -> read back
-#: as "truth" -> belief.  Causally legitimate (a real gripper really does
+#: Why the limit exists: belief ─▶ action ─▶ change of the world ─▶ read back
+#: as "truth" ─▶ belief.  Causally legitimate (a real gripper really does
 #: straighten a pen when it grabs it), but without a limit the twin models it
 #: as a FREE snap: everything up to :data:`GRASP_MAX_MISALIGN_DEG` is corrected
 #: for nothing, with no failure case.  That turns abstraction errors into
@@ -216,7 +216,7 @@ class TwinTaskSim:
         #: real RG6 opens only as far as the object demands.
         self._release_clearance = float(release_clearance)
         self._gripper_follower_factors: Dict[str, float] = dict(gripper_follower_factors)
-        #: Width <-> driver joint.  See :class:`GripperLinkage`: the formula
+        #: Width ◀─▶ driver joint.  See :class:`GripperLinkage`: the formula
         #: belongs to the robot and is handed in so that it does not stand in
         #: the stack for the fourth time.
         self._linkage = gripper_linkage
@@ -231,7 +231,7 @@ class TwinTaskSim:
         #: close against the object and a grip force exists; see
         #: :meth:`_drive_gripper` and :meth:`_setup_collision_masks`.
         self._actuated_gripper = bool(actuated_gripper)
-        #: follower joint -> actuator id, filled only in the actuated regime.
+        #: follower joint ─▶ actuator id, filled only in the actuated regime.
         self._gripper_actuators: Dict[str, int] = {}
         #: Over how many ticks the closing runs VISIBLY in the non-actuated
         #: regime.  ``0`` = off: the joints stand on the target in the first
@@ -278,7 +278,7 @@ class TwinTaskSim:
         self._gripper_command: float = self._gripper_open
         #: Whether the hand is commanded CLOSED -- see :meth:`gripper_closed`.
         self._gripper_closing: bool = False
-        # label -> (pos offset in TCP frame, quat offset) while carried.
+        # label ─▶ (pos offset in TCP frame, quat offset) while carried.
         self._grasped: Optional[str] = None
         self._grasp_offset: Optional[Tuple[np.ndarray, np.ndarray]] = None
         # Closing span (m) of the captured face pair -- drives the finger command width; None falls back to the default
@@ -459,10 +459,10 @@ class TwinTaskSim:
 
         Grasping is proximity capture + kinematic carry (see module docstring), so finger--object contact forces are
         artifacts: the open fingers would shove an object away while descending onto it.  Contact bitmasks exclude
-        exactly the gripper<->object pairs; the gripper still collides with table/ground and the arm still collides with
+        exactly the gripper◀─▶object pairs; the gripper still collides with table/ground and the arm still collides with
         the objects (knocking them over stays possible).
 
-        Masks: world/robot keep (1, 1); objects get (2, 3); gripper geoms get (4, 1).  gripper&object: 4&3 = 2&1 = 0 ->
+        Masks: world/robot keep (1, 1); objects get (2, 3); gripper geoms get (4, 1).  gripper&object: 4&3 = 2&1 = 0 ─▶
         no contact.
 
         Every REGISTERED graspable gets this, task objects and dynamic clutter alike.  Only ``spec.gripper_prefixes`` --
@@ -678,7 +678,7 @@ class TwinTaskSim:
             if grasp and self._grasped is not None:
                 span = self._grasp_span if self._grasp_span is not None else self._default_span
                 width = min(span, self.spec.gripper_stroke_m)
-                # Width -> joint is done by the linkage kinematics, not by this method.  A straight line between two
+                # Width ─▶ joint is done by the linkage kinematics, not by this method.  A straight line between two
                 # anchors (``closed * (1 - width/stroke)``) gave 0.43 rad for 50 mm where the geometry demands 0.32 rad
                 # -- the jaws of the twin therefore stood somewhere other than those of the model move_group plans
                 # against.
@@ -1158,7 +1158,7 @@ class TwinTaskSim:
         return float(np.degrees(self._grasp_misalign))
 
     def grasp_gap(self):
-        """Smallest distance gripper<->grasped body (m), or ``None``.
+        """Smallest distance gripper◀─▶grasped body (m), or ``None``.
 
         The CHECK to go with the model: the capture decides on distance, orientation and span and then welds -- whether
         the jaws really touch the body would otherwise stand nowhere.  The measurement is taken as soon as the fingers
@@ -1243,7 +1243,7 @@ class TwinTaskSim:
         return self._robot_body_cache
 
     def _measure_gap(self, entry) -> Optional[float]:
-        """Kleinster Abstand Hand<->Koerper JETZT (m), oder ``None``."""
+        """Kleinster Abstand Hand◀─▶Koerper JETZT (m), oder ``None``."""
         if entry is None or not self._hand_geoms:
             return None
         smallest = float("inf")
@@ -1485,7 +1485,7 @@ class TwinTaskSim:
         stop at the object, so no contact force can build.
 
         The setpoint is ramped across the substeps of a tick instead of jumping: the command changes binary
-        open<->closed, and a step of that size drives the fingers through the object before the contact solver ever sees
+        open◀─▶closed, and a step of that size drives the fingers through the object before the contact solver ever sees
         them.
         """
         for joint, target in targets.items():

@@ -68,7 +68,7 @@ def _node_matrix(node: ET.Element) -> np.ndarray:
 
 
 def _diffuse_by_material(root: ET.Element, ns: dict) -> dict:
-    """material-id -> rgba, resolved through ``instance_effect`` -> diffuse."""
+    """material-id ─▶ rgba, resolved through ``instance_effect`` ─▶ diffuse."""
     eff_color = {}
     for eff in root.findall(f".//{_q('effect', ns)}", ns):
         col = eff.find(f".//{_q('diffuse', ns)}/{_q('color', ns)}", ns)
@@ -151,7 +151,7 @@ def _extract_groups(dae_path: str) -> Tuple[str, List[Tuple[str, Optional[list],
             continue
         geoms[g.get("id")] = (pos, list(_primitives(mesh, ns)))
 
-    groups: dict = {}  # material -> [Vlist, Flist, offset]
+    groups: dict = {}  # material ─▶ [Vlist, Flist, offset]
 
     def add(material, V, F):
         entry = groups.setdefault(material, [[], [], 0])
@@ -182,7 +182,7 @@ def _extract_groups(dae_path: str) -> Tuple[str, List[Tuple[str, Optional[list],
     for vs in scenes:
         for node in vs.findall(_q("node", ns), ns):
             walk(node, np.eye(4))
-    if not groups:  # no scene graph -> emit geometries untransformed
+    if not groups:  # no scene graph ─▶ emit geometries untransformed
         for pos, prims in geoms.values():
             for symbol, faces in prims:
                 add(symbol, pos, faces)

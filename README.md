@@ -127,7 +127,7 @@ twinlink/
   mapping.py        RobotMapping + ROS→state decoders (YAML-driven)
   bridge.py         TwinLink — wires source → state → sinks
   urdf_mujoco.py    build a MuJoCo model from any URDF (mesh cache, visual/collision)
-  collada.py        minimal .dae -> .obj reader (orientation-preserving)
+  collada.py        minimal .dae ─▶ .obj reader (orientation-preserving)
   events.py         SimEvents — physics-step event record (collisions, grasp
                     acquired/lost) read by task apps for rewards
   kinematics.py     Cartesian→joint IK utility over a twin MuJoCo model

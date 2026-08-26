@@ -21,7 +21,7 @@ import numpy as np
 
 
 def _quat_to_matrix(q: np.ndarray) -> np.ndarray:
-    """xyzw quaternion -> 3x3 rotation matrix."""
+    """xyzw quaternion ─▶ 3x3 rotation matrix."""
     x, y, z, w = (float(v) for v in q)
     n = x * x + y * y + z * z + w * w
     if n == 0.0:
@@ -36,7 +36,7 @@ def _quat_to_matrix(q: np.ndarray) -> np.ndarray:
 
 
 def _matrix_to_quat(m: np.ndarray) -> np.ndarray:
-    """3x3 rotation matrix -> xyzw quaternion (Shepperd's method).
+    """3x3 rotation matrix ─▶ xyzw quaternion (Shepperd's method).
 
     This function exists a second time, line for line the same: ``robot_contract.twin_protocol.mat_to_quat_xyzw``.
     That is the price of the layering decision that ``twinlink`` does not depend on ``robot_contract`` (see
@@ -70,7 +70,7 @@ def _slerp(q0: np.ndarray, q1: np.ndarray, alpha: float) -> np.ndarray:
     dot = float(np.dot(q0, q1))
     if dot < 0.0:  # take the short arc
         q1, dot = -q1, -dot
-    if dot > 0.9995:  # nearly parallel -> lerp, renormalise
+    if dot > 0.9995:  # nearly parallel ─▶ lerp, renormalise
         out = q0 + alpha * (q1 - q0)
         return out / np.linalg.norm(out)
     theta0 = np.arccos(np.clip(dot, -1.0, 1.0))
@@ -112,9 +112,9 @@ class TFBuffer:
     """TF tree from recorded messages: static + time-stamped dynamic edges."""
 
     def __init__(self) -> None:
-        # static: (parent, child) -> Transform
+        # static: (parent, child) ─▶ Transform
         self._static: Dict[Tuple[str, str], Transform] = {}
-        # dynamic: (parent, child) -> sorted list of (timestamp_ns, Transform)
+        # dynamic: (parent, child) ─▶ sorted list of (timestamp_ns, Transform)
         self._dynamic: Dict[Tuple[str, str], list] = defaultdict(list)
 
     def add_static(self, ros_tf_msg) -> None:
@@ -186,10 +186,10 @@ class TFBuffer:
             return None
 
         # Accumulate M so that p_target = M @ p_source.  Walking each edge
-        # node->next (toward target) we need T_next_node (maps node-frame into
+        # node─▶next (toward target) we need T_next_node (maps node-frame into
         # next-frame) and left-multiply: M = T_next_node @ M.
-        #   - forward edge (node,next) stores T_node_next (next->node) -> invert
-        #   - reverse edge (next,node) stores T_next_node (node->next) -> as-is
+        #   - forward edge (node,next) stores T_node_next (next─▶node) ─▶ invert
+        #   - reverse edge (next,node) stores T_next_node (node─▶next) ─▶ as-is
         mat = np.eye(4)
         for node, nxt, forward in path:
             if forward:

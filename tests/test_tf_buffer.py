@@ -29,13 +29,13 @@ def test_identity_and_missing_path():
 
 
 def test_static_chain_forward_and_reverse():
-    """odom->base->camera chain; lookup camera->odom composes + inverts."""
+    """odom─▶base─▶camera chain; lookup camera─▶odom composes + inverts."""
     buf = TFBuffer()
     buf.add_static(_tf_msg("odom", "base", (1.0, 0.0, 0.0)))
     buf.add_static(_tf_msg("base", "camera", (0.0, 2.0, 0.0)))
     buf.finalize()
 
-    M = buf.lookup("camera", "odom", 0)  # points camera -> odom
+    M = buf.lookup("camera", "odom", 0)  # points camera ─▶ odom
     p = M @ np.array([0.0, 0.0, 0.0, 1.0])
     assert np.allclose(p[:3], [1.0, 2.0, 0.0])
 

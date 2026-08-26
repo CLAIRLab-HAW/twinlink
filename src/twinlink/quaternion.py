@@ -83,7 +83,7 @@ def quat_about_z_wxyz(angle: float) -> np.ndarray:
 
 
 def mat_to_quat_wxyz(mat: np.ndarray) -> np.ndarray:
-    """3x3 rotation matrix -> wxyz quaternion."""
+    """3x3 rotation matrix ─▶ wxyz quaternion."""
     out = np.empty(4)
     _mj().mju_mat2Quat(out, _arr(mat, 9))
     return out

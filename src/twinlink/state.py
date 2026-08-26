@@ -8,7 +8,7 @@ addressed by name.
 
 The contract is intentionally tiny so that it is cheap to update at sensor rates and cheap to sample from a render loop:
 
-    source thread(s)  --writes-->  RobotState  <--reads--  sink (main thread)
+    source thread(s)  ──writes──▶  RobotState  ◀──reads──  sink (main thread)
 
 All access is guarded by a single re-entrant lock.  Writers bump a monotonic ``revision`` counter so a consumer can
 cheaply detect "did anything change".
@@ -41,7 +41,7 @@ class JointState:
 
 @dataclass
 class Transform:
-    """A rigid transform ``frame_id -> child_frame_id``.
+    """A rigid transform ``frame_id ─▶ child_frame_id``.
 
     Rotation is stored as an ``xyzw`` quaternion to match ROS / geometry_msgs.
     """
@@ -91,8 +91,8 @@ class CameraFrame:
     #: were captured at (or after) the settled pose.  0.0 = unknown/legacy.
     arrival_monotonic: float = 0.0
     #: Receive timestamp of the relaying bridge (epoch seconds), if the
-    #: transport carries one (foxglove ws MessageData).  Splits sensor->bridge
-    #: from bridge->client lag when clocks differ.  0.0 = unknown.
+    #: transport carries one (foxglove ws MessageData).  Splits sensor─▶bridge
+    #: from bridge─▶client lag when clocks differ.  0.0 = unknown.
     bridge_recv_stamp: float = 0.0
 
     def ensure_decoded(self) -> bool:
@@ -371,7 +371,7 @@ class RobotState:
         path.reverse()  # source ... target
 
         # A stored transform (parent, child) maps points from the CHILD frame into the PARENT frame -- the ROS
-        # convention.  Walking a -> b: if b is a's parent the stored matrix already points our way; if a is b's parent
+        # convention.  Walking a ─▶ b: if b is a's parent the stored matrix already points our way; if a is b's parent
         # we need its inverse.  Deciding this from the edge dictionary rather than from a direction flag is what keeps
         # the two cases from being swapped.
         mat = np.eye(4)

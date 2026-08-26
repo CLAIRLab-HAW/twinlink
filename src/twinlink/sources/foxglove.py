@@ -61,8 +61,8 @@ def parse_message_data(data: bytes) -> Optional[Tuple[int, float, bytes]]:
     """Parse a binary server frame; return ``(sub_id, recv_stamp, cdr_payload)``.
 
     ``recv_stamp`` is the bridge's receive timestamp converted to epoch seconds (the u64 nanoseconds at bytes 5..13 of a
-    MessageData frame) -- it dates the message *at the bridge*, so a consumer can split sensor->bridge from
-    bridge->client latency.  Returns ``None`` for
+    MessageData frame) -- it dates the message *at the bridge*, so a consumer can split sensor─▶bridge from
+    bridge─▶client latency.  Returns ``None`` for
     non-``MessageData`` frames. Pure/testable."""
     if not data or data[0] != _OP_MESSAGE_DATA or len(data) < 13:
         return None
@@ -75,7 +75,7 @@ def _parse_concatenated_msg(root_type: str, schema: str) -> dict:
     """Parse a foxglove/ROS concatenated ros2msg schema into rosbags types.
 
     The schema is the root message's fields followed by ``MSG: pkg/Type`` sections for each dependency (separated by
-    ``===`` lines). Returns a name->typedef dict ready for ``typestore.register(...)`` (handles moveit_msgs etc. that
+    ``===`` lines). Returns a name─▶typedef dict ready for ``typestore.register(...)`` (handles moveit_msgs etc. that
     rosbags
     doesn't ship)."""
     from rosbags.typesys import get_types_from_msg
@@ -88,7 +88,7 @@ def _parse_concatenated_msg(root_type: str, schema: str) -> dict:
         if not m:
             continue
         name = m.group(1)
-        if "/msg/" not in name:  # pkg/Type -> pkg/msg/Type
+        if "/msg/" not in name:  # pkg/Type ─▶ pkg/msg/Type
             parts = name.split("/")
             name = f"{parts[0]}/msg/{parts[-1]}"
         types.update(get_types_from_msg(sec[m.end() :], name))
@@ -153,10 +153,10 @@ class FoxgloveSource(StateSource):
         self._stop = threading.Event()
         self._ws = None
         self._typestore = None
-        self._sub_map: Dict[int, Tuple[str, str, int]] = {}  # subId -> (topic, msgtype, channelId)
+        self._sub_map: Dict[int, Tuple[str, str, int]] = {}  # subId ─▶ (topic, msgtype, channelId)
         self._next_sub = 0
         self._decode_errors: set = set()  # topics whose first decode failure was logged
-        # Ingest telemetry: message counts + last bridge->client lag per topic, logged every _STAT_PERIOD seconds
+        # Ingest telemetry: message counts + last bridge─▶client lag per topic, logged every _STAT_PERIOD seconds
         # (DEBUG).  A growing lag means the receive loop is falling behind the wire rate.
         self._stat_counts: Dict[str, int] = {}
         self._stat_lag: Dict[str, float] = {}

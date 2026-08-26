@@ -111,7 +111,7 @@ def test_wrap_quarter():
 # capture: parallel-jaw alignment gate
 # --------------------------------------------------------------------- #
 def test_misaligned_payload_is_not_captured():
-    """Pads at 90deg (fixed), payload at 90+35deg -> jaws meet edges, no grasp."""
+    """Pads at 90deg (fixed), payload at 90+35deg ─▶ jaws meet edges, no grasp."""
     sim = _build()
     try:
         _set_payload_yaw(sim, np.radians(GRIPPER_PAD_YAW_DEG + 35))
@@ -123,7 +123,7 @@ def test_misaligned_payload_is_not_captured():
 
 
 def test_aligned_payload_is_captured():
-    """Payload yaw exactly matches the pad axis -> captured."""
+    """Payload yaw exactly matches the pad axis ─▶ captured."""
     sim = _build()
     try:
         _set_payload_yaw(sim, np.radians(GRIPPER_PAD_YAW_DEG))
@@ -242,7 +242,7 @@ def test_a_grasp_drives_the_joint_the_linkage_asks_for_not_a_line_of_its_own():
 
 def test_the_empty_closed_gripper_reports_zero_width():
     sim = _build()
-    sim.command_gripper(True)  # nothing to grasp -> fully closed
+    sim.command_gripper(True)  # nothing to grasp ─▶ fully closed
     assert sim.gripper_width_m() == pytest.approx(0.0, abs=1e-9)
 
 
@@ -619,7 +619,7 @@ def test_a_tipped_object_offers_the_axes_it_really_has():
     coincides with the old one, so the cube tower does not move.
     """
     sim = _build()
-    # upright: x and y are horizontal -> exactly the old two axes
+    # upright: x and y are horizontal ─▶ exactly the old two axes
     axes = sim._horizontal_axes(sim._graspable["payload"])
     assert len(axes) == 2
     assert min(abs(_wrap_half(a)) for a in axes) < 1e-6
@@ -633,7 +633,7 @@ def test_a_tipped_object_offers_the_axes_it_really_has():
 # --------------------------------------------------------------------- #
 # The straightening has a LIMIT instead of being a repair
 #
-# Belief -> action -> change of the world -> read back as "truth" -> belief.
+# Belief ─▶ action ─▶ change of the world ─▶ read back as "truth" ─▶ belief.
 # Causally legitimate (a real gripper really does straighten a pen when it
 # grabs it), but modelled as a FREE snap the twin turns abstraction errors
 # into nothing: the coarse rung looks sufficient because the twin itself
@@ -751,7 +751,7 @@ def test_a_carried_object_driven_into_the_world_reports_no_gap_left():
     sim.command_gripper(close=True)
     sim.step_physics(30)
     assert sim.grasped_label() == "payload"
-    sim.set_arm_command({"arm_0_slide": 0.63})  # TCP -> 0.80, in die Wand
+    sim.set_arm_command({"arm_0_slide": 0.63})  # TCP ─▶ 0.80, in die Wand
     sim.step_physics(60)
     assert sim.carried_world_gap() <= 0.0, (
         "der getragene Koerper steckt in der Wand und die Pruefung " "meldet freien Raum"

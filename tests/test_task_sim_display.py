@@ -3,7 +3,7 @@
 believes" API (see ``TwinTaskSim`` module docstring, "belief display").
 
 The neighbouring suites reach this mechanic only indirectly:
-``hrl.tests.test_belief_mirror`` is task-scoped (the WorldModel -> item-tuple
+``hrl.tests.test_belief_mirror`` is task-scoped (the WorldModel ─▶ item-tuple
 translation via ``hrl.env.belief_mirror.CubeTwinMirror``), and
 ``twinlink.tests.test_display_mirror`` covers only the dedup/sequencing logic
 of ``TwinDisplayMirror`` against a mocked sim.  The sim-side mechanic itself
@@ -133,7 +133,7 @@ def test_display_release_without_position_leaves_object_in_place():
     try:
         sim.display_carry("believed")
         before = sim.object_position("believed").copy()
-        sim.display_release("believed")  # no position -> stays where the carry left it
+        sim.display_release("believed")  # no position ─▶ stays where the carry left it
         assert np.allclose(sim.object_position("believed"), before, atol=1e-6)
         assert sim.grasped_label() is None
     finally:

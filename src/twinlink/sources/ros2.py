@@ -34,7 +34,7 @@ _BEST_EFFORT_ROLES = {"image", "camera_info", "tf", "tf_static"}
 
 
 def resolve_msg_class(type_str: str):
-    """'sensor_msgs/msg/JointState' -> the rclpy message class."""
+    """'sensor_msgs/msg/JointState' ─▶ the rclpy message class."""
     parts = type_str.replace(".msg.", "/msg/").split("/")
     pkg, name = parts[0], parts[-1]
     module = importlib.import_module(f"{pkg}.msg")

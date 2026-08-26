@@ -159,7 +159,7 @@ def camera_intrinsics(model, camera: str, width: int, height: int) -> np.ndarray
 
 
 def camera_extrinsics(data, model, camera: str) -> Tuple[np.ndarray, np.ndarray]:
-    """World pose of a camera: ``(position (3,), rotation (3,3) cam->world)``.
+    """World pose of a camera: ``(position (3,), rotation (3,3) cam─▶world)``.
 
     MuJoCo camera frames look along -z with +y up (columns of the returned rotation are the camera's x/y/z axes in world
     coordinates).

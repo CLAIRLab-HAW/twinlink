@@ -169,7 +169,7 @@ def test_decode_points_into_obstacles():
 
 
 # --------------------------------------------------------------------------- #
-# lazy CompressedImage decode (CameraMap.lazy_decode -> CameraFrame.ensure_decoded)
+# lazy CompressedImage decode (CameraMap.lazy_decode ─▶ CameraFrame.ensure_decoded)
 # --------------------------------------------------------------------------- #
 _COMPRESSED_TYPE = "sensor_msgs/msg/CompressedImage"
 

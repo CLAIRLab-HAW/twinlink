@@ -94,7 +94,7 @@ def test_parse_rejects_node_tokens_and_foreign_keyexprs():
 def test_attachment_layout():
     gid = bytes(range(RMW_GID_STORAGE_SIZE))
     raw = rmw_attachment_bytes(7, 1_234_567_890_123, gid)
-    # zenoh ext serializer output for (int64, int64, [u8;16]): 8 LE bytes + 8 LE bytes + LEB128 length (16 -> 0x10) +
+    # zenoh ext serializer output for (int64, int64, [u8;16]): 8 LE bytes + 8 LE bytes + LEB128 length (16 ─▶ 0x10) +
     # gid = 33 bytes.
     assert len(raw) == 33
     seq, ts = struct.unpack_from("<qq", raw)
@@ -149,7 +149,7 @@ def test_cdr_roundtrip_of_the_twin_types():
 
 
 # --------------------------------------------------------------------------- #
-# loopback integration: discovery -> keyexpr -> publish -> attachment
+# loopback integration: discovery ─▶ keyexpr ─▶ publish ─▶ attachment
 # --------------------------------------------------------------------------- #
 def test_uplink_loopback_discovers_and_publishes():
     """The full uplink path over a real zenoh session (in-process loopback).
