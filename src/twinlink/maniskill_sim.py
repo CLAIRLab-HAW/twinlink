@@ -51,6 +51,7 @@ class ManiSkillTaskSim:
         owns_tick: bool,
         gripper_follower_factors: Dict[str, float] | None = None,
         gripper_linkage=None,
+        gripper_driver_joint: str | None = None,
     ) -> None:
         self.env = env.unwrapped
         self.arm_joints: Tuple[str, ...] = tuple(arm_joints)
@@ -59,6 +60,9 @@ class ManiSkillTaskSim:
         self.owns_tick = bool(owns_tick)
         self._followers = dict(gripper_follower_factors or {})
         self._linkage = gripper_linkage
+        # The driver joint belongs to the GRIPPER in the profile, not to the linkage -- and twinlink may not read a
+        # profile, so it is injected like everything else the robot knows about itself.
+        self._driver_joint = gripper_driver_joint
         self._pending = SimEvents()
         self._robot = self.env.agent.robot
         self._qidx = {j.name: i for i, j in enumerate(self._robot.get_active_joints())}
@@ -80,15 +84,14 @@ class ManiSkillTaskSim:
         return {name: float(qpos[i]) for name, i in self._qidx.items()}
 
     def gripper_width_m(self) -> float:
-        """The MEASURED jaw separation.
+        """The MEASURED jaw separation, read off the driver joint.
 
         Never the commanded value: ``plan_server`` forms its grasp verdict from the width the bridge reports, and
         echoing the command back would make that verdict tautological.
         """
-        if self._linkage is None:
+        if self._linkage is None or self._driver_joint is None:
             return float("nan")
-        driver = self._linkage.driver_joint
-        idx = self._qidx.get(driver)
+        idx = self._qidx.get(self._driver_joint) if self._driver_joint else None
         if idx is None:
             return float("nan")
         return float(self._linkage.width_from_angle(float(self._qpos()[idx])))
@@ -114,7 +117,8 @@ class ManiSkillTaskSim:
         if not self.owns_tick or self._linkage is None:
             return
         driver = float(self._linkage.closed_rad if close else self._linkage.open_rad)
-        self._command[self._linkage.driver_joint] = driver
+        if self._driver_joint:
+            self._command[self._driver_joint] = driver
         for follower, factor in self._followers.items():
             self._command[follower] = driver * float(factor)
 
@@ -127,6 +131,23 @@ class ManiSkillTaskSim:
             self.env.step(self._action_from_command())
             events.merge(self._collect_events())
         return events
+
+    def apply_external_gripper(self, close: bool) -> None:
+        """Command the gripper from OUTSIDE (the bridge), regardless of who owns the tick.
+
+        The counterpart of :meth:`apply_external_command` for the hand.  :meth:`command_gripper` is a no-op on the
+        ROS route ON PURPOSE -- there the motion planner runs in its ``real=True`` shape and the backend commands
+        over ``/twin/gripper_cmd``, so a second write from the planner would meet a bridge that refuses commands
+        during a motion.  But the bridge itself must be able to command, and measured 2026-08-28 it could not: the
+        action was accepted, the jaws never moved, and the reported width stayed where it was.
+        """
+        if self._linkage is None:
+            return
+        driver = float(self._linkage.closed_rad if close else self._linkage.open_rad)
+        if self._driver_joint:
+            self._command[self._driver_joint] = driver
+        for follower, factor in self._followers.items():
+            self._command[follower] = driver * float(factor)
 
     def apply_external_command(self, joints: Dict[str, float]) -> SimEvents:
         """Advance the world from a command that came from OUTSIDE (the bridge).
@@ -150,7 +171,11 @@ class ManiSkillTaskSim:
         qpos = self._qpos()
         segments: list[float] = []
         for sub in self.env.agent.controller.controllers.values():
-            for joint in sub.joints:
+            # ONE entry per action dimension, not per joint.  A mimic controller drives several joints from a single
+            # value -- measured 2026-08-28 on the RG6, whose six joints occupy exactly one dimension, so building
+            # per joint produced a 12-vector where the environment expected 7 and every step raised.
+            width = int(np.prod(sub.action_space.shape))
+            for joint in list(sub.joints)[:width]:
                 name = joint.name
                 fallback = float(qpos[self._qidx[name]]) if name in self._qidx else 0.0
                 segments.append(float(self._command.get(name, fallback)))
@@ -232,17 +257,38 @@ class ManiSkillTaskSim:
         return poses
 
     def contact_forces(self, link_names: Sequence[str]) -> Dict[str, float]:
-        """Per-link net contact force magnitude in newton.
+        """Per-link contact force magnitude in newton, against things that are NOT the robot.
 
-        ``Articulation.get_net_contact_forces(link_names)`` returns ``(num_envs, len(link_names), 3)``; the norm over
-        the last axis is the magnitude, and environment 0 is the digital twin (measured 2026-08-28).
+        **Pairwise, not net, and that distinction is the whole method.**
+        ``Articulation.get_net_contact_forces`` sums every contact on a link, self-contacts included -- and the RG6
+        is a four-bar linkage whose struts touch each other by construction.  Measured 2026-08-28 against the
+        running stack: it reported 34 kN on ``rg6_gripper_finger_1_truss_arm`` and 8 kN on the bracket with nothing
+        in the scene at all, and the collision monitor duly froze the plant on the gripper's own mechanism.
+
+        A collision is contact with something that is not the robot, so the forces come from
+        ``scene.get_pairwise_contact_forces(actor, link)`` over the scene's non-robot actors.  In a world without
+        task objects that is legitimately empty -- there is nothing to collide with.
         """
         names = list(link_names)
-        if not names:
-            return {}
-        forces = self._robot.get_net_contact_forces(names)
-        magnitudes = np.linalg.norm(forces[0].cpu().numpy(), axis=-1)
-        return {name: float(m) for name, m in zip(names, magnitudes)}
+        others = self._non_robot_actors()
+        if not names or not others:
+            return {name: 0.0 for name in names}
+        links = {link.name: link for link in self._robot.get_links()}
+        out: Dict[str, float] = {}
+        for name in names:
+            link = links.get(name)
+            if link is None:
+                continue
+            worst = 0.0
+            for actor in others:
+                force = self.env.scene.get_pairwise_contact_forces(actor, link)
+                worst = max(worst, float(np.linalg.norm(force[0].cpu().numpy())))
+            out[name] = worst
+        return out
+
+    def _non_robot_actors(self) -> list:
+        """The scene's actors that are not part of the robot -- what a collision can be WITH."""
+        return list(getattr(self.env, "task_objects", {}).values())
 
     def self_collides(self, joints: Dict[str, float]) -> bool:
         """Does the PHYSICS see robot-versus-robot contact at this configuration?

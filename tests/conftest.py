@@ -130,12 +130,18 @@ def _build_world(urdf_bundle, robot_srdf, *, owns_tick: bool):
         sim_backend="physx_cpu",
     )
     env.reset(seed=0)
+    from robot_contract import load_profile
+
+    gripper = load_profile().gripper
     return ManiSkillTaskSim(
         env,
         arm_joints=ARM_JOINTS,
         kinematics=kinematics,
         control_dt=0.02,
         owns_tick=owns_tick,
+        gripper_follower_factors=dict(gripper.follower_factors),
+        gripper_linkage=gripper.linkage,
+        gripper_driver_joint=gripper.driver_joint,
     )
 
 

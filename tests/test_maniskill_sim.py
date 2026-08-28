@@ -47,6 +47,17 @@ def test_step_physics_returns_events_in_both_modes(world_ros_route):
     assert hasattr(events, "merge")
 
 
+def test_the_action_matches_the_environments_action_space(world_in_process):
+    """One entry per action DIMENSION, not per joint.
+
+    A mimic controller drives several joints from one value: measured 2026-08-28 on the RG6, whose six joints occupy
+    exactly one dimension.  Building the vector per joint produced a 12-vector where the environment expected 7, and
+    every step raised.
+    """
+    action = world_in_process._action_from_command()
+    assert action.shape == world_in_process.env.action_space.shape
+
+
 def test_the_action_is_not_qpos_shaped(world_in_process):
     # Measured 2026-08-28: qpos is (16,) while the arm controller's action is (6,).  Building the action by slicing
     # the state would silently command the wrong joints.
@@ -67,3 +78,31 @@ def test_the_camera_pose_is_opengl_like_the_mujoco_sibling(world_in_process):
     pos, rot = pose
     assert pos.shape == (3,) and rot.shape == (3, 3)
     assert np.linalg.det(rot) == pytest.approx(1.0, abs=1e-5)
+
+
+def test_the_bridge_can_command_the_gripper_on_the_ros_route(world_ros_route):
+    """``command_gripper`` is a no-op there, ``apply_external_gripper`` is not.
+
+    Measured 2026-08-28 against the running stack: the GripperCommand action was accepted, the jaws never moved and
+    the reported width stayed put -- because the server called the no-op.  The planner must not command there (it
+    would meet a bridge that refuses during a motion), but the bridge must.
+    """
+    driver = world_ros_route._driver_joint
+    before = dict(world_ros_route._command)
+    world_ros_route.command_gripper(True)
+    assert world_ros_route._command == before, "command_gripper must stay a no-op on the ROS route"
+    world_ros_route.apply_external_gripper(True)
+    assert world_ros_route._command[driver] == pytest.approx(world_ros_route._linkage.closed_rad)
+
+
+def test_a_bare_world_reports_no_contact_although_the_gripper_touches_itself(world_in_process):
+    """Contact means contact with something that is NOT the robot.
+
+    The RG6 is a four-bar linkage whose struts touch each other by construction.  Measured 2026-08-28 against the
+    running stack, ``get_net_contact_forces`` reported 34 kN on a truss arm and 8 kN on the bracket with an EMPTY
+    scene, and the collision monitor froze the plant on the gripper's own mechanism.  Pairwise against the scene's
+    non-robot actors is what answers the question that was actually asked.
+    """
+    forces = world_in_process.contact_forces(world_in_process.monitored_links())
+    assert forces, "the monitored links must still be reported, with zero force"
+    assert max(forces.values()) == 0.0
