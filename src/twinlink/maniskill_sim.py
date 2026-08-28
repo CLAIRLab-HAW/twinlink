@@ -78,10 +78,55 @@ class ManiSkillTaskSim:
         self._robot = self.env.agent.robot
         self._qidx = {j.name: i for i, j in enumerate(self._robot.get_active_joints())}
         self._command: Dict[str, float] = {}
+        #: Control steps taken since this world was built.  The world's own clock, in ticks -- see
+        #: :meth:`sim_time_s`.
+        self._steps = 0
 
     # ------------------------------------------------------------------ #
     # reads -- identical in both modes, in process, no round trip
     # ------------------------------------------------------------------ #
+    def sim_time_s(self) -> float:
+        """Simulated seconds since this world was built -- the world's OWN clock, not the wall's.
+
+        Every step advances the physics by exactly one control timestep whether it took a millisecond or a second of
+        wall time, so this is the only honest answer to "how long has the robot been moving".  It is what the bridge
+        publishes on ``/clock``, which is why two properties matter more than precision:
+
+
+        * **It never goes backwards, not even across a reset.**  A ROS clock that jumps back invalidates every TF
+          buffer and message queue in the graph, and ``rclpy`` does not recover -- so :meth:`reset` starts a new
+          episode without starting a new clock.
+        * **It counts steps, not wall time.**  A world that renders slowly simply produces a slow clock, and
+          everything paced by that clock slows with it.  That is the whole reason for publishing it.
+
+        The step comes from the ENVIRONMENT, not from ``control_dt``.  The two are different quantities that read
+        alike: ``control_dt`` is what the motion planner paces its samples with (0.02 s in ``maniskill-eval``),
+        while ``env.control_timestep`` is how much simulated time one ``env.step`` actually buys (0.01 s there, from
+        ``control_freq = 100``).  Measured 2026-08-29: taking ``control_dt`` published a clock running at exactly
+        twice the world's rate -- the same class of error a published clock exists to remove.  ``control_dt`` stays
+        the fallback for a world whose environment states no timestep.
+        """
+        return self._steps * self.step_dt
+
+    @property
+    def step_dt(self) -> float:
+        """Simulated seconds one ``env.step`` advances the world.
+
+        :return: ``env.control_timestep`` where the environment states one, else the injected ``control_dt``.
+        """
+        stated = getattr(self.env, "control_timestep", None)
+        return float(stated) if stated else self.control_dt
+
+    def _step_once(self, action: np.ndarray) -> None:
+        """The ONE place the environment is stepped, so the clock cannot miss a step.
+
+        Every caller goes through here: the in-process tick, the bridge's external command, and the settle at
+        reset.  A second ``env.step`` elsewhere would advance physics without advancing :meth:`sim_time_s`, and the
+        graph would see a clock that lags the world it describes.
+        """
+        self.env.step(action)
+        self._steps += 1
+
     def _qpos(self) -> np.ndarray:
         return self._robot.get_qpos()[0].cpu().numpy()
 
@@ -139,7 +184,7 @@ class ManiSkillTaskSim:
             return events
         events = SimEvents()
         for _ in range(max(1, int(n))):
-            self.env.step(self._action_from_command())
+            self._step_once(self._action_from_command())
             events.merge(self._collect_events())
         return events
 
@@ -167,7 +212,7 @@ class ManiSkillTaskSim:
         the events land in the buffer the app drains through ``step_physics``.
         """
         self._command.update({k: float(v) for k, v in joints.items()})
-        self.env.step(self._action_from_command())
+        self._step_once(self._action_from_command())
         events = self._collect_events()
         self._pending.merge(events)
         return events
@@ -219,8 +264,14 @@ class ManiSkillTaskSim:
         return tuple(link.name for link in self._robot.get_links() if link.name.startswith(("arm_0", "rg6")))
 
     def reset(self, *, seed: int) -> None:
-        """Seeded episode reset.  Clears the pending events so an episode never inherits the previous one's."""
+        """Seeded episode reset.  Clears the pending events so an episode never inherits the previous one's.
+
+        The step count is deliberately NOT cleared: :meth:`sim_time_s` is published as ``/clock``, and a ROS clock
+        that jumps backwards invalidates every TF buffer and message queue in the graph.  A new episode gets a new
+        scene, not a new clock.
+        """
         self.env.reset(seed=int(seed))
+
         self._command = {}
         self._pending = SimEvents()
         self.settle_to_home()
@@ -254,7 +305,7 @@ class ManiSkillTaskSim:
             controller.reset()
         action = self._action_from_command()
         for _ in range(_SETTLE_STEPS):
-            self.env.step(action)
+            self._step_once(action)
 
     # ------------------------------------------------------------------ #
     # the world
@@ -357,12 +408,26 @@ class ManiSkillTaskSim:
         return list(getattr(self.env, "task_objects", {}).values())
 
     def self_collides(self, joints: Dict[str, float]) -> bool:
-        """Does the PHYSICS see robot-versus-robot contact at this configuration?
+        """Does the PHYSICS see robot-versus-robot contact the SRDF has NOT disabled?
 
         Only used by the regression test that compares the two URDF ingestions: the oracle answers the same question
         from Pinocchio, and a disagreement means the libraries read the model differently.  Not part of the control
         path -- the gate is the oracle's, because that is the one whose disabled pairs match ``move_group``.
+
+        Two things this must NOT do, both measured on 2026-08-28.  It must not reuse :meth:`contact_forces`, which
+        answers about the SCENE (table, cubes) and can never report the robot against itself.  And it must not count
+        every self-contact: 68 pairs touch permanently by construction (chassis, top plate, wheels), so an unfiltered
+        answer is "yes" at every configuration.  The SRDF-enabled pairs come from the oracle, which is what makes the
+        two sides answer one question instead of two.
+
+        The scene is STEPPED here, because PhysX generates no contacts for a configuration merely written into
+        ``qpos``.  The configuration is restored afterwards; the step still advances everything else in the world by
+        one tick, which is why this belongs to an in-process regression world and not beside a running measurement.
         """
+        enabled = getattr(self.kinematics, "enabled_link_pairs", None)
+        if enabled is None:
+            raise RuntimeError("no kinematics to borrow the SRDF pair set from -- the answer would be meaningless")
+        allowed = enabled()
         saved = self._robot.get_qpos().clone()
         try:
             probe = saved.clone()
@@ -371,6 +436,17 @@ class ManiSkillTaskSim:
                 if idx is not None:
                     probe[0, idx] = float(value)
             self._robot.set_qpos(probe)
-            return any(f > 1e-6 for f in self.contact_forces(self.monitored_links()).values())
+            self.env.scene.px.step()
+            links = {link.name for link in self._robot.get_links()}
+            for contact in self.env.scene.get_contacts():
+                first, second = contact.bodies[0].entity.name, contact.bodies[1].entity.name
+                if first not in links or second not in links:
+                    continue
+                if frozenset((first, second)) not in allowed:
+                    continue
+                # Penetration, not impulse: a configuration just written into qpos has had no time to build one.
+                if any(point.separation < 0.0 for point in contact.points):
+                    return True
+            return False
         finally:
             self._robot.set_qpos(saved)

@@ -5,6 +5,21 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-08-29 (the world states its own clock)
+
+- **`sim_time_s()` is the world's clock in seconds**, counted in control steps. The bridge publishes it as
+  `/clock`, which makes two properties load-bearing rather than cosmetic: it never goes backwards, and it counts
+  steps rather than wall time. A reset therefore starts a new scene and NOT a new clock -- rclpy does not recover
+  from a clock that jumps back, and a study runs many episodes against one graph. A world that renders slowly
+  simply produces a slow clock, and everything paced by it slows with it.
+- **`step_dt` reads the step from the ENVIRONMENT** (`env.control_timestep`), with the injected `control_dt` only
+  as the fallback. The two are different quantities that read alike: `control_dt` is what the motion planner paces
+  its samples with. Measured 2026-08-29 against `maniskill-eval` -- 0.02 s against the environment's 0.01 s, so
+  taking `control_dt` published a clock at exactly twice the world's rate.
+- **`_step_once` is the single place the environment is stepped.** The in-process tick, the bridge's external
+  command and the settle at reset all go through it; a second `env.step` elsewhere would advance physics without
+  advancing the clock.
+
 ## 2026-08-26 (the black section stops repeating the workspace rule)
 
 - **`[tool.black]` carries no copy of the workspace rule any more.** The section itself is unchanged --

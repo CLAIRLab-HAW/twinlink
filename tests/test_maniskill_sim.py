@@ -14,6 +14,8 @@ import pytest
 pytest.importorskip("sapien")
 pytest.importorskip("mani_skill")
 
+from twinlink.maniskill_sim import ManiSkillTaskSim  # noqa: E402
+
 
 def test_the_ros_route_does_not_advance_on_step_physics(world_ros_route):
     before = dict(world_ros_route.arm_positions())
@@ -147,3 +149,47 @@ def test_the_verdict_is_read_from_the_environment_not_recomputed(world_in_proces
         assert world_in_process.task_success() is True
     finally:
         world_in_process.env = original
+
+
+# --------------------------------------------------------------------------------------------------------------- #
+# the world's clock
+#
+# ``sim_time_s`` is published as ``/clock`` by the bridge, so its properties are graph-wide: a clock that skips a
+# step lags the world it dates, and one that goes backwards invalidates every TF buffer and message queue in the
+# graph.  Both are cheap to pin here and expensive to find in a running stack.
+# --------------------------------------------------------------------------------------------------------------- #
+def test_the_clock_counts_every_step_whoever_took_it(world_ros_route):
+    before = world_ros_route.sim_time_s()
+    for _ in range(10):
+        world_ros_route.apply_external_command({})
+    # The bridge's route steps through apply_external_command, the app's through step_physics, and the reset through
+    # settle_to_home.  All three must reach the counter, or the clock dates a world further along than it says.
+    assert world_ros_route.sim_time_s() == pytest.approx(before + 10 * world_ros_route.step_dt)
+
+
+def test_the_step_is_the_environments_and_not_the_planners_pacing():
+    """Two different quantities that read alike, and taking the wrong one publishes a clock at the wrong rate.
+
+    Measured 2026-08-29 against ``maniskill-eval``: ``control_dt`` is 0.02 s (what the motion planner paces its
+    samples with) while the environment's ``control_timestep`` is 0.01 s (``control_freq = 100``).  Using the
+    former doubled the published clock.
+    """
+
+    class _Env:
+        control_timestep = 0.01
+
+    class _World:
+        env = _Env()
+        control_dt = 0.02
+        step_dt = ManiSkillTaskSim.step_dt
+
+    assert _World().step_dt == pytest.approx(0.01)
+
+
+def test_a_reset_does_not_take_the_clock_backwards(world_ros_route):
+    world_ros_route.apply_external_command({})
+    before = world_ros_route.sim_time_s()
+    world_ros_route.reset(seed=1)
+    # A new episode gets a new scene, not a new clock: rclpy does not recover from a clock that jumps back, and a
+    # study runs many episodes against one graph.
+    assert world_ros_route.sim_time_s() > before
