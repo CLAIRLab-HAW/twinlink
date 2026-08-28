@@ -123,3 +123,27 @@ def test_settling_to_home_actually_holds(world_in_process):
     for name, want in world_in_process._home_pose.items():
         if name in at_home:
             assert abs(at_home[name] - want) < 0.15, f"{name}: {at_home[name]:.3f} != {want:.3f}"
+
+
+def test_a_world_without_a_task_states_no_verdict(world_in_process):
+    """No verdict is not the same as a failed task, and the runner has to be able to tell them apart.
+
+    The bridge's own world is ``Empty-v1``: it has nothing to succeed at.  Reading a bare ``False`` out of it as a
+    task failure would book every channel test as a lost episode.
+    """
+    assert world_in_process.task_success() is False
+
+
+def test_the_verdict_is_read_from_the_environment_not_recomputed(world_in_process):
+    """One success predicate, in the place that defines the task -- a second one would be a second truth."""
+
+    class _Verdict:
+        def evaluate(self):
+            return {"success": [True]}
+
+    original = world_in_process.env
+    world_in_process.env = _Verdict()
+    try:
+        assert world_in_process.task_success() is True
+    finally:
+        world_in_process.env = original

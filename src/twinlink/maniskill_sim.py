@@ -199,6 +199,21 @@ class ManiSkillTaskSim:
             events.robot_obstacle_collision = True
         return events
 
+    def task_success(self) -> bool:
+        """The world's own verdict on the task -- ``False`` where the environment states none.
+
+        Read from the environment rather than recomputed from the object poses this class also hands out: a second
+        implementation of a success predicate is a second truth, and the study rests on this world being the only
+        one.  Environments without an ``evaluate`` (the empty world the bridge tests run against) simply have no
+        verdict to give, which is not the same as a failed task -- the runner books that as no episode at all.
+        """
+        evaluate = getattr(self.env, "evaluate", None)
+        if evaluate is None:
+            return False
+        info = evaluate()
+        value = info.get("success") if isinstance(info, dict) else None
+        return False if value is None else bool(np.asarray(value).reshape(-1)[0])
+
     def monitored_links(self) -> Tuple[str, ...]:
         """The manipulator links whose contact the collision monitor watches."""
         return tuple(link.name for link in self._robot.get_links() if link.name.startswith(("arm_0", "rg6")))
