@@ -106,3 +106,20 @@ def test_a_bare_world_reports_no_contact_although_the_gripper_touches_itself(wor
     forces = world_in_process.contact_forces(world_in_process.monitored_links())
     assert forces, "the monitored links must still be reported, with zero force"
     assert max(forces.values()) == 0.0
+
+
+def test_settling_to_home_actually_holds(world_in_process):
+    """Writing ``qpos`` is not enough.
+
+    The PD controller keeps the target it captured at reset and pulls straight back on the next step: measured
+    2026-08-28, the world reported the URDF zero pose again a second after being placed at ``ready`` -- and that
+    pose puts the open hand into the upper arm, which the reflex guard reported as a predicted self-collision
+    every second.
+    """
+    world_in_process.settle_to_home()
+    for _ in range(30):
+        world_in_process.step_physics(1)
+    at_home = world_in_process.arm_positions()
+    for name, want in world_in_process._home_pose.items():
+        if name in at_home:
+            assert abs(at_home[name] - want) < 0.15, f"{name}: {at_home[name]:.3f} != {want:.3f}"

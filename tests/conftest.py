@@ -142,6 +142,7 @@ def _build_world(urdf_bundle, robot_srdf, *, owns_tick: bool):
         gripper_follower_factors=dict(gripper.follower_factors),
         gripper_linkage=gripper.linkage,
         gripper_driver_joint=gripper.driver_joint,
+        home_pose=load_profile().pose("ready"),
     )
 
 

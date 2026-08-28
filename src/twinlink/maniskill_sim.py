@@ -28,6 +28,10 @@ from .events import SimEvents
 #: hand is where a sign error produces plausible, wrong world poses.
 _R_OPENGL_FROM_OPENCV = np.diag([1.0, -1.0, -1.0])
 
+#: Steps a reset spends settling onto the home pose.  SET, not measured (2026-08-28): enough that the arm arrives
+#: under the gains in ``agent``, few enough that a reset stays imperceptible next to a scene build.
+_SETTLE_STEPS = 60
+
 
 class ManiSkillTaskSim:
     """The evaluation world behind the ``husky_sdk.motion`` surface.
@@ -39,6 +43,11 @@ class ManiSkillTaskSim:
     :param owns_tick: ``True`` in process, ``False`` when a bridge executes trajectories against this world.
     :param gripper_follower_factors: driver joint -> follower ratios, handed in from the profile.
     :param gripper_linkage: the width <-> driver-angle mapping, handed in from the profile.
+    :param home_pose: joint values a reset settles on.  Not optional in practice: SAPIEN starts the articulation at
+        the URDF zero configuration, and on this robot that pose puts the open hand into the upper arm -- the reflex
+        guard reported a predicted self-collision from the first second, correctly (confirmed visually in Foxglove
+        on 2026-08-28: the arm lies horizontal with the gripper turned into it).  The real robot never sits there,
+        and ``TwinTaskSim`` takes a ``home_pose`` for the same reason.
     """
 
     def __init__(
@@ -52,6 +61,7 @@ class ManiSkillTaskSim:
         gripper_follower_factors: Dict[str, float] | None = None,
         gripper_linkage=None,
         gripper_driver_joint: str | None = None,
+        home_pose: Dict[str, float] | None = None,
     ) -> None:
         self.env = env.unwrapped
         self.arm_joints: Tuple[str, ...] = tuple(arm_joints)
@@ -63,6 +73,7 @@ class ManiSkillTaskSim:
         # The driver joint belongs to the GRIPPER in the profile, not to the linkage -- and twinlink may not read a
         # profile, so it is injected like everything else the robot knows about itself.
         self._driver_joint = gripper_driver_joint
+        self._home_pose = dict(home_pose or {})
         self._pending = SimEvents()
         self._robot = self.env.agent.robot
         self._qidx = {j.name: i for i, j in enumerate(self._robot.get_active_joints())}
@@ -197,6 +208,38 @@ class ManiSkillTaskSim:
         self.env.reset(seed=int(seed))
         self._command = {}
         self._pending = SimEvents()
+        self.settle_to_home()
+
+    def settle_to_home(self) -> None:
+        """Place the robot at its home pose, hand open.
+
+        Written into ``qpos`` rather than driven there: at reset there is no controller yet and no time to travel,
+        and the alternative -- starting at the URDF zero configuration -- is a self-colliding pose on this robot.
+        """
+        if not self._home_pose:
+            return
+        qpos = self._robot.get_qpos().clone()
+        for name, value in self._home_pose.items():
+            idx = self._qidx.get(name)
+            if idx is not None:
+                qpos[0, idx] = float(value)
+        if self._linkage is not None and self._driver_joint:
+            open_rad = float(self._linkage.open_rad)
+            for name in (self._driver_joint, *self._followers):
+                idx = self._qidx.get(name)
+                if idx is not None:
+                    qpos[0, idx] = open_rad
+        self._robot.set_qpos(qpos)
+        self._command = {name: float(qpos[0, idx]) for name, idx in self._qidx.items()}
+        # Writing qpos is not enough: the PD controller keeps the target it captured at reset and pulls straight
+        # back on the next step -- measured 2026-08-28, the world reported the zero pose again a second later.  Its
+        # own reset re-reads the current configuration as the target, and a few steps let the state settle onto it.
+        controller = getattr(self.env.agent, "controller", None)
+        if controller is not None and hasattr(controller, "reset"):
+            controller.reset()
+        action = self._action_from_command()
+        for _ in range(_SETTLE_STEPS):
+            self.env.step(action)
 
     # ------------------------------------------------------------------ #
     # the world
@@ -287,7 +330,15 @@ class ManiSkillTaskSim:
         return out
 
     def _non_robot_actors(self) -> list:
-        """The scene's actors that are not part of the robot -- what a collision can be WITH."""
+        """The scene's actors that are not part of the robot -- what a collision can be WITH.
+
+        ``collidable_actors`` if the environment offers it, ``task_objects`` otherwise.  The distinction is not
+        pedantry: a table is not a task object, and a monitor that watched only the task objects would stay silent
+        while the arm drove through the table it is picking from.
+        """
+        listed = getattr(self.env, "collidable_actors", None)
+        if callable(listed):
+            return list(listed())
         return list(getattr(self.env, "task_objects", {}).values())
 
     def self_collides(self, joints: Dict[str, float]) -> bool:
