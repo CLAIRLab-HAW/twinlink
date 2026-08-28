@@ -36,8 +36,17 @@ foxglove = ["websockets>=12", "rosbags>=0.9"]
 # Live mode over a native Zenoh client (robots running rmw_zenoh; no ROS needed).
 # The zenoh version must match the robot's rmw_zenoh zenoh version.
 zenoh = ["eclipse-zenoh>=1.0", "rosbags>=0.9"]
+# ManiSkill evaluation world (workstation only).  ``pin`` brings coal, the collision backend, and is the
+# kinematics/geometry oracle -- NOT mujoco: nothing on this route needs it, because Pinocchio reads the same SRDF
+# move_group loads and its disabled-pair set therefore agrees with the planner by construction.
+# sapien is pinned to the version measured on macOS arm64 with MoltenVK; there is NO linux aarch64 wheel, which is
+# why this extra never gets installed in the container.
+maniskill = ["sapien==3.0.3", "mani_skill==3.0.1", "pin>=4.1,<5"]
 # Live mode (rclpy) is provided by your ROS 2 distribution, not pip.
-all = ["rosbags>=0.9", "mujoco>=3.0", "opencv-python>=4.5", "websockets>=12", "eclipse-zenoh>=1.0"]
+all = [
+    "rosbags>=0.9", "mujoco>=3.0", "opencv-python>=4.5", "websockets>=12", "eclipse-zenoh>=1.0",
+    "sapien==3.0.3", "mani_skill==3.0.1", "pin>=4.1,<5",
+]
 
 [project.urls]
 Homepage = "https://github.com/CLAIRLab-HAW/twinlink"
