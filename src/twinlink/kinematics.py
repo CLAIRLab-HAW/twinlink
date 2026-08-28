@@ -12,7 +12,7 @@ iterations never disturb the live simulation state.
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional, Sequence, Tuple
+from typing import Dict, Optional, Protocol, Sequence, Tuple
 
 import numpy as np
 
@@ -33,6 +33,26 @@ def top_down_grasp_matrix(yaw: float = 0.0) -> np.ndarray:
     cz, sz = np.cos(yaw), np.sin(yaw)
     # Columns: x/y/z axes of the TCP frame in world coordinates.
     return np.array([[cz, sz, 0.0], [sz, -cz, 0.0], [0.0, 0.0, -1.0]])
+
+
+class Kinematics(Protocol):
+    """What a motion planner needs from a robot model -- FK, IK and the validity gate.
+
+    :class:`ArmIK` satisfies it over MuJoCo, :class:`twinlink.pin_kinematics.PinocchioKinematics` over Pinocchio.
+    The protocol exists so ``ArmMotionPlanner`` stops naming ``MjModel`` in its constructor: as long as it did, one
+    simulator leaked through an interface that was never declared.
+    """
+
+    def frame_pose(self, name: str, joints: Dict[str, float]) -> Tuple[np.ndarray, np.ndarray]:
+        """``(position (3,), rotation (3,3))`` of a frame at the given configuration."""
+
+    def solve_ik(
+        self, target_pos: np.ndarray, target_rot: np.ndarray, seed: Dict[str, float]
+    ) -> Optional[Dict[str, float]]:
+        """Joint values reaching the pose, or ``None`` when the solver does not converge."""
+
+    def config_collides(self, joints: Dict[str, float], *, obstacles_only: bool = False) -> bool:
+        """True when the configuration is invalid."""
 
 
 class ArmIK:
