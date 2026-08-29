@@ -31,7 +31,7 @@ import logging
 import math
 import sys
 import time
-from typing import Dict, List, Optional, Tuple
+
 
 import numpy as np
 
@@ -44,13 +44,13 @@ log = logging.getLogger("twinlink.mujoco")
 # (the default -- see ``MujocoSink.__init__``) falls back to these so every caller that passes no ``RobotSimSpec``
 # (``octomap_explorer``, the spact-integration-demos scripts/notebooks, and hrl's own dashboard) keeps this rendering
 # behaviour.  Passing a ``RobotSimSpec`` (``twinlink.task_sim``) swaps them for another robot's facts.
-_DEFAULT_MANIPULATOR_PREFIXES: Tuple[str, ...] = ("arm_0",)
+_DEFAULT_MANIPULATOR_PREFIXES: tuple[str, ...] = ("arm_0",)
 #: Exact body-name fallback for :meth:`MujocoSink._body_for_frame` when no
 #: spec is given -- the wrist camera's link, tried before the mount plate one
 #: URDF step further out.  Not derived from a prefix (unlike the two
 #: candidates above) because "camera_0" alone is not a distinguishing prefix
 #: without a spec to source it from.
-_DEFAULT_CAMERA_LINK_CANDIDATES: Tuple[str, ...] = ("camera_0_link", "camera_0_bottom_screw_frame")
+_DEFAULT_CAMERA_LINK_CANDIDATES: tuple[str, ...] = ("camera_0_link", "camera_0_bottom_screw_frame")
 
 
 def _xyzw_to_wxyz(q: np.ndarray) -> np.ndarray:
@@ -76,26 +76,26 @@ class MujocoSink(StateSink):
         self,
         model,
         *,
-        spec: Optional[RobotSimSpec] = None,
+        spec: RobotSimSpec | None = None,
         render: str = "offscreen",
         display: bool = True,
         width: int = 640,
         height: int = 480,
-        camera: Optional[str] = None,
-        cam_distance: Optional[float] = None,
-        cam_azimuth: Optional[float] = None,
-        cam_elevation: Optional[float] = None,
+        camera: str | None = None,
+        cam_distance: float | None = None,
+        cam_azimuth: float | None = None,
+        cam_elevation: float | None = None,
         cam_lookat=None,
-        auto_frame: Optional[bool] = None,
-        base_free_joint: Optional[str] = None,
-        joint_remap: Optional[Dict[str, str]] = None,
-        show_sensor_camera: Optional[str] = None,
-        snapshot_path: Optional[str] = None,
+        auto_frame: bool | None = None,
+        base_free_joint: str | None = None,
+        joint_remap: dict[str, str] | None = None,
+        show_sensor_camera: str | None = None,
+        snapshot_path: str | None = None,
         snapshot_every: float = 0.0,
         keep_visual: bool = False,
         colored: bool = True,
         physics: bool = False,
-        spawn_height: Optional[float] = None,
+        spawn_height: float | None = None,
         hold_joints: bool = True,
         wheel_frictionloss: float = 5.0,
         wheel_damping: float = 0.5,
@@ -149,10 +149,10 @@ class MujocoSink(StateSink):
 
         self.model = None
         self.data = None
-        self._joint_qpos: Dict[str, int] = {}  # state-name ─▶ qpos address
-        self._joint_dof: Dict[str, int] = {}  # state-name ─▶ dof (qvel) address
-        self._base_qpos: Optional[int] = None
-        self._phys_last: Optional[float] = None
+        self._joint_qpos: dict[str, int] = {}  # state-name ─▶ qpos address
+        self._joint_dof: dict[str, int] = {}  # state-name ─▶ dof (qvel) address
+        self._base_qpos: int | None = None
+        self._phys_last: float | None = None
         self._renderer = None
         self._viewer = None
         self._mjcam = None
@@ -161,16 +161,16 @@ class MujocoSink(StateSink):
         # "â€""), so avoid Unicode here.
         self._win_main = "TwinLink - MuJoCo twin"
         self._win_cam = "TwinLink - sensor camera"
-        self._frame_body: Dict[str, int] = {}  # cloud frame_id ─▶ mujoco body id (cache)
-        self._preview_pos: Optional[Dict[str, float]] = None
+        self._frame_body: dict[str, int] = {}  # cloud frame_id ─▶ mujoco body id (cache)
+        self._preview_pos: dict[str, float] | None = None
         self._last_traj = None
         self._traj_start = 0.0
         self._win_ready = False
-        self._mouse_last: Optional[tuple] = None
+        self._mouse_last: tuple | None = None
         self._autoframed = False  # auto_frame is one-shot: fires on the first cloud
 
         # Goal preview: ghost arm at the target pose before planning.
-        self._goal_preview_pos: Optional[Dict[str, float]] = None
+        self._goal_preview_pos: dict[str, float] | None = None
         self._goal_preview_until: float = 0.0  # wall-clock deadline
         self._goal_preview_name: str = ""
         # Trajectory preview state: "idle" (live), "planning" (ghost visible)
@@ -253,8 +253,8 @@ class MujocoSink(StateSink):
         # Map every 1-DoF joint in the model by name so state joints can be written by name.  joint_remap lets the state
         # use different names.
         single_dof = {mujoco.mjtJoint.mjJNT_HINGE, mujoco.mjtJoint.mjJNT_SLIDE}
-        model_joint_adr: Dict[str, int] = {}
-        model_joint_dof: Dict[str, int] = {}
+        model_joint_adr: dict[str, int] = {}
+        model_joint_dof: dict[str, int] = {}
         for jid in range(self.model.njnt):
             name = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_JOINT, jid)
             if name is None:
@@ -307,7 +307,7 @@ class MujocoSink(StateSink):
             lookat = self._guess_lookat(mujoco)
         self._mjcam.lookat[:] = lookat
 
-    def _manipulator_prefixes(self) -> Tuple[str, ...]:
+    def _manipulator_prefixes(self) -> tuple[str, ...]:
         """Body-name prefixes of the moving manipulator (arm ∪ hand ∪ gripper).
 
         From ``spec`` when given, else the pre-spec default (see the module-level ``_DEFAULT_MANIPULATOR_PREFIXES``
@@ -449,7 +449,7 @@ class MujocoSink(StateSink):
     # ------------------------------------------------------------------ #
 
     # --- goal preview: ghost arm at target pose before planning ----------
-    def show_goal_preview(self, goal_positions: Dict[str, float], name: str = "", hold: float = 1.5) -> None:
+    def show_goal_preview(self, goal_positions: dict[str, float], name: str = "", hold: float = 1.5) -> None:
         """Set a goal pose to be rendered as a ghost overlay for ``hold`` seconds.
 
         Called by the demo when it sends a planning goal to MoveIt — the user sees the target pose *before* the planned
@@ -467,7 +467,7 @@ class MujocoSink(StateSink):
         # render thread does the same. OpenCV is not thread-safe ─▶ deadlock. The main loop (60 Hz) picks up the ghost
         # within ~16 ms.
 
-    def _goal_preview_positions(self) -> Optional[Dict[str, float]]:
+    def _goal_preview_positions(self) -> dict[str, float] | None:
         """Return active goal-preview joint targets, or None if expired."""
         if self._goal_preview_pos is None:
             return None
@@ -527,7 +527,7 @@ class MujocoSink(StateSink):
             self.data.qpos[adr] = val
         mujoco.mj_forward(self.model, self.data)
 
-    def _draw_preview_ghost(self, mujoco, scene, preview_pos: Dict[str, float]) -> None:
+    def _draw_preview_ghost(self, mujoco, scene, preview_pos: dict[str, float]) -> None:
         """Draw yellow spheres at each arm link during trajectory-preview playback.
 
         Unlike ``_draw_goal_ghost`` (which uses the goal-preview positions), this uses the interpolated positions from
@@ -555,7 +555,7 @@ class MujocoSink(StateSink):
                 )
                 scene.ngeom += 1
 
-    def _preview_positions(self) -> Optional[Dict[str, float]]:
+    def _preview_positions(self) -> dict[str, float] | None:
         """Interpolated joint targets while playing the latest planned path.
 
         Playback is slowed by ``_preview_speed`` so a 0.1s trajectory takes ~0.5s to play out — long enough for the user
@@ -586,7 +586,7 @@ class MujocoSink(StateSink):
                 out[model_name] = float(np.interp(t, traj.times, traj.positions[:, j]))
         return out
 
-    def _camera_link_candidates(self) -> Tuple[str, ...]:
+    def _camera_link_candidates(self) -> tuple[str, ...]:
         """Exact body-name fallbacks for the (usually wrist-mounted) camera.
 
         ``spec.hand_prefixes`` is documented as "gripper + wrist-mounted sensor" (see
@@ -767,7 +767,7 @@ class MujocoSink(StateSink):
             return True
         return self._show(frame)
 
-    def _ghost_positions(self) -> Optional[Dict[str, float]]:
+    def _ghost_positions(self) -> dict[str, float] | None:
         """Return the joint positions for the ghost overlay, or None.
 
         Priority: planned-trajectory preview (animated) > goal preview (static). When a planned trajectory arrives, it
@@ -782,7 +782,7 @@ class MujocoSink(StateSink):
             return gp
         return None
 
-    def _render_ghost(self, mujoco, ghost_pos: Dict[str, float]):
+    def _render_ghost(self, mujoco, ghost_pos: dict[str, float]):
         """Render a frame with the arm at ghost_pos; return RGB or None."""
         if self._renderer is None:
             return None

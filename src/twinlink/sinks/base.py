@@ -7,14 +7,14 @@ A sink pulls the current state on every tick of the bridge loop and pushes it in
 from __future__ import annotations
 
 import abc
-from typing import Optional
+
 
 from ..state import RobotState
 
 
 class StateSink(abc.ABC):
     def __init__(self) -> None:
-        self.state: Optional[RobotState] = None
+        self.state: RobotState | None = None
 
     def bind(self, state: RobotState) -> "StateSink":
         self.state = state

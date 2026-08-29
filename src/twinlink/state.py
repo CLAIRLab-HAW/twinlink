@@ -20,7 +20,8 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any
+from collections.abc import Iterable, Sequence
 
 import numpy as np
 
@@ -34,8 +35,8 @@ class JointState:
     """State of a single named joint (SI units: rad / rad·s⁻¹ / N·m)."""
 
     position: float = 0.0
-    velocity: Optional[float] = None
-    effort: Optional[float] = None
+    velocity: float | None = None
+    effort: float | None = None
     stamp: float = 0.0  # source clock, seconds
 
 
@@ -74,15 +75,15 @@ class CameraFrame:
       arrival rate (the root cause of ever-growing camera latency).
     """
 
-    image: Optional[np.ndarray]  # HxWx3 uint8 (color) or HxW (depth); None = lazy
+    image: np.ndarray | None  # HxWx3 uint8 (color) or HxW (depth); None = lazy
     encoding: str = "rgb8"
     stamp: float = 0.0
     frame_id: str = ""
-    intrinsics: Optional[np.ndarray] = None  # 3x3 K
+    intrinsics: np.ndarray | None = None  # 3x3 K
     width: int = 0
     height: int = 0
     #: Still-compressed payload (lazy mode); cleared after ensure_decoded().
-    raw: Optional[bytes] = None
+    raw: bytes | None = None
     #: The CompressedImage ``format`` string (lazy mode), e.g. "rgb8; jpeg".
     raw_format: str = ""
     is_depth: bool = False
@@ -139,7 +140,7 @@ class ObstacleCloud:
 class PlannedTrajectory:
     """A planned joint-space path (e.g. from MoveIt's display_planned_path)."""
 
-    joint_names: List[str]
+    joint_names: list[str]
     positions: np.ndarray  # (K, J) waypoint positions
     times: np.ndarray  # (K,) time_from_start (seconds)
     stamp: float = 0.0
@@ -176,13 +177,13 @@ class RobotState:
 
     def __init__(self) -> None:
         self._lock = threading.RLock()
-        self._joints: Dict[str, JointState] = {}
-        self._transforms: Dict[Tuple[str, str], Transform] = {}
-        self._base_pose: Optional[Transform] = None
-        self._cameras: Dict[str, CameraFrame] = {}
-        self._obstacles: Dict[str, ObstacleCloud] = {}
-        self._planned_trajectory: Optional[PlannedTrajectory] = None
-        self._extras: Dict[str, Any] = {}
+        self._joints: dict[str, JointState] = {}
+        self._transforms: dict[tuple[str, str], Transform] = {}
+        self._base_pose: Transform | None = None
+        self._cameras: dict[str, CameraFrame] = {}
+        self._obstacles: dict[str, ObstacleCloud] = {}
+        self._planned_trajectory: PlannedTrajectory | None = None
+        self._extras: dict[str, Any] = {}
         self._revision = 0
         self._last_update = 0.0
 
@@ -193,9 +194,9 @@ class RobotState:
         self,
         name: str,
         position: float,
-        velocity: Optional[float] = None,
-        effort: Optional[float] = None,
-        stamp: Optional[float] = None,
+        velocity: float | None = None,
+        effort: float | None = None,
+        stamp: float | None = None,
     ) -> None:
         with self._lock:
             self._joints[name] = JointState(
@@ -210,9 +211,9 @@ class RobotState:
         self,
         names: Sequence[str],
         positions: Sequence[float],
-        velocities: Optional[Sequence[float]] = None,
-        efforts: Optional[Sequence[float]] = None,
-        stamp: Optional[float] = None,
+        velocities: Sequence[float] | None = None,
+        efforts: Sequence[float] | None = None,
+        stamp: float | None = None,
     ) -> None:
         st = _now() if stamp is None else float(stamp)
         with self._lock:
@@ -289,11 +290,11 @@ class RobotState:
     # ------------------------------------------------------------------ #
     # readers (called by sinks)
     # ------------------------------------------------------------------ #
-    def joint_names(self) -> List[str]:
+    def joint_names(self) -> list[str]:
         with self._lock:
             return list(self._joints.keys())
 
-    def joint(self, name: str) -> Optional[JointState]:
+    def joint(self, name: str) -> JointState | None:
         with self._lock:
             return self._joints.get(name)
 
@@ -306,23 +307,23 @@ class RobotState:
         with self._lock:
             return np.array([self._joints[n].position if n in self._joints else np.nan for n in names], dtype=float)
 
-    def joints(self) -> Dict[str, JointState]:
+    def joints(self) -> dict[str, JointState]:
         with self._lock:
             return dict(self._joints)
 
-    def base_pose(self) -> Optional[Transform]:
+    def base_pose(self) -> Transform | None:
         with self._lock:
             return self._base_pose
 
-    def transform(self, parent: str, child: str) -> Optional[Transform]:
+    def transform(self, parent: str, child: str) -> Transform | None:
         with self._lock:
             return self._transforms.get((parent, child))
 
-    def transforms(self) -> Dict[Tuple[str, str], Transform]:
+    def transforms(self) -> dict[tuple[str, str], Transform]:
         with self._lock:
             return dict(self._transforms)
 
-    def chain(self, source: str, target: str) -> Optional[np.ndarray]:
+    def chain(self, source: str, target: str) -> np.ndarray | None:
         """4x4 matrix mapping points from ``source`` into ``target``.
 
         ``transform()`` is a plain dict hit and therefore only answers for edges that were published as such.  A
@@ -345,13 +346,13 @@ class RobotState:
             return np.eye(4) if known else None
 
         # Undirected adjacency: tf edges are stored as (parent, child) but a chain may traverse either way.
-        adjacency: Dict[str, List[str]] = {}
+        adjacency: dict[str, list[str]] = {}
         for parent, child in edges:
             adjacency.setdefault(child, []).append(parent)
             adjacency.setdefault(parent, []).append(child)
 
-        previous: Dict[str, str] = {}
-        queue: List[str] = [source]
+        previous: dict[str, str] = {}
+        queue: list[str] = [source]
         seen = {source}
         while queue:
             node = queue.pop(0)
@@ -383,21 +384,21 @@ class RobotState:
             mat = step @ mat
         return mat
 
-    def camera(self, name: str) -> Optional[CameraFrame]:
+    def camera(self, name: str) -> CameraFrame | None:
         with self._lock:
             return self._cameras.get(name)
 
-    def cameras(self) -> Dict[str, CameraFrame]:
+    def cameras(self) -> dict[str, CameraFrame]:
         with self._lock:
             return dict(self._cameras)
 
-    def obstacles(self, name: Optional[str] = None):
+    def obstacles(self, name: str | None = None):
         with self._lock:
             if name is not None:
                 return self._obstacles.get(name)
             return dict(self._obstacles)
 
-    def planned_trajectory(self) -> Optional[PlannedTrajectory]:
+    def planned_trajectory(self) -> PlannedTrajectory | None:
         with self._lock:
             return self._planned_trajectory
 

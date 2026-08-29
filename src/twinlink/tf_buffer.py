@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+
 
 import numpy as np
 
@@ -117,9 +117,9 @@ class TFBuffer:
 
     def __init__(self) -> None:
         # static: (parent, child) ─▶ Transform
-        self._static: Dict[Tuple[str, str], Transform] = {}
+        self._static: dict[tuple[str, str], Transform] = {}
         # dynamic: (parent, child) ─▶ sorted list of (timestamp_ns, Transform)
-        self._dynamic: Dict[Tuple[str, str], list] = defaultdict(list)
+        self._dynamic: dict[tuple[str, str], list] = defaultdict(list)
 
     def add_static(self, ros_tf_msg) -> None:
         for tf in ros_tf_msg.transforms:
@@ -137,7 +137,7 @@ class TFBuffer:
             self._dynamic[key].sort(key=lambda x: x[0])
 
     # ------------------------------------------------------------------ #
-    def _lookup_single(self, parent: str, child: str, timestamp_ns: int) -> Optional[Transform]:
+    def _lookup_single(self, parent: str, child: str, timestamp_ns: int) -> Transform | None:
         key = (parent, child)
         if key in self._static:
             return self._static[key]
@@ -159,16 +159,16 @@ class TFBuffer:
             return Transform(trans, rot)
         return None
 
-    def _bfs_path(self, source: str, target: str) -> Optional[List[Tuple[str, str, bool]]]:
+    def _bfs_path(self, source: str, target: str) -> list[tuple[str, str, bool]] | None:
         """BFS over the TF graph. Returns list of (parent, child, forward)."""
         all_edges = set(self._static.keys()) | set(self._dynamic.keys())
-        graph: Dict[str, List[str]] = defaultdict(list)
+        graph: dict[str, list[str]] = defaultdict(list)
         for p, c in all_edges:
             graph[p].append(c)
             graph[c].append(p)
 
         visited = {source}
-        queue: List[Tuple[str, list]] = [(source, [])]
+        queue: list[tuple[str, list]] = [(source, [])]
         while queue:
             node, path = queue.pop(0)
             if node == target:
@@ -180,7 +180,7 @@ class TFBuffer:
                     queue.append((neighbor, path + [(node, neighbor, edge_fwd)]))
         return None
 
-    def lookup(self, source: str, target: str, timestamp_ns: int) -> Optional[np.ndarray]:
+    def lookup(self, source: str, target: str, timestamp_ns: int) -> np.ndarray | None:
         """4x4 matrix mapping points from ``source`` into ``target`` frame."""
         if source == target:
             return np.eye(4)

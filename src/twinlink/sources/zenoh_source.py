@@ -49,7 +49,7 @@ import os
 import struct
 import threading
 import time
-from typing import Dict, List, Optional
+
 
 from .base import StateSource
 
@@ -97,7 +97,7 @@ def liveliness_subscriber_query(domain_id: int, topic: str) -> str:
     return f"{LIVELINESS_ADMIN_SPACE}/{domain_id}/*/*/*/{LIVELINESS_SUBSCRIBER}" f"/*/*/*/{mangled}/*/*/*"
 
 
-def parse_liveliness_token(keyexpr: str) -> Optional[dict]:
+def parse_liveliness_token(keyexpr: str) -> dict | None:
     """Parse an rmw_zenoh liveliness token into its topic entity fields.
 
     Returns ``None`` for non-topic tokens (nodes) and foreign keyexprs."""
@@ -210,11 +210,11 @@ def _register_moveit_types(typestore) -> None:
 class ZenohSource(StateSource):
     def __init__(
         self,
-        connect: Optional[str] = None,
+        connect: str | None = None,
         *,
-        mode: Optional[str] = None,
+        mode: str | None = None,
         domain_id: int = 0,
-        topics: Optional[List[str]] = None,
+        topics: list[str] | None = None,
         key_template: str = "{domain}/{topic}/**",
         store: str = "LATEST",
         reconnect: bool = True,
@@ -229,7 +229,7 @@ class ZenohSource(StateSource):
         self.store = store
         self.reconnect = reconnect
 
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         self._session = None
         self._subs: list = []
@@ -356,11 +356,11 @@ class ZenohUplink:
 
     def __init__(
         self,
-        connect: Optional[str] = None,
+        connect: str | None = None,
         *,
-        mode: Optional[str] = None,
+        mode: str | None = None,
         domain_id: int = 0,
-        type_hashes: Optional[Dict[str, str]] = None,
+        type_hashes: dict[str, str] | None = None,
         discovery_timeout: float = 1.5,
         store: str = "LATEST",
     ) -> None:
@@ -407,7 +407,7 @@ class ZenohUplink:
         """
         session = self.open()
         expected = mangle_ros_type(msgtype)
-        tokens: List[dict] = []
+        tokens: list[dict] = []
         try:
             replies = session.liveliness().get(
                 liveliness_subscriber_query(self.domain_id, topic), timeout=self.discovery_timeout
@@ -458,7 +458,7 @@ class ZenohPublisher:
     subscriber drops the sample.
     """
 
-    def __init__(self, uplink: ZenohUplink, topic: str, msgtype: str, *, store: Optional[str] = None) -> None:
+    def __init__(self, uplink: ZenohUplink, topic: str, msgtype: str, *, store: str | None = None) -> None:
         self.uplink = uplink
         self.topic = topic
         self.msgtype = msgtype  # e.g. "sensor_msgs/msg/JointState"

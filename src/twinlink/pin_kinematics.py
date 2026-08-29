@@ -13,7 +13,8 @@ frame placements 0.59 us.  Twenty belief boxes cost 0.9 ms to add and lift the f
 
 from __future__ import annotations
 
-from typing import Dict, NamedTuple, Optional, Sequence, Tuple
+from typing import NamedTuple
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -22,9 +23,9 @@ class BeliefBox(NamedTuple):
     """One obstacle as the app BELIEVES it, in the model's root frame."""
 
     name: str
-    half_extents_m: Tuple[float, float, float]
-    position_m: Tuple[float, float, float]
-    quaternion_xyzw: Tuple[float, float, float, float]
+    half_extents_m: tuple[float, float, float]
+    position_m: tuple[float, float, float]
+    quaternion_xyzw: tuple[float, float, float, float]
 
 
 #: Damped-least-squares parameters.  Chosen to match ``twinlink.kinematics.ArmIK`` so both solvers accept and reject
@@ -66,7 +67,7 @@ class PinocchioKinematics:
         self._urdf_path = str(urdf_path)
         self._srdf_path = str(srdf_path)
         self._mesh_dir = str(mesh_dir)
-        self.joints: Tuple[str, ...] = tuple(joints)
+        self.joints: tuple[str, ...] = tuple(joints)
         self.tcp_frame = tcp_frame
 
         self.model = pin.buildModelFromUrdf(self._urdf_path)
@@ -92,8 +93,8 @@ class PinocchioKinematics:
 
         # Joint -> configuration index.  ``nq`` exceeds ``nv`` because continuous joints carry (cos, sin); the arm
         # joints are revolute with one entry each, which is why a plain index map suffices.
-        self._qidx: Dict[str, int] = {}
-        self._vidx: Dict[str, int] = {}
+        self._qidx: dict[str, int] = {}
+        self._vidx: dict[str, int] = {}
         for name in self.joints:
             jid = self.model.getJointId(name)
             if jid >= self.model.njoints:
@@ -103,15 +104,15 @@ class PinocchioKinematics:
 
         # Names, not indices: ``removeGeometryObject`` shifts every later index, so bookkeeping by index would be
         # correct only until the first belief update.
-        self._arm_geom_names: Tuple[str, ...] = tuple(
+        self._arm_geom_names: tuple[str, ...] = tuple(
             g.name for g in self.geom.geometryObjects if g.name.startswith(_MANIPULATOR_PREFIXES)
         )
-        self._belief_names: Tuple[str, ...] = ()
+        self._belief_names: tuple[str, ...] = ()
 
     # ------------------------------------------------------------------ #
     # configuration
     # ------------------------------------------------------------------ #
-    def _q(self, joints: Dict[str, float]) -> np.ndarray:
+    def _q(self, joints: dict[str, float]) -> np.ndarray:
         q = self._pin.neutral(self.model)
         for name, value in joints.items():
             idx = self._qidx.get(name)
@@ -122,7 +123,7 @@ class PinocchioKinematics:
     # ------------------------------------------------------------------ #
     # forward kinematics
     # ------------------------------------------------------------------ #
-    def frame_pose(self, name: str, joints: Dict[str, float]) -> Tuple[np.ndarray, np.ndarray]:
+    def frame_pose(self, name: str, joints: dict[str, float]) -> tuple[np.ndarray, np.ndarray]:
         """``(position (3,), rotation (3,3))`` of ``name`` in the model's root frame."""
         fid = self.model.getFrameId(name)
         if fid >= self.model.nframes:
@@ -140,8 +141,8 @@ class PinocchioKinematics:
         self,
         target_pos: np.ndarray,
         target_rot: np.ndarray,
-        seed: Dict[str, float],
-    ) -> Optional[Dict[str, float]]:
+        seed: dict[str, float],
+    ) -> dict[str, float] | None:
         """Damped least squares on the TCP frame; ``None`` when it does not converge."""
         pin = self._pin
         fid = self.model.getFrameId(self.tcp_frame)
@@ -223,7 +224,7 @@ class PinocchioKinematics:
                 pairs.add(frozenset((a, b)))
         return frozenset(pairs)
 
-    def config_collides(self, joints: Dict[str, float], *, obstacles_only: bool = False) -> bool:
+    def config_collides(self, joints: dict[str, float], *, obstacles_only: bool = False) -> bool:
         """True when the configuration is invalid.
 
         ``obstacles_only`` restricts the verdict to the arm-versus-belief pairs -- the pre-send probe for a pose

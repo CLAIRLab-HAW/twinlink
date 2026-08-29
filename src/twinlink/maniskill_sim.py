@@ -17,7 +17,8 @@ building it as if it were is why this module walks the controller's sub-controll
 
 from __future__ import annotations
 
-from typing import Dict, Sequence, Tuple
+
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -58,13 +59,13 @@ class ManiSkillTaskSim:
         kinematics,
         control_dt: float,
         owns_tick: bool,
-        gripper_follower_factors: Dict[str, float] | None = None,
+        gripper_follower_factors: dict[str, float] | None = None,
         gripper_linkage=None,
         gripper_driver_joint: str | None = None,
-        home_pose: Dict[str, float] | None = None,
+        home_pose: dict[str, float] | None = None,
     ) -> None:
         self.env = env.unwrapped
-        self.arm_joints: Tuple[str, ...] = tuple(arm_joints)
+        self.arm_joints: tuple[str, ...] = tuple(arm_joints)
         self.kinematics = kinematics
         self.control_dt = float(control_dt)
         self.owns_tick = bool(owns_tick)
@@ -77,7 +78,7 @@ class ManiSkillTaskSim:
         self._pending = SimEvents()
         self._robot = self.env.agent.robot
         self._qidx = {j.name: i for i, j in enumerate(self._robot.get_active_joints())}
-        self._command: Dict[str, float] = {}
+        self._command: dict[str, float] = {}
         #: Control steps taken since this world was built.  The world's own clock, in ticks -- see
         #: :meth:`sim_time_s`.
         self._steps = 0
@@ -130,11 +131,11 @@ class ManiSkillTaskSim:
     def _qpos(self) -> np.ndarray:
         return self._robot.get_qpos()[0].cpu().numpy()
 
-    def arm_positions(self) -> Dict[str, float]:
+    def arm_positions(self) -> dict[str, float]:
         qpos = self._qpos()
         return {name: float(qpos[self._qidx[name]]) for name in self.arm_joints if name in self._qidx}
 
-    def joint_positions(self) -> Dict[str, float]:
+    def joint_positions(self) -> dict[str, float]:
         """Every active joint, not only the arm -- what the plant publishes on the joint-state buses."""
         qpos = self._qpos()
         return {name: float(qpos[i]) for name, i in self._qidx.items()}
@@ -152,19 +153,19 @@ class ManiSkillTaskSim:
             return float("nan")
         return float(self._linkage.width_from_angle(float(self._qpos()[idx])))
 
-    def tcp_pose(self) -> Tuple[np.ndarray, np.ndarray]:
+    def tcp_pose(self) -> tuple[np.ndarray, np.ndarray]:
         return self.kinematics.frame_pose(self.kinematics.tcp_frame, self.arm_positions())
 
-    def fk_body_pose(self, name: str, joints: Dict[str, float]) -> Tuple[np.ndarray, np.ndarray]:
+    def fk_body_pose(self, name: str, joints: dict[str, float]) -> tuple[np.ndarray, np.ndarray]:
         return self.kinematics.frame_pose(name, joints)
 
-    def arm_config_collides(self, joints: Dict[str, float], *, obstacles_only: bool = False) -> bool:
+    def arm_config_collides(self, joints: dict[str, float], *, obstacles_only: bool = False) -> bool:
         return self.kinematics.config_collides(joints, obstacles_only=obstacles_only)
 
     # ------------------------------------------------------------------ #
     # writes and the tick -- mode dependent
     # ------------------------------------------------------------------ #
-    def set_arm_command(self, joints: Dict[str, float]) -> None:
+    def set_arm_command(self, joints: dict[str, float]) -> None:
         if not self.owns_tick:
             return
         self._command.update({k: float(v) for k, v in joints.items()})
@@ -205,7 +206,7 @@ class ManiSkillTaskSim:
         for follower, factor in self._followers.items():
             self._command[follower] = driver * float(factor)
 
-    def apply_external_command(self, joints: Dict[str, float]) -> SimEvents:
+    def apply_external_command(self, joints: dict[str, float]) -> SimEvents:
         """Advance the world from a command that came from OUTSIDE (the bridge).
 
         The counterpart of :meth:`step_physics` for ``owns_tick=False``: the bridge calls this per control tick, and
@@ -259,7 +260,7 @@ class ManiSkillTaskSim:
         value = info.get("success") if isinstance(info, dict) else None
         return False if value is None else bool(np.asarray(value).reshape(-1)[0])
 
-    def monitored_links(self) -> Tuple[str, ...]:
+    def monitored_links(self) -> tuple[str, ...]:
         """The manipulator links whose contact the collision monitor watches."""
         return tuple(link.name for link in self._robot.get_links() if link.name.startswith(("arm_0", "rg6")))
 
@@ -342,7 +343,7 @@ class ManiSkillTaskSim:
             return None
         return param["intrinsic_cv"][0].cpu().numpy().astype(np.float64)
 
-    def camera_pose(self, camera: str) -> Tuple[np.ndarray, np.ndarray] | None:
+    def camera_pose(self, camera: str) -> tuple[np.ndarray, np.ndarray] | None:
         """``(position (3,), rotation cam->world (3,3))`` in the OpenGL convention.
 
         Taken from ``cam2world_gl``, which the observation already carries -- not composed from ``extrinsic_cv`` by
@@ -354,9 +355,9 @@ class ManiSkillTaskSim:
         m = param["cam2world_gl"][0].cpu().numpy().astype(float)
         return m[:3, 3].copy(), m[:3, :3].copy()
 
-    def object_poses(self) -> Dict[str, Tuple[np.ndarray, np.ndarray]]:
+    def object_poses(self) -> dict[str, tuple[np.ndarray, np.ndarray]]:
         """True poses of the task objects -- GROUND TRUTH, never fed into the planning scene."""
-        poses: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+        poses: dict[str, tuple[np.ndarray, np.ndarray]] = {}
         for name, actor in getattr(self.env, "task_objects", {}).items():
             pose = actor.pose
             poses[name] = (
@@ -365,7 +366,7 @@ class ManiSkillTaskSim:
             )
         return poses
 
-    def contact_forces(self, link_names: Sequence[str]) -> Dict[str, float]:
+    def contact_forces(self, link_names: Sequence[str]) -> dict[str, float]:
         """Per-link contact force magnitude in newton, against things that are NOT the robot.
 
         **Pairwise, not net, and that distinction is the whole method.**
@@ -383,7 +384,7 @@ class ManiSkillTaskSim:
         if not names or not others:
             return {name: 0.0 for name in names}
         links = {link.name: link for link in self._robot.get_links()}
-        out: Dict[str, float] = {}
+        out: dict[str, float] = {}
         for name in names:
             link = links.get(name)
             if link is None:
@@ -407,7 +408,7 @@ class ManiSkillTaskSim:
             return list(listed())
         return list(getattr(self.env, "task_objects", {}).values())
 
-    def self_collides(self, joints: Dict[str, float]) -> bool:
+    def self_collides(self, joints: dict[str, float]) -> bool:
         """Does the PHYSICS see robot-versus-robot contact the SRDF has NOT disabled?
 
         Only used by the regression test that compares the two URDF ingestions: the oracle answers the same question

@@ -17,7 +17,7 @@ from __future__ import annotations
 import contextlib
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Protocol, Tuple
+from typing import Protocol
 
 import numpy as np
 
@@ -69,18 +69,18 @@ class RobotSimSpec:
     """
 
     #: Body prefixes of the movable manipulator; everything else is platform.
-    manipulator_prefixes: Tuple[str, ...]
+    manipulator_prefixes: tuple[str, ...]
     #: Prefixes of the hand assembly (gripper + wrist-mounted sensors).
-    hand_prefixes: Tuple[str, ...]
+    hand_prefixes: tuple[str, ...]
     #: Prefixes of the gripper shells -- ONLY the jaws/the gripper housing,
     #: without sensors riding along.  Only these geoms are made permeable for
     #: graspable objects (kinematic grasping, see
     #: ``TwinTaskSim._setup_collision_masks``); a wrist-mounted camera belongs
     #: to the hand but must keep bumping into objects, otherwise it loses its
     #: collision events.
-    gripper_prefixes: Tuple[str, ...]
+    gripper_prefixes: tuple[str, ...]
     #: Bodies far from the arm -- contact hand◀─▶here = folded configuration.
-    far_arm_bodies: Tuple[str, ...]
+    far_arm_bodies: tuple[str, ...]
     #: Jaw travel of the gripper model (m) with the hand open.
     gripper_stroke_m: float
     #: The GRASP SURFACES, by name -- not "everything with a gripper prefix".
@@ -91,8 +91,8 @@ class RobotSimSpec:
     #: Body whose pose counts as the TCP.
     tcp_body: str
     #: Joints of the planning group, in SRDF order.
-    arm_joints: Tuple[str, ...]
-    pad_bodies: Tuple[str, ...] = ()
+    arm_joints: tuple[str, ...]
+    pad_bodies: tuple[str, ...] = ()
 
 
 #: TCP proximity (m) within which a closing gripper captures an object.  The
@@ -171,10 +171,10 @@ class TwinTaskSim:
         n_obstacle_slots: int = OBSTACLE_POOL_SIZE,
         default_span: float = 0.045,
         release_clearance: float = 0.005,
-        gripper_follower_factors: Dict[str, float],
+        gripper_follower_factors: dict[str, float],
         gripper_linkage: GripperLinkage,
-        home_pose: Dict[str, float],
-        render_size: Tuple[int, int] = (640, 480),
+        home_pose: dict[str, float],
+        render_size: tuple[int, int] = (640, 480),
         actuated_gripper: bool = False,
         gripper_ramp_ticks: int = 0,
     ) -> None:
@@ -215,15 +215,15 @@ class TwinTaskSim:
         #: rg6_gripper_finger_1_flex_finger``.  A
         #: real RG6 opens only as far as the object demands.
         self._release_clearance = float(release_clearance)
-        self._gripper_follower_factors: Dict[str, float] = dict(gripper_follower_factors)
+        self._gripper_follower_factors: dict[str, float] = dict(gripper_follower_factors)
         #: Width ◀─▶ driver joint.  See :class:`GripperLinkage`: the formula
         #: belongs to the robot and is handed in so that it does not stand in
         #: the stack for the fourth time.
         self._linkage = gripper_linkage
         self._gripper_open = float(gripper_linkage.open_rad)
         self._gripper_closed = float(gripper_linkage.closed_rad)
-        self._home_pose: Dict[str, float] = dict(home_pose)
-        self._render_size: Tuple[int, int] = (int(render_size[0]), int(render_size[1]))
+        self._home_pose: dict[str, float] = dict(home_pose)
+        self._render_size: tuple[int, int] = (int(render_size[0]), int(render_size[1]))
         #: Opt-in: drive the follower joints through the model's actuators
         #: instead of pinning their qpos.  Off is the twin's normal regime --
         #: everything commanded is held, and the gripper shells are permeable
@@ -232,7 +232,7 @@ class TwinTaskSim:
         #: :meth:`_drive_gripper` and :meth:`_setup_collision_masks`.
         self._actuated_gripper = bool(actuated_gripper)
         #: follower joint ─▶ actuator id, filled only in the actuated regime.
-        self._gripper_actuators: Dict[str, int] = {}
+        self._gripper_actuators: dict[str, int] = {}
         #: Over how many ticks the closing runs VISIBLY in the non-actuated
         #: regime.  ``0`` = off: the joints stand on the target in the first
         #: substep, in the picture the hand jumps open and shut binarily.
@@ -245,19 +245,19 @@ class TwinTaskSim:
         #: still has to go.
         self._gripper_ramp_from: float = 0.0
         self._gripper_ramp_left: int = 0
-        self._gripper_ramp_goal: Optional[float] = None
+        self._gripper_ramp_goal: float | None = None
         #: The angle that was REALLY written in this tick -- what the renderer
         #: shows.  Without a ramp always the command.
         self._gripper_applied: float = float(self._gripper_open)
 
-        self._joint_qpos: Dict[str, int] = {}
-        self._joint_dof: Dict[str, int] = {}
+        self._joint_qpos: dict[str, int] = {}
+        self._joint_dof: dict[str, int] = {}
         self._index_joints()
         if self._actuated_gripper:
             self._index_gripper_actuators()
         # (contype, conaffinity) per object geom, to suspend/restore contacts while the object is carried (see
         # _suspend_object_contacts).
-        self._object_contact_masks: Dict[str, Dict[int, Tuple[int, int]]] = {}
+        self._object_contact_masks: dict[str, dict[int, tuple[int, int]]] = {}
         # Scratch MjData for goal-state collision checks (lazily created).
         self._collision_scratch = None
         #: Scratch for the jaw height at the closed hand (see
@@ -266,7 +266,7 @@ class TwinTaskSim:
         self._pad_scratch = None
         self._pad_width = None
         self._tcp_body_id = self._body_id(spec.tcp_body)
-        self._graspable: Dict[str, Dict] = {}
+        self._graspable: dict[str, dict] = {}
         self.register_graspables()
         self._classify_geoms()
         self._setup_collision_masks()
@@ -274,24 +274,24 @@ class TwinTaskSim:
         self._index_obstacle_pool(n_obstacle_slots)
 
         # Commanded state (held every substep, twin-style).
-        self._arm_command: Dict[str, float] = dict(self._home_pose)
+        self._arm_command: dict[str, float] = dict(self._home_pose)
         self._gripper_command: float = self._gripper_open
         #: Whether the hand is commanded CLOSED -- see :meth:`gripper_closed`.
         self._gripper_closing: bool = False
         # label ─▶ (pos offset in TCP frame, quat offset) while carried.
-        self._grasped: Optional[str] = None
-        self._grasp_offset: Optional[Tuple[np.ndarray, np.ndarray]] = None
+        self._grasped: str | None = None
+        self._grasp_offset: tuple[np.ndarray, np.ndarray] | None = None
         # Closing span (m) of the captured face pair -- drives the finger command width; None falls back to the default
         # span.
-        self._grasp_span: Optional[float] = None
+        self._grasp_span: float | None = None
         #: How far the capture had to rotate the object while gripping (rad).
         #: See :meth:`grasp_misalign_deg`.
-        self._grasp_misalign: Optional[float] = None
+        self._grasp_misalign: float | None = None
         #: Gap at the moment of capture (m).  See :meth:`grasp_gap`.
-        self._grasp_gap0: Optional[float] = None
+        self._grasp_gap0: float | None = None
         #: Worst distance of the carried body to the real world during the
         #: whole journey.  See :meth:`carried_world_gap_min`.
-        self._carry_gap_min: Optional[float] = None
+        self._carry_gap_min: float | None = None
         self._carry_tick: int = 0
         #: Has the carried body already left the support surface?  Only from
         #: then on is a distance a statement about the JOURNEY.
@@ -306,7 +306,7 @@ class TwinTaskSim:
         self._event_acc = SimEvents()
 
         self._renderer = None
-        self._render_wh: Optional[Tuple[int, int]] = None
+        self._render_wh: tuple[int, int] | None = None
 
         mujoco.mj_forward(self.model, self.data)
         log.info(
@@ -387,7 +387,7 @@ class TwinTaskSim:
         self._table_geoms: set = set()
         self._ground_geoms: set = set()
         self._obstacle_geoms: set = set()
-        self._object_geoms: Dict[int, str] = {}
+        self._object_geoms: dict[int, str] = {}
         support = self.support_geom_names()
         self._object_bodies = {entry["body"]: label for label, entry in self._graspable.items()}
         for gid in range(self.model.ngeom):
@@ -450,7 +450,7 @@ class TwinTaskSim:
         # to a target) stay obstacles for the validity and settling questions: the arm must plan around them, so parking
         # them away would make the goal gate blind to exactly the objects it exists for.  Only the sim's own payload is
         # parked/settled -- the pre-split behaviour, expressed without task knowledge.
-        self._non_obstacle_graspables: Tuple[str, ...] = tuple(
+        self._non_obstacle_graspables: tuple[str, ...] = tuple(
             label for label, entry in self._graspable.items() if not (self._obstacle_geoms & set(entry["geoms"]))
         )
 
@@ -493,7 +493,7 @@ class TwinTaskSim:
     #: render pass (RGB *and* depth -- alpha tricks only work for RGB).
     _HIDDEN_GEOM_GROUP = 4
 
-    def _robot_geom_ids(self) -> List[int]:
+    def _robot_geom_ids(self) -> list[int]:
         """Geom ids of the robot's own kinematic tree.
 
         Positively identified through ``body_rootid``: every body the URDF contributed shares the robot's root body (the
@@ -551,7 +551,7 @@ class TwinTaskSim:
         without obstacles.
         """
         mujoco = self._mujoco
-        self._obstacle_slots: List[Tuple[int, int]] = []
+        self._obstacle_slots: list[tuple[int, int]] = []
         for i in range(int(n_slots)):
             name = obstacle_body_name(i, prefix=self._scene_prefix)
             bid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, name)
@@ -602,7 +602,7 @@ class TwinTaskSim:
             for g, s in zip(gids, saved):
                 self.model.geom_group[g] = s
 
-    def set_obstacles(self, boxes: List) -> int:
+    def set_obstacles(self, boxes: list) -> int:
         """Mirror perceived obstacles into the collision pool.
 
         ``boxes`` are duck-typed (``.center`` (3,) world, ``.size`` (3,) full extents).  Slots beyond ``len(boxes)`` are
@@ -647,16 +647,16 @@ class TwinTaskSim:
     # ------------------------------------------------------------------ #
     # commands (written by the motion layer / gripper interface)
     # ------------------------------------------------------------------ #
-    def set_arm_command(self, positions: Dict[str, float]) -> None:
+    def set_arm_command(self, positions: dict[str, float]) -> None:
         """Set the held target for (a subset of) the arm joints."""
         for name, value in positions.items():
             if name in self._joint_qpos:
                 self._arm_command[name] = float(value)
 
-    def arm_command(self) -> Dict[str, float]:
+    def arm_command(self) -> dict[str, float]:
         return dict(self._arm_command)
 
-    def arm_positions(self) -> Dict[str, float]:
+    def arm_positions(self) -> dict[str, float]:
         """Current arm joint positions (== command, joints are held)."""
         return {j: float(self.data.qpos[self._joint_qpos[j]]) for j in self.spec.arm_joints}
 
@@ -796,7 +796,7 @@ class TwinTaskSim:
             chosen.append(chosen[0] + np.pi / 2.0)
         return chosen[:2]
 
-    def _pad_heights(self) -> List[float]:
+    def _pad_heights(self) -> list[float]:
         """World z of the hand geoms at the CLOSED jaw position.
 
         Computed on a scratch copy so that the running scene stays untouched
@@ -1028,7 +1028,7 @@ class TwinTaskSim:
             span * 1e3,
         )
 
-    def _symmetry_axis(self, entry) -> Optional[np.ndarray]:
+    def _symmetry_axis(self, entry) -> np.ndarray | None:
         """Axis in the BODY FRAME about which the body is rotationally
         symmetric -- or ``None`` if it is about none.
 
@@ -1242,7 +1242,7 @@ class TwinTaskSim:
             self._robot_body_cache = ids
         return self._robot_body_cache
 
-    def _measure_gap(self, entry) -> Optional[float]:
+    def _measure_gap(self, entry) -> float | None:
         """Smallest distance hand◀─▶body RIGHT NOW (m), or ``None``."""
         if entry is None or not self._hand_geoms:
             return None
@@ -1280,7 +1280,7 @@ class TwinTaskSim:
         Leaving its contacts on lets the contact solver fight the pin whenever an IK solution sweeps a robot link (e.g.
         the upper arm) through the carry zone; the growing penetration then discharges as a catapult impulse on release.
         """
-        saved: Dict[int, Tuple[int, int]] = {}
+        saved: dict[int, tuple[int, int]] = {}
         entry = self._graspable.get(label)
         for gid in (entry["geoms"] if entry else []):
             saved[gid] = (int(self.model.geom_contype[gid]), int(self.model.geom_conaffinity[gid]))
@@ -1294,7 +1294,7 @@ class TwinTaskSim:
             self.model.geom_contype[gid] = contype
             self.model.geom_conaffinity[gid] = conaffinity
 
-    def grasped_label(self) -> Optional[str]:
+    def grasped_label(self) -> str | None:
         return self._grasped
 
     # ------------------------------------------------------------------ #
@@ -1476,7 +1476,7 @@ class TwinTaskSim:
         self._gripper_applied = goal + rest * (self._gripper_ramp_from - goal)
         return self._gripper_applied
 
-    def _drive_gripper(self, start: Dict[str, float], targets: Dict[str, float], alpha: float) -> None:
+    def _drive_gripper(self, start: dict[str, float], targets: dict[str, float], alpha: float) -> None:
         """Write ``data.ctrl`` for the follower joints; do NOT pin their qpos.
 
         Two halves, and the flag is worthless without either.  Writing ctrl is the obvious one -- ``ctrl`` left at zero
@@ -1514,7 +1514,7 @@ class TwinTaskSim:
     # goal-state validity (mirror of MoveIt's start/goal collision check)
     # ------------------------------------------------------------------ #
     def arm_config_collides(
-        self, joints: Dict[str, float], *, penetration: float = 0.003, obstacles_only: bool = False
+        self, joints: dict[str, float], *, penetration: float = 0.003, obstacles_only: bool = False
     ) -> bool:
         """True if the arm configuration is in *robot self-collision*.
 
@@ -1611,7 +1611,7 @@ class TwinTaskSim:
     # ------------------------------------------------------------------ #
     # queries
     # ------------------------------------------------------------------ #
-    def fk_body_pose(self, body: str, arm_joints: Dict[str, float]) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    def fk_body_pose(self, body: str, arm_joints: dict[str, float]) -> tuple[np.ndarray, np.ndarray] | None:
         """Forward-kinematics world pose of ``body`` for given arm joint angles.
 
         Uses a scratch ``MjData``, so the pose comes back in MuJoCo world
@@ -1639,7 +1639,7 @@ class TwinTaskSim:
         mujoco.mj_forward(self.model, scratch)
         return scratch.xpos[bid].copy(), scratch.xmat[bid].reshape(3, 3).copy()
 
-    def tcp_pose(self) -> Tuple[np.ndarray, np.ndarray]:
+    def tcp_pose(self) -> tuple[np.ndarray, np.ndarray]:
         """TCP world pose: ``(position (3,), rotation matrix (3,3))``."""
         pos = self.data.xpos[self._tcp_body_id].copy()
         mat = self.data.xmat[self._tcp_body_id].reshape(3, 3).copy()
@@ -1679,7 +1679,7 @@ class TwinTaskSim:
             self._scene_option.geomgroup[self._HIDDEN_GEOM_GROUP] = 0
         return self._renderer
 
-    def render_rgb(self, camera: str, width: Optional[int] = None, height: Optional[int] = None) -> np.ndarray:
+    def render_rgb(self, camera: str, width: int | None = None, height: int | None = None) -> np.ndarray:
         w = width or self._render_size[0]
         h = height or self._render_size[1]
         renderer = self._ensure_renderer(w, h)
@@ -1687,7 +1687,7 @@ class TwinTaskSim:
         renderer.update_scene(self.data, camera=camera, scene_option=self._scene_option)
         return renderer.render()
 
-    def render_depth(self, camera: str, width: Optional[int] = None, height: Optional[int] = None) -> np.ndarray:
+    def render_depth(self, camera: str, width: int | None = None, height: int | None = None) -> np.ndarray:
         w = width or self._render_size[0]
         h = height or self._render_size[1]
         renderer = self._ensure_renderer(w, h)
@@ -1697,12 +1697,12 @@ class TwinTaskSim:
         renderer.disable_depth_rendering()
         return depth
 
-    def camera_matrix(self, camera: str, width: Optional[int] = None, height: Optional[int] = None) -> np.ndarray:
+    def camera_matrix(self, camera: str, width: int | None = None, height: int | None = None) -> np.ndarray:
         w = width or self._render_size[0]
         h = height or self._render_size[1]
         return camera_intrinsics(self.model, camera, w, h)
 
-    def camera_pose(self, camera: str) -> Tuple[np.ndarray, np.ndarray]:
+    def camera_pose(self, camera: str) -> tuple[np.ndarray, np.ndarray]:
         return camera_extrinsics(self.data, self.model, camera)
 
     def close(self) -> None:

@@ -37,7 +37,6 @@ import shutil
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
-from typing import List, Optional, Tuple
 
 log = logging.getLogger("twinlink.urdf")
 
@@ -45,7 +44,7 @@ _PASSTHROUGH = (".stl", ".obj")
 _compile_cache: dict = {}
 
 # A processed mesh expands to one or more (absolute path, rgba-or-None) parts.
-MeshParts = List[Tuple[str, Optional[list]]]
+MeshParts = list[tuple[str, list | None]]
 
 
 # ---------------------------------------------------------------------- #
@@ -205,7 +204,7 @@ def _ensure_inertial(link) -> None:
         inertia.set(k, v)
 
 
-def _prepare_urdf(urdf_path, keep_visual, colored, with_collision, cache_dir) -> Tuple[ET.ElementTree, List[str]]:
+def _prepare_urdf(urdf_path, keep_visual, colored, with_collision, cache_dir) -> tuple[ET.ElementTree, list[str]]:
     tree = ET.parse(urdf_path)
     root = tree.getroot()
     urdf_dir = os.path.dirname(os.path.abspath(urdf_path))
@@ -214,7 +213,7 @@ def _prepare_urdf(urdf_path, keep_visual, colored, with_collision, cache_dir) ->
         for elem in root.findall(tag):
             root.remove(elem)
 
-    dropped: List[str] = []
+    dropped: list[str] = []
     for link in root.findall("link"):
         _ensure_inertial(link)
         visuals = list(link.findall("visual"))
@@ -238,7 +237,7 @@ def _prepare_urdf(urdf_path, keep_visual, colored, with_collision, cache_dir) ->
 # ---------------------------------------------------------------------- #
 # scene augmentation (compiled-MJCF round-trip)
 # ---------------------------------------------------------------------- #
-def _add_scene(mjcf_root: ET.Element, floating_base: bool, base_body_name: Optional[str]) -> Optional[str]:
+def _add_scene(mjcf_root: ET.Element, floating_base: bool, base_body_name: str | None) -> str | None:
     worldbody = mjcf_root.find("worldbody")
     asset = mjcf_root.find("asset")
     if asset is None:
@@ -356,7 +355,7 @@ def _ground_welded_robot(worldbody: ET.Element, model, data) -> float:
     return shift
 
 
-def _root_link_name(urdf_path: str) -> Optional[str]:
+def _root_link_name(urdf_path: str) -> str | None:
     root = ET.parse(urdf_path).getroot()
     links = [l.get("name") for l in root.findall("link")]
     children = {j.find("child").get("link") for j in root.findall("joint") if j.find("child") is not None}
@@ -375,7 +374,7 @@ def load_mujoco_from_urdf(
     keep_visual: bool = False,
     colored: bool = True,
     with_collision: bool = False,
-    mesh_cache_dir: Optional[str] = None,
+    mesh_cache_dir: str | None = None,
 ):
     """Load ``urdf_path`` into a ``mujoco.MjModel``.
 

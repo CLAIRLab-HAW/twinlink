@@ -14,7 +14,7 @@ Adapting TwinLink to a different robot is therefore usually just a new YAML file
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+
 import struct
 
 import numpy as np
@@ -48,8 +48,8 @@ def stamp_to_sec(stamp) -> float:
 @dataclass
 class CameraMap:
     name: str
-    image_topic: Optional[str] = None
-    info_topic: Optional[str] = None
+    image_topic: str | None = None
+    info_topic: str | None = None
     is_depth: bool = False
     #: Store CompressedImage payloads undecoded (CameraFrame.raw); the consumer
     #: decodes via CameraFrame.ensure_decoded().  Keeps a live source's ingest
@@ -63,43 +63,43 @@ class CameraMap:
 class RobotMapping:
     """Declarative description of how a robot's topics map into RobotState."""
 
-    joint_states_topics: List[str] = field(default_factory=list)
-    tf_topics: List[str] = field(default_factory=list)
-    tf_static_topics: List[str] = field(default_factory=list)
-    odom_topic: Optional[str] = None
+    joint_states_topics: list[str] = field(default_factory=list)
+    tf_topics: list[str] = field(default_factory=list)
+    tf_static_topics: list[str] = field(default_factory=list)
+    odom_topic: str | None = None
     base_link: str = "base_link"
     odom_frame: str = "odom"
-    cameras: List[CameraMap] = field(default_factory=list)
+    cameras: list[CameraMap] = field(default_factory=list)
     # Obstacle point clouds (name ─▶ topic) and MoveIt's planned path.
-    points_topics: Dict[str, str] = field(default_factory=dict)
-    planned_path_topic: Optional[str] = None
+    points_topics: dict[str, str] = field(default_factory=dict)
+    planned_path_topic: str | None = None
     points_max: int = 60000  # subsample huge clouds before storing
     # Plain std_msgs/String topics (name ─▶ topic): the latest payload lands in ``state.extra(name)`` — e.g. the
     # /twin/arm_state JSON downlink.
-    string_topics: Dict[str, str] = field(default_factory=dict)
+    string_topics: dict[str, str] = field(default_factory=dict)
 
     # Joint-name handling: ROS joint name ─▶ simulator/model joint name.
-    joint_remap: Dict[str, str] = field(default_factory=dict)
+    joint_remap: dict[str, str] = field(default_factory=dict)
     # If set, only these (ROS) joint names are ingested.
-    joint_include: Optional[List[str]] = None
+    joint_include: list[str] | None = None
 
     # Odometry frequently carries an absolute (e.g. UTM/GPS) origin that is useless for a local twin.  When true, the
     # base pose is tracked relative to the first odom sample seen.
     base_pose_relative_to_start: bool = False
 
     # Optional explicit per-topic ROS type (needed only for live mode when the role default is not appropriate).
-    topic_types: Dict[str, str] = field(default_factory=dict)
+    topic_types: dict[str, str] = field(default_factory=dict)
 
-    _origin: Optional[np.ndarray] = field(default=None, init=False, repr=False)
+    _origin: np.ndarray | None = field(default=None, init=False, repr=False)
     # Parsed 3x3 K per camera name (camera_info streams at frame rate but the intrinsics are constant; see
     # _decode_camera_info).
-    _info_cache: Dict[str, np.ndarray] = field(default_factory=dict, init=False, repr=False)
+    _info_cache: dict[str, np.ndarray] = field(default_factory=dict, init=False, repr=False)
 
     # ------------------------------------------------------------------ #
     # introspection used by the sources
     # ------------------------------------------------------------------ #
-    def topics(self) -> List[str]:
-        ts: List[str] = []
+    def topics(self) -> list[str]:
+        ts: list[str] = []
         ts += self.joint_states_topics
         ts += self.tf_topics
         ts += self.tf_static_topics
@@ -116,7 +116,7 @@ class RobotMapping:
         ts += list(self.string_topics.values())
         return sorted(set(ts))
 
-    def role_of(self, topic: str) -> Optional[str]:
+    def role_of(self, topic: str) -> str | None:
         if topic in self.joint_states_topics:
             return "joint_states"
         if topic in self.tf_topics:
@@ -138,7 +138,7 @@ class RobotMapping:
             return "string"
         return None
 
-    def topic_type(self, topic: str) -> Optional[str]:
+    def topic_type(self, topic: str) -> str | None:
         if topic in self.topic_types:
             return self.topic_types[topic]
         role = self.role_of(topic)
@@ -251,7 +251,7 @@ class RobotMapping:
         import time as _time
 
         arrival = _time.monotonic()
-        raw_payload: Optional[bytes] = None
+        raw_payload: bytes | None = None
         raw_format = ""
         if _is_compressed_image(msgtype, msg):
             if cam.lazy_decode:
@@ -419,7 +419,7 @@ def image_to_numpy(msg) -> np.ndarray:
 _PC2_NP = {1: np.int8, 2: np.uint8, 3: np.int16, 4: np.uint16, 5: np.int32, 6: np.uint32, 7: np.float32, 8: np.float64}
 
 
-def pointcloud2_to_xyz(msg, max_points: Optional[int] = 60000, max_range: Optional[float] = None) -> np.ndarray:
+def pointcloud2_to_xyz(msg, max_points: int | None = 60000, max_range: float | None = None) -> np.ndarray:
     """Extract finite (N, 3) xyz from a ``sensor_msgs/PointCloud2`` (any layout).
 
     ``max_range`` (metres, sensor frame) drops points farther than that from the origin — depth cameras such as the D435
@@ -482,7 +482,7 @@ def _msg_bytes(msg) -> bytes:
     return bytes(bytearray(raw))
 
 
-def compressed_image_to_numpy(msg, is_depth: bool = False) -> Tuple[np.ndarray, str]:
+def compressed_image_to_numpy(msg, is_depth: bool = False) -> tuple[np.ndarray, str]:
     """Decode a ``sensor_msgs/CompressedImage`` into ``(HxW[xC] array, encoding)``.
 
     * Color (``is_depth=False``): JPEG/PNG via ``cv2.imdecode`` ─▶ BGR8, encoding
@@ -500,7 +500,7 @@ def compressed_image_to_numpy(msg, is_depth: bool = False) -> Tuple[np.ndarray, 
 
 def decode_compressed_bytes(
     data: bytes, fmt: str, *, is_depth: bool = False, allow_rvl: bool = True
-) -> Tuple[np.ndarray, str]:
+) -> tuple[np.ndarray, str]:
     """Bytes-level CompressedImage decode -- see :func:`compressed_image_to_numpy`.
 
     This is the entry point of the *lazy* path (``CameraFrame.ensure_decoded``), which passes ``allow_rvl=False``: the
@@ -531,7 +531,7 @@ def decode_compressed_bytes(
     return _decode_depth_compressed(data, fmt)
 
 
-def _decode_depth_compressed(data: bytes, fmt: str) -> Tuple[np.ndarray, str]:
+def _decode_depth_compressed(data: bytes, fmt: str) -> tuple[np.ndarray, str]:
     import cv2
 
     if len(data) < _DEPTH_CONFIG_HEADER:

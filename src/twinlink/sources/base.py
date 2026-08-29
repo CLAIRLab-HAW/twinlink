@@ -8,7 +8,7 @@ simulator.
 from __future__ import annotations
 
 import abc
-from typing import Optional
+
 
 from ..mapping import RobotMapping
 from ..state import RobotState
@@ -22,11 +22,11 @@ class StateSource(abc.ABC):
     requires_mapping: bool = True
 
     def __init__(self) -> None:
-        self.state: Optional[RobotState] = None
-        self.mapping: Optional[RobotMapping] = None
+        self.state: RobotState | None = None
+        self.mapping: RobotMapping | None = None
         self._running = False
 
-    def bind(self, state: RobotState, mapping: Optional[RobotMapping] = None) -> "StateSource":
+    def bind(self, state: RobotState, mapping: RobotMapping | None = None) -> "StateSource":
         self.state = state
         self.mapping = mapping
         return self

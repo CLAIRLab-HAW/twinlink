@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Dict, List, Optional
+
 
 from .base import StateSink
 
@@ -33,9 +33,9 @@ class IsaacSimSink(StateSink):
         self,
         articulation_prim: str,
         *,
-        joint_remap: Optional[Dict[str, str]] = None,
-        usd_path: Optional[str] = None,
-        base_prim: Optional[str] = None,
+        joint_remap: dict[str, str] | None = None,
+        usd_path: str | None = None,
+        base_prim: str | None = None,
     ) -> None:
         super().__init__()
         self.articulation_prim = articulation_prim
@@ -44,8 +44,8 @@ class IsaacSimSink(StateSink):
         self.base_prim = base_prim
 
         self._view = None
-        self._dof_names: List[str] = []
-        self._state_for_dof: List[Optional[str]] = []
+        self._dof_names: list[str] = []
+        self._state_for_dof: list[str | None] = []
 
     def setup(self) -> None:
         try:

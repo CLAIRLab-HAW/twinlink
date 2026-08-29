@@ -18,7 +18,8 @@ across tasks.
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from typing import Dict, Sequence, Tuple
+
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -100,7 +101,7 @@ def distractor_joint_name(index: int, prefix: str = DEFAULT_SCENE_PREFIX) -> str
     return f"{prefix}distractor_{index}_free"
 
 
-def add_distractors(worldbody: ET.Element, distractors: Sequence[Dict], prefix: str = DEFAULT_SCENE_PREFIX) -> None:
+def add_distractors(worldbody: ET.Element, distractors: Sequence[dict], prefix: str = DEFAULT_SCENE_PREFIX) -> None:
     """Author sim-only clutter boxes (``{"position", "size", "yaw", "rgba"}``).
 
     Boxes the task does NOT know about, standing in for real-world clutter -- rendered and colliding like real
@@ -150,7 +151,7 @@ def camera_intrinsics(model, camera: str, width: int, height: int) -> np.ndarray
     return np.array([[fx, 0.0, width / 2.0], [0.0, fy, height / 2.0], [0.0, 0.0, 1.0]])
 
 
-def camera_extrinsics(data, model, camera: str) -> Tuple[np.ndarray, np.ndarray]:
+def camera_extrinsics(data, model, camera: str) -> tuple[np.ndarray, np.ndarray]:
     """World pose of a camera: ``(position (3,), rotation (3,3) cam─▶world)``.
 
     MuJoCo camera frames look along -z with +y up (columns of the returned rotation are the camera's x/y/z axes in world

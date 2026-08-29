@@ -6,7 +6,6 @@ twin can be brought up from a URDF alone (e.g. to validate the model loads and t
 
 from __future__ import annotations
 
-from typing import Dict, Optional
 
 from .base import StateSource
 
@@ -14,7 +13,7 @@ from .base import StateSource
 class UrdfStaticSource(StateSource):
     requires_mapping = False
 
-    def __init__(self, joint_positions: Optional[Dict[str, float]] = None) -> None:
+    def __init__(self, joint_positions: dict[str, float] | None = None) -> None:
         super().__init__()
         self.joint_positions = dict(joint_positions or {})
 

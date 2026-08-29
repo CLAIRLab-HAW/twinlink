@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import List, Optional
+
 
 from .mapping import RobotMapping
 from .sinks.base import StateSink
@@ -26,15 +26,15 @@ log = logging.getLogger("twinlink.bridge")
 class TwinLink:
     def __init__(
         self,
-        state: Optional[RobotState] = None,
-        source: Optional[StateSource] = None,
-        sinks: Optional[List[StateSink]] = None,
-        mapping: Optional[RobotMapping] = None,
+        state: RobotState | None = None,
+        source: StateSource | None = None,
+        sinks: list[StateSink] | None = None,
+        mapping: RobotMapping | None = None,
         rate: float = 60.0,
     ) -> None:
         self.state = state or RobotState()
         self.source = source
-        self.sinks: List[StateSink] = list(sinks or [])
+        self.sinks: list[StateSink] = list(sinks or [])
         self.mapping = mapping
         self.rate = rate
         self._stop = threading.Event()
@@ -56,7 +56,7 @@ class TwinLink:
             sink.bind(self.state)
             sink.setup()
 
-    def run(self, duration: Optional[float] = None, stop_when_source_done: bool = True, heartbeat: float = 0.0) -> None:
+    def run(self, duration: float | None = None, stop_when_source_done: bool = True, heartbeat: float = 0.0) -> None:
         """Block, ticking sinks at ``rate`` Hz, until done or interrupted.
 
         ``heartbeat`` > 0 logs the state + incoming message rate every N seconds

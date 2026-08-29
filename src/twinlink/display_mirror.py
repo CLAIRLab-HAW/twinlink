@@ -24,7 +24,6 @@ app only constructs this for its real-camera mode, where every sim-truth check i
 from __future__ import annotations
 
 import logging
-from typing import Dict, Tuple
 
 log = logging.getLogger("twinlink.display")
 
@@ -37,7 +36,7 @@ class TwinDisplayMirror:
         #: Last written state per label ("carry" | "park" | rounded pose) --
         #: unchanged beliefs are not re-teleported (no visual jitter, and a
         #: settled object stays settled).
-        self._written: Dict[str, Tuple] = {}
+        self._written: dict[str, tuple] = {}
 
     # ------------------------------------------------------------------ #
     def sync(self, items) -> None:
@@ -64,7 +63,7 @@ class TwinDisplayMirror:
             log.warning("twin display mirror failed for %s: %s", label, exc)
 
     # ------------------------------------------------------------------ #
-    def _apply(self, label: str, state: Tuple) -> None:
+    def _apply(self, label: str, state: tuple) -> None:
         key = self._dedup_key(state)
         previous = self._written.get(label)
         if previous == key:
@@ -86,7 +85,7 @@ class TwinDisplayMirror:
         self._written[label] = key
 
     @staticmethod
-    def _dedup_key(state: Tuple) -> Tuple:
+    def _dedup_key(state: tuple) -> tuple:
         """Round pose states so imperceptible perception noise is not a "change".
 
         The actual teleport still uses the caller's exact position/yaw (see ``_apply``); only the change-detection key

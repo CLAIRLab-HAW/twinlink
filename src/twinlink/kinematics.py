@@ -12,7 +12,8 @@ iterations never disturb the live simulation state.
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional, Protocol, Sequence, Tuple
+from typing import Protocol
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -43,15 +44,15 @@ class Kinematics(Protocol):
     simulator leaked through an interface that was never declared.
     """
 
-    def frame_pose(self, name: str, joints: Dict[str, float]) -> Tuple[np.ndarray, np.ndarray]:
+    def frame_pose(self, name: str, joints: dict[str, float]) -> tuple[np.ndarray, np.ndarray]:
         """``(position (3,), rotation (3,3))`` of a frame at the given configuration."""
 
     def solve_ik(
-        self, target_pos: np.ndarray, target_rot: np.ndarray, seed: Dict[str, float]
-    ) -> Optional[Dict[str, float]]:
+        self, target_pos: np.ndarray, target_rot: np.ndarray, seed: dict[str, float]
+    ) -> dict[str, float] | None:
         """Joint values reaching the pose, or ``None`` when the solver does not converge."""
 
-    def config_collides(self, joints: Dict[str, float], *, obstacles_only: bool = False) -> bool:
+    def config_collides(self, joints: dict[str, float], *, obstacles_only: bool = False) -> bool:
         """True when the configuration is invalid."""
 
 
@@ -64,15 +65,15 @@ class ArmIK:
         self._mujoco = mujoco
         self.model = model
         self.cfg = cfg
-        self.joints: Tuple[str, ...] = tuple(joints)
+        self.joints: tuple[str, ...] = tuple(joints)
         self._scratch = mujoco.MjData(model)
 
         self._tcp_body = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, tcp_body)
         if self._tcp_body < 0:
             raise KeyError(f"TCP body {tcp_body!r} not in model")
-        self._qpos_adr: Dict[str, int] = {}
-        self._dof_adr: Dict[str, int] = {}
-        self._range: Dict[str, Tuple[float, float]] = {}
+        self._qpos_adr: dict[str, int] = {}
+        self._dof_adr: dict[str, int] = {}
+        self._range: dict[str, tuple[float, float]] = {}
         for name in self.joints:
             jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)
             if jid < 0:
@@ -89,12 +90,12 @@ class ArmIK:
     def solve(
         self,
         target_pos: np.ndarray,
-        target_mat: Optional[np.ndarray] = None,
-        seed: Optional[Dict[str, float]] = None,
+        target_mat: np.ndarray | None = None,
+        seed: dict[str, float] | None = None,
         *,
         damping: float = 0.08,
         step_scale: float = 0.9,
-    ) -> Optional[Dict[str, float]]:
+    ) -> dict[str, float] | None:
         """Return arm joint positions reaching the target, or ``None``.
 
         ``target_mat`` constrains full orientation (3x3); ``None`` solves position-only.  ``seed`` initialises the

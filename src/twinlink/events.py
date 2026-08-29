@@ -9,7 +9,6 @@ wants exactly these fields.  ``grasp_acquired``/``grasp_lost`` carry the
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -20,12 +19,12 @@ class SimEvents:
     robot_ground_collision: bool = False
     #: Robot touched a perceived obstacle (pool slot) or a sim distractor.
     robot_obstacle_collision: bool = False
-    grasp_acquired: Optional[str] = None  # object id captured this step
-    grasp_lost: Optional[str] = None  # object released/dropped this step
+    grasp_acquired: str | None = None  # object id captured this step
+    grasp_lost: str | None = None  # object released/dropped this step
     #: Object id whose grasp was NOT DETERMINABLE (the gripper bridge returned
     #: nothing).  A third state next to acquired/lost -- ``unbekannt`` must not
     #: be recorded as "not grasped".
-    grasp_unknown: Optional[str] = None
+    grasp_unknown: str | None = None
 
     def merge(self, other: "SimEvents") -> None:
         self.robot_table_collision |= other.robot_table_collision

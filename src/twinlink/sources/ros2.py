@@ -23,7 +23,8 @@ from __future__ import annotations
 import importlib
 import logging
 import threading
-from typing import Callable, List, Optional
+
+from collections.abc import Callable
 
 from .base import StateSource
 
@@ -47,7 +48,7 @@ class Ros2Source(StateSource):
         self.node_name = node_name
         self._node = None
         self._executor = None
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._owns_rclpy = False
 
     # ------------------------------------------------------------------ #
@@ -111,7 +112,7 @@ class Ros2Source(StateSource):
         self._executor = rclpy.executors.MultiThreadedExecutor()
         self._executor.add_node(self._node)
 
-    def _subscribe(self, topic: str, type_str: str, on_msg: Callable, role: Optional[str]) -> None:
+    def _subscribe(self, topic: str, type_str: str, on_msg: Callable, role: str | None) -> None:
         from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
         msg_class = resolve_msg_class(type_str)

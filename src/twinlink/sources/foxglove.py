@@ -26,7 +26,7 @@ import re
 import struct
 import threading
 import time
-from typing import Dict, List, Optional, Tuple
+
 
 from .base import StateSource
 
@@ -57,7 +57,7 @@ uint32 nanosec
 """
 
 
-def parse_message_data(data: bytes) -> Optional[Tuple[int, float, bytes]]:
+def parse_message_data(data: bytes) -> tuple[int, float, bytes] | None:
     """Parse a binary server frame; return ``(sub_id, recv_stamp, cdr_payload)``.
 
     ``recv_stamp`` is the bridge's receive timestamp converted to epoch seconds (the u64 nanoseconds at bytes 5..13 of a
@@ -95,7 +95,7 @@ def _parse_concatenated_msg(root_type: str, schema: str) -> dict:
     return types
 
 
-def select_channels(channels: list, wanted: set) -> List[dict]:
+def select_channels(channels: list, wanted: set) -> list[dict]:
     """Pick advertised CDR channels whose topic we care about. Pure/testable."""
     out = []
     for ch in channels:
@@ -104,14 +104,14 @@ def select_channels(channels: list, wanted: set) -> List[dict]:
     return out
 
 
-def discover_channels(url: str, timeout: float = 5.0) -> List[dict]:
+def discover_channels(url: str, timeout: float = 5.0) -> list[dict]:
     """Connect to a foxglove bridge and return the advertised channels.
 
     Each channel is a dict with ``topic``, ``schemaName``, ``encoding``, ``id``.
     Handy at a new robot to see what's on offer before configuring a mapping."""
     from websockets.sync.client import connect
 
-    channels: Dict[int, dict] = {}
+    channels: dict[int, dict] = {}
     with connect(url, subprotocols=_SUBPROTOCOLS, open_timeout=timeout, max_size=None) as ws:
         end = time.monotonic() + timeout
         while time.monotonic() < end:
@@ -137,7 +137,7 @@ class FoxgloveSource(StateSource):
         self,
         url: str = "ws://localhost:8765",
         *,
-        topics: Optional[List[str]] = None,
+        topics: list[str] | None = None,
         reconnect: bool = True,
         connect_timeout: float = 5.0,
         store: str = "LATEST",
@@ -149,17 +149,17 @@ class FoxgloveSource(StateSource):
         self.connect_timeout = connect_timeout
         self.store = store
 
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         self._ws = None
         self._typestore = None
-        self._sub_map: Dict[int, Tuple[str, str, int]] = {}  # subId ─▶ (topic, msgtype, channelId)
+        self._sub_map: dict[int, tuple[str, str, int]] = {}  # subId ─▶ (topic, msgtype, channelId)
         self._next_sub = 0
         self._decode_errors: set = set()  # topics whose first decode failure was logged
         # Ingest telemetry: message counts + last bridge─▶client lag per topic, logged every _STAT_PERIOD seconds
         # (DEBUG).  A growing lag means the receive loop is falling behind the wire rate.
-        self._stat_counts: Dict[str, int] = {}
-        self._stat_lag: Dict[str, float] = {}
+        self._stat_counts: dict[str, int] = {}
+        self._stat_lag: dict[str, float] = {}
         self._stat_t0 = time.monotonic()
 
     _STAT_PERIOD = 5.0
@@ -362,7 +362,7 @@ class FoxglovePublisher:
 
         self._ws = None
         self._typestore = None
-        self._drain: Optional[threading.Thread] = None
+        self._drain: threading.Thread | None = None
         self._stop = threading.Event()
 
     @property

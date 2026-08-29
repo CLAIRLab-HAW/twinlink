@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import os
 import xml.etree.ElementTree as ET
-from typing import List, Optional, Tuple
+
 
 import numpy as np
 
@@ -133,7 +133,7 @@ def _compact(V: np.ndarray, faces: np.ndarray):
     return V[used], np.searchsorted(used, faces)
 
 
-def _extract_groups(dae_path: str) -> Tuple[str, List[Tuple[str, Optional[list], np.ndarray, np.ndarray]]]:
+def _extract_groups(dae_path: str) -> tuple[str, list[tuple[str, list | None, np.ndarray, np.ndarray]]]:
     """Return (up_axis, [(material, rgba, V, F), ...]) in Z-up coordinates."""
     root = ET.parse(dae_path).getroot()
     ns = _ns(root)
@@ -229,7 +229,7 @@ def dae_to_obj(dae_path: str, obj_path: str) -> tuple:
     return len(V), len(F), (V.max(0) - V.min(0))
 
 
-def dae_to_colored_objs(dae_path: str, out_dir: str, stem: str) -> List[Tuple[str, Optional[list]]]:
+def dae_to_colored_objs(dae_path: str, out_dir: str, stem: str) -> list[tuple[str, list | None]]:
     """Convert a ``.dae`` to one OBJ per material.
 
     Returns ``[(obj_abspath, rgba), ...]`` (rgba may be ``None``).  Results are cached: a sidecar JSON lets repeat loads
@@ -245,7 +245,7 @@ def dae_to_colored_objs(dae_path: str, out_dir: str, stem: str) -> List[Tuple[st
             pass
 
     _up, groups = _extract_groups(dae_path)
-    result: List[Tuple[str, Optional[list]]] = []
+    result: list[tuple[str, list | None]] = []
     for i, (_material, rgba, V, F) in enumerate(groups):
         if len(F) == 0:
             continue

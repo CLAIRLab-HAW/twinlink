@@ -13,7 +13,7 @@ import logging
 import threading
 import time
 from pathlib import Path
-from typing import Optional
+
 
 from .base import StateSource
 
@@ -27,7 +27,7 @@ class McapSource(StateSource):
         rate: float = 1.0,
         loop: bool = False,
         start_offset: float = 0.0,
-        duration: Optional[float] = None,
+        duration: float | None = None,
         realtime: bool = True,
     ) -> None:
         super().__init__()
@@ -38,7 +38,7 @@ class McapSource(StateSource):
         self.duration = duration
         self.realtime = bool(realtime)
 
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         #: playback position within the recording, seconds since first message
         self.clock = 0.0
@@ -91,7 +91,7 @@ class McapSource(StateSource):
             if self.duration is not None:
                 window = self.start_offset + self.duration
 
-            start_ns: Optional[int] = None
+            start_ns: int | None = None
             wall0 = time.monotonic()
             for conn, ts, raw in reader.messages(connections=conns):
                 if self._stop.is_set():
