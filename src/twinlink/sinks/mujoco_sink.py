@@ -32,7 +32,6 @@ import math
 import sys
 import time
 
-
 import numpy as np
 
 from ..task_sim import RobotSimSpec

@@ -6,7 +6,6 @@ twin can be brought up from a URDF alone (e.g. to validate the model loads and t
 
 from __future__ import annotations
 
-
 from .base import StateSource
 
 

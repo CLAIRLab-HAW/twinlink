@@ -22,7 +22,6 @@ from __future__ import annotations
 import logging
 import math
 
-
 from .base import StateSink
 
 log = logging.getLogger("twinlink.isaac")
@@ -86,8 +85,8 @@ class IsaacSimSink(StateSink):
         return True
 
     def _set_base_pose(self, base_pose) -> None:  # pragma: no cover - Isaac-only
-        from pxr import Gf, UsdGeom
         import omni.usd
+        from pxr import Gf, UsdGeom
 
         stage = omni.usd.get_context().get_stage()
         prim = stage.GetPrimAtPath(self.base_prim)

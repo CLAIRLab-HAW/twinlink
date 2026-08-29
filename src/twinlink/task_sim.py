@@ -22,8 +22,8 @@ from typing import Protocol
 import numpy as np
 
 from .events import SimEvents
-from .quaternion import mat_to_quat_wxyz, quat_about_z_wxyz, quat_conj_wxyz, quat_mul_wxyz
 from .mjcf_scene import OBSTACLE_PARK, OBSTACLE_POOL_SIZE, camera_extrinsics, camera_intrinsics, obstacle_body_name
+from .quaternion import mat_to_quat_wxyz, quat_about_z_wxyz, quat_conj_wxyz, quat_mul_wxyz
 
 log = logging.getLogger("twinlink.task_sim")
 

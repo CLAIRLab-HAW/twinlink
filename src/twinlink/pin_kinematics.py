@@ -13,8 +13,8 @@ frame placements 0.59 us.  Twenty belief boxes cost 0.9 ms to add and lift the f
 
 from __future__ import annotations
 
-from typing import NamedTuple
 from collections.abc import Sequence
+from typing import NamedTuple
 
 import numpy as np
 

@@ -16,8 +16,8 @@ import pytest
 mujoco = pytest.importorskip("mujoco", reason="mujoco extra not installed")
 
 from twinlink.mjcf_scene import distractor_body_name, distractor_joint_name  # noqa: E402
-from twinlink.testing import StraightLinkage  # noqa: E402
 from twinlink.task_sim import RobotSimSpec, TwinTaskSim  # noqa: E402
+from twinlink.testing import StraightLinkage  # noqa: E402
 
 #: The body prefix of THIS test scene.  Scene and constructor must make the
 #: same choice: if the scene names its distractor with the module default

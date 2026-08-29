@@ -18,7 +18,6 @@ across tasks.
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-
 from collections.abc import Sequence
 
 import numpy as np

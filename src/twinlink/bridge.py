@@ -14,7 +14,6 @@ import logging
 import threading
 import time
 
-
 from .mapping import RobotMapping
 from .sinks.base import StateSink
 from .sources.base import StateSource

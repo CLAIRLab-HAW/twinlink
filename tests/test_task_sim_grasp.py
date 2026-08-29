@@ -16,8 +16,8 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco", reason="mujoco extra not installed")
 
-from twinlink.testing import StraightLinkage  # noqa: E402
 from twinlink.task_sim import GRASP_MAX_MISALIGN_DEG, RobotSimSpec, TwinTaskSim, _wrap_half, _wrap_quarter  # noqa: E402
+from twinlink.testing import StraightLinkage  # noqa: E402
 
 #: A slider "arm" with a fixed (non-rotating) gripper orientation -- the
 #: TCP's world x sits at ``arm_0_slide + 0.17``, y=0, z=0.08.  A payload box

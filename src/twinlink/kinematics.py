@@ -12,8 +12,8 @@ iterations never disturb the live simulation state.
 from __future__ import annotations
 
 import logging
-from typing import Protocol
 from collections.abc import Sequence
+from typing import Protocol
 
 import numpy as np
 

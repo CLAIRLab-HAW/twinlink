@@ -1,8 +1,8 @@
 """Offline TFBuffer — chains, interpolation, inverses (numpy-only slerp)."""
 
-import numpy as np
 from types import SimpleNamespace as NS
 
+import numpy as np
 from twinlink.tf_buffer import TFBuffer, Transform, _slerp
 
 

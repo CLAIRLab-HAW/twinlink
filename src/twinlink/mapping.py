@@ -13,9 +13,8 @@ Adapting TwinLink to a different robot is therefore usually just a new YAML file
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
 import struct
+from dataclasses import dataclass, field
 
 import numpy as np
 

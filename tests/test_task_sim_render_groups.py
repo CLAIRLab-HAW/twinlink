@@ -17,8 +17,8 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco", reason="mujoco extra not installed")
 
-from twinlink.testing import StraightLinkage  # noqa: E402
 from twinlink.task_sim import RobotSimSpec, TwinTaskSim  # noqa: E402
+from twinlink.testing import StraightLinkage  # noqa: E402
 
 #: A slider "arm" that carries BOTH a collision shell and a visual-only mesh
 #: stand-in (the split the hiding exists for), plus two non-robot bodies: one

@@ -27,7 +27,6 @@ import struct
 import threading
 import time
 
-
 from .base import StateSource
 
 log = logging.getLogger("twinlink.foxglove")
@@ -209,8 +208,8 @@ class FoxgloveSource(StateSource):
     # ------------------------------------------------------------------ #
     def _run(self) -> None:
         try:
-            from websockets.sync.client import connect
             from websockets.exceptions import ConnectionClosed
+            from websockets.sync.client import connect
         except ImportError:
             log.error("FoxgloveSource needs the websockets library: pip install 'twinlink[foxglove]'")
             self._running = False

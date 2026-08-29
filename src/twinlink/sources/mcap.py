@@ -14,7 +14,6 @@ import threading
 import time
 from pathlib import Path
 
-
 from .base import StateSource
 
 log = logging.getLogger("twinlink.mcap")

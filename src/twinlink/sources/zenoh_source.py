@@ -50,7 +50,6 @@ import struct
 import threading
 import time
 
-
 from .base import StateSource
 
 log = logging.getLogger("twinlink.zenoh")

@@ -108,7 +108,6 @@ def _build_world(urdf_bundle, robot_srdf, *, owns_tick: bool):
     """
     import gymnasium as gym
     import mani_skill.envs  # noqa: F401  -- registers Empty-v1
-
     from twinlink.maniskill_sim import ManiSkillTaskSim
     from twinlink.pin_kinematics import PinocchioKinematics
 

@@ -19,8 +19,8 @@ import pytest
 
 mujoco = pytest.importorskip("mujoco", reason="mujoco extra not installed")
 
-from twinlink.testing import StraightLinkage  # noqa: E402
 from twinlink.task_sim import RobotSimSpec, TwinTaskSim  # noqa: E402
+from twinlink.testing import StraightLinkage  # noqa: E402
 
 SCENE_XML = """
 <mujoco model="display_mechanic">

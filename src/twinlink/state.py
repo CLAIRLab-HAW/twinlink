@@ -19,9 +19,9 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any
-from collections.abc import Iterable, Sequence
 
 import numpy as np
 

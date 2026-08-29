@@ -23,7 +23,6 @@ from __future__ import annotations
 import importlib
 import logging
 import threading
-
 from collections.abc import Callable
 
 from .base import StateSource
@@ -113,7 +112,7 @@ class Ros2Source(StateSource):
         self._executor.add_node(self._node)
 
     def _subscribe(self, topic: str, type_str: str, on_msg: Callable, role: str | None) -> None:
-        from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+        from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 
         msg_class = resolve_msg_class(type_str)
         reliability = ReliabilityPolicy.BEST_EFFORT if role in _BEST_EFFORT_ROLES else ReliabilityPolicy.RELIABLE

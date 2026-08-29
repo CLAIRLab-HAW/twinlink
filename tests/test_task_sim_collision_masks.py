@@ -18,8 +18,8 @@ import pytest
 mujoco = pytest.importorskip("mujoco", reason="mujoco extra not installed")
 
 from twinlink.mjcf_scene import obstacle_body_name  # noqa: E402
-from twinlink.testing import StraightLinkage  # noqa: E402
 from twinlink.task_sim import RobotSimSpec, TwinTaskSim  # noqa: E402
+from twinlink.testing import StraightLinkage  # noqa: E402
 
 #: A slider "arm" carrying a gripper body, which in turn carries a wrist
 #: camera body -- the same nesting as the real a200-0553 profile (RG6 with a

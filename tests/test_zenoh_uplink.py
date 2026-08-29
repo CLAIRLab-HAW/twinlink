@@ -11,7 +11,6 @@ is not installed).
 import struct
 
 import pytest
-
 from twinlink.sources.zenoh_source import (
     RMW_GID_STORAGE_SIZE,
     liveliness_subscriber_query,

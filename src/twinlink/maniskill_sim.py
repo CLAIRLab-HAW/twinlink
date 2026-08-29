@@ -17,7 +17,6 @@ building it as if it were is why this module walks the controller's sub-controll
 
 from __future__ import annotations
 
-
 from collections.abc import Sequence
 
 import numpy as np
