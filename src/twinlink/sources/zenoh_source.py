@@ -236,7 +236,7 @@ class ZenohSource(StateSource):
         self._typestore = None
 
     # ------------------------------------------------------------------ #
-    def start(self) -> "ZenohSource":
+    def start(self) -> ZenohSource:
         assert self.state is not None, "bind() before start()"
         self._stop.clear()
         self._running = True
@@ -384,7 +384,7 @@ class ZenohUplink:
                 log.info("zenoh uplink session open (mode=%s, connect=%s)", self.mode, self.connect or "scout")
             return self._session
 
-    def publisher(self, topic: str, msgtype: str) -> "ZenohPublisher":
+    def publisher(self, topic: str, msgtype: str) -> ZenohPublisher:
         """An (unstarted) publisher for ``topic`` on this shared session."""
         return ZenohPublisher(self, topic, msgtype)
 
@@ -472,7 +472,7 @@ class ZenohPublisher:
     def typestore(self):
         return self._typestore
 
-    def start(self) -> "ZenohPublisher":
+    def start(self) -> ZenohPublisher:
         import zenoh
         from rosbags.typesys import Stores, get_typestore
 

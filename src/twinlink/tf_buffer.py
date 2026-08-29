@@ -94,20 +94,20 @@ class Transform:
         return mat
 
     @staticmethod
-    def identity() -> "Transform":
+    def identity() -> Transform:
         return Transform(np.zeros(3), np.array([0, 0, 0, 1.0]))
 
     @staticmethod
-    def from_ros(ros_tf) -> "Transform":
+    def from_ros(ros_tf) -> Transform:
         t = ros_tf.transform.translation
         r = ros_tf.transform.rotation
         return Transform(np.array([t.x, t.y, t.z]), np.array([r.x, r.y, r.z, r.w]))
 
-    def inverse(self) -> "Transform":
+    def inverse(self) -> Transform:
         rot = _quat_to_matrix(self.rotation).T
         return Transform(-(rot @ self.translation), _matrix_to_quat(rot))
 
-    def compose(self, other: "Transform") -> "Transform":
+    def compose(self, other: Transform) -> Transform:
         mat = self.as_matrix() @ other.as_matrix()
         return Transform(mat[:3, 3], _matrix_to_quat(mat[:3, :3]))
 

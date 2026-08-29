@@ -39,7 +39,7 @@ class TwinLink:
         self.rate = rate
         self._stop = threading.Event()
 
-    def add_sink(self, sink: StateSink) -> "TwinLink":
+    def add_sink(self, sink: StateSink) -> TwinLink:
         self.sinks.append(sink)
         return self
 

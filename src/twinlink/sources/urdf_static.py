@@ -17,7 +17,7 @@ class UrdfStaticSource(StateSource):
         super().__init__()
         self.joint_positions = dict(joint_positions or {})
 
-    def start(self) -> "UrdfStaticSource":
+    def start(self) -> UrdfStaticSource:
         assert self.state is not None, "bind() before start()"
         for name, value in self.joint_positions.items():
             self.state.update_joint(name, float(value))

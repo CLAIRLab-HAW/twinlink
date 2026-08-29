@@ -16,7 +16,7 @@ class StateSink(abc.ABC):
     def __init__(self) -> None:
         self.state: RobotState | None = None
 
-    def bind(self, state: RobotState) -> "StateSink":
+    def bind(self, state: RobotState) -> StateSink:
         self.state = state
         return self
 

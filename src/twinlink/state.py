@@ -54,7 +54,7 @@ class Transform:
     child_frame_id: str = ""
 
     @staticmethod
-    def identity() -> "Transform":
+    def identity() -> Transform:
         return Transform(np.zeros(3), np.array([0.0, 0.0, 0.0, 1.0]))
 
 
@@ -149,7 +149,7 @@ class PlannedTrajectory:
         return float(self.times[-1]) if len(self.times) else 0.0
 
 
-def _transform_matrix(tf: "Transform") -> np.ndarray:
+def _transform_matrix(tf: Transform) -> np.ndarray:
     """``Transform`` (xyzw quaternion) as a 4x4 homogeneous matrix."""
     x, y, z, w = (float(v) for v in tf.rotation)
     n = x * x + y * y + z * z + w * w

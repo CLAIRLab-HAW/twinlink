@@ -26,7 +26,7 @@ class SimEvents:
     #: be recorded as "not grasped".
     grasp_unknown: str | None = None
 
-    def merge(self, other: "SimEvents") -> None:
+    def merge(self, other: SimEvents) -> None:
         self.robot_table_collision |= other.robot_table_collision
         self.robot_ground_collision |= other.robot_ground_collision
         self.robot_obstacle_collision |= other.robot_obstacle_collision

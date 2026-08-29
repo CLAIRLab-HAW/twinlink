@@ -52,7 +52,7 @@ class Ros2Source(StateSource):
         self._owns_rclpy = False
 
     # ------------------------------------------------------------------ #
-    def start(self) -> "Ros2Source":
+    def start(self) -> Ros2Source:
         assert self.state is not None and self.mapping is not None, "bind() before start()"
         self._init_node()
         for topic in self.mapping.topics():

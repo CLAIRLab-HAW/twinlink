@@ -26,13 +26,13 @@ class StateSource(abc.ABC):
         self.mapping: RobotMapping | None = None
         self._running = False
 
-    def bind(self, state: RobotState, mapping: RobotMapping | None = None) -> "StateSource":
+    def bind(self, state: RobotState, mapping: RobotMapping | None = None) -> StateSource:
         self.state = state
         self.mapping = mapping
         return self
 
     @abc.abstractmethod
-    def start(self) -> "StateSource":
+    def start(self) -> StateSource:
         """Begin producing state updates (usually non-blocking)."""
 
     @abc.abstractmethod

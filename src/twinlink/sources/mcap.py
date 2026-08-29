@@ -45,7 +45,7 @@ class McapSource(StateSource):
         #: 0..1 fraction of the requested window played
         self.progress = 0.0
 
-    def start(self) -> "McapSource":
+    def start(self) -> McapSource:
         assert self.state is not None and self.mapping is not None, "bind() before start()"
         self._stop.clear()
         self._running = True

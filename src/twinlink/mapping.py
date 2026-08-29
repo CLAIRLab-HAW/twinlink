@@ -334,7 +334,7 @@ class RobotMapping:
     # construction from config
     # ------------------------------------------------------------------ #
     @classmethod
-    def from_dict(cls, d: dict) -> "RobotMapping":
+    def from_dict(cls, d: dict) -> RobotMapping:
         cams = [
             CameraMap(
                 name=c["name"],
@@ -363,7 +363,7 @@ class RobotMapping:
         )
 
     @classmethod
-    def from_yaml(cls, path: str) -> "RobotMapping":
+    def from_yaml(cls, path: str) -> RobotMapping:
         import yaml
 
         with open(path) as f:

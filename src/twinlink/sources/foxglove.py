@@ -182,7 +182,7 @@ class FoxgloveSource(StateSource):
         self._stat_t0 = now
 
     # ------------------------------------------------------------------ #
-    def start(self) -> "FoxgloveSource":
+    def start(self) -> FoxgloveSource:
         assert self.state is not None, "bind() before start()"
         self._stop.clear()
         self._running = True
@@ -369,7 +369,7 @@ class FoxglovePublisher:
     def typestore(self):
         return self._typestore
 
-    def start(self) -> "FoxglovePublisher":
+    def start(self) -> FoxglovePublisher:
         from rosbags.typesys import Stores, get_typestore
         from websockets.sync.client import connect
 
