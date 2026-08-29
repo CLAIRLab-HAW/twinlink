@@ -1,4 +1,4 @@
-"""TwinDisplayMirror: Beliefs anzeigen, ohne Jitter."""
+"""TwinDisplayMirror: show beliefs, without jitter."""
 
 from __future__ import annotations
 

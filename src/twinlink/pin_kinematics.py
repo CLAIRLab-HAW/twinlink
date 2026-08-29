@@ -203,6 +203,26 @@ class PinocchioKinematics:
     # ------------------------------------------------------------------ #
     # the gate
     # ------------------------------------------------------------------ #
+    def enabled_link_pairs(self) -> frozenset:
+        """Link pairs the SRDF LEAVES enabled -- the set ``move_group`` checks, as link names.
+
+        Handed out so a second collision engine can be asked the same question.  Without it the comparison degrades
+        into nonsense: a robot always has structural pairs in permanent contact (chassis, top plate, wheels -- 68 of
+        them measured on 2026-08-28), and any check that counts those calls every configuration a self-collision.
+
+        Pairs, not geometries: Pinocchio carries one geometry object per collision shape and SAPIEN one per link, so
+        the shared vocabulary is the link name.
+        """
+        pairs = set()
+        for pair in list(self.geom.collisionPairs)[: self._robot_pairs]:
+            first = self.geom.geometryObjects[pair.first]
+            second = self.geom.geometryObjects[pair.second]
+            a = self.model.frames[first.parentFrame].name
+            b = self.model.frames[second.parentFrame].name
+            if a != b:
+                pairs.add(frozenset((a, b)))
+        return frozenset(pairs)
+
     def config_collides(self, joints: Dict[str, float], *, obstacles_only: bool = False) -> bool:
         """True when the configuration is invalid.
 

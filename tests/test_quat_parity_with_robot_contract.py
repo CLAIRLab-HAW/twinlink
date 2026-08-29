@@ -23,7 +23,7 @@ import pytest
 from twinlink.tf_buffer import _matrix_to_quat
 
 tp = pytest.importorskip(
-    "robot_contract.twin_protocol", reason="Paritaetstest laeuft nur im Workspace, wo beide Schichten liegen"
+    "robot_contract.twin_protocol", reason="the parity test only runs in the workspace, where both layers live"
 )
 
 
@@ -63,7 +63,7 @@ def test_both_implementations_agree(name):
     if float(np.dot(a, b)) < 0.0:
         b = -b
     assert a == pytest.approx(b, abs=1e-9), (
-        f"{name}: twinlink und robot_contract rechnen auseinander -- " f"twinlink={a}, robot_contract={b}"
+        f"{name}: twinlink and robot_contract compute apart -- " f"twinlink={a}, robot_contract={b}"
     )
 
 

@@ -153,7 +153,7 @@ def test_settle_does_not_wait_for_scene_clutter():
     sim = _build()
     try:
         dof = sim._graspable["clutter"]["dof"]
-        sim.data.qvel[dof : dof + 3] = 5.0  # das Clutter-Objekt fliegt
+        sim.data.qvel[dof : dof + 3] = 5.0  # the clutter object flies
         assert _settle_ticks(sim, 40) <= 3
     finally:
         sim.close()

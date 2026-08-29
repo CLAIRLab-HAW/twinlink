@@ -256,11 +256,11 @@ def test_a_grasped_object_sets_the_width_to_its_own_span():
     sim = _build()
     _approach(sim)
     sim.command_gripper(True)
-    assert sim.grasped_label() == "payload", "ohne Griff prueft der Test nichts"
+    assert sim.grasped_label() == "payload", "without a grasp the test checks nothing"
     assert sim.gripper_width_m() == pytest.approx(0.03, abs=2e-3)
     assert sim.gripper_width_m() != pytest.approx(
         0.04, abs=2e-3
-    ), "die Weite haengt an der Vorgabe statt am Objekt -- dann misst sie nichts"
+    ), "the width hangs on the command instead of the object -- then it measures nothing"
 
 
 # --------------------------------------------------------------------- #
@@ -279,14 +279,14 @@ def test_releasing_opens_only_as_far_as_the_object_needed():
     sim = _build()
     _approach(sim)
     sim.command_gripper(True)
-    assert sim.grasped_label() == "payload", "ohne Griff prueft der Test nichts"
+    assert sim.grasped_label() == "payload", "without a grasp the test checks nothing"
 
     sim.command_gripper(False)
-    assert sim.grasped_label() is None, "das Objekt muss losgelassen sein"
+    assert sim.grasped_label() is None, "the object has to have been let go"
     assert sim.gripper_width_m() == pytest.approx(0.04, abs=2e-3)
     assert (
         sim.gripper_width_m() < StraightLinkage().max_width_m
-    ), "die Hand reisst beim Ablegen weiter auf, als das Objekt verlangt"
+    ), "on release the hand tears open wider than the object demands"
 
 
 def test_the_release_opening_is_clamped_to_what_the_linkage_can_do():
@@ -319,7 +319,7 @@ def test_a_released_gripper_does_not_report_itself_closed():
     sim = _build()
     _approach(sim)
     sim.command_gripper(True)
-    assert sim.gripper_closed() is True, "die geschlossene Hand muss zu melden"
+    assert sim.gripper_closed() is True, "the closed hand has to report closed"
     sim.command_gripper(False)
     assert sim.gripper_closed() is False
 
@@ -330,7 +330,7 @@ def test_a_released_gripper_does_not_report_itself_closed():
 # Read from ``entry["half"]`` -- the bounding-box half extents of the whole
 # body -- it is the same thing for a cube and the coarsest conceivable
 # abstraction for everything else.  Measured: a lid (180 mm disc, 30 mm knob)
-# reported "kein schliessbares Flaechenpaar" on ALL FOUR object rungs --
+# reported "no closable face pair" on ALL FOUR object rungs --
 # 180 mm against a 156 mm jaw travel, independent of the model fidelity.
 #
 # So alpha_obj could not bind over the GRASP either: the twin read the
@@ -374,7 +374,7 @@ def test_a_narrow_feature_is_grasped_even_when_the_whole_body_is_wide():
     _approach(sim)
     sim.command_gripper(close=True)
     sim.step_physics(30)
-    assert sim.grasped_label() == "payload", "die Fangbedingung liest weiterhin den Huellquader"
+    assert sim.grasped_label() == "payload", "the capture condition still reads the bounding box"
 
 
 def test_the_captured_span_is_the_local_one_not_the_bounding_box():
@@ -387,7 +387,7 @@ def test_the_captured_span_is_the_local_one_not_the_bounding_box():
     _approach(sim)
     sim.command_gripper(close=True)
     sim.step_physics(30)
-    assert sim._grasp_span == pytest.approx(0.030, abs=1e-3), f"Spanne {sim._grasp_span} -- erwartet der Knauf (30 mm)"
+    assert sim._grasp_span == pytest.approx(0.030, abs=1e-3), f"span {sim._grasp_span} -- the knob (30 mm) was expected"
 
 
 def test_a_body_that_is_wide_everywhere_is_still_refused():
@@ -437,7 +437,7 @@ def _set_payload_tilt(sim, tilt_rad: float) -> None:
 def _tilt_of(sim) -> float:
     adr = sim._graspable["payload"]["qpos"]
     w, x, y, z = sim.data.qpos[adr + 3 : adr + 7]
-    # Winkel der Koerper-z-Achse gegen die Welt-z-Achse.
+    # Angle of the body z axis against the world z axis.
     zz = 1 - 2 * (x * x + y * y)
     return float(np.degrees(np.arccos(min(1.0, abs(zz)))))
 
@@ -451,7 +451,7 @@ def test_the_pads_square_a_tilted_object_upright():
     sim.step_physics(30)
     assert sim.grasped_label() == "payload"
     assert _tilt_of(sim) < 1.0, (
-        f"nach dem Griff noch {_tilt_of(sim):.1f} Grad schief -- die Backen " f"richten den Koerper nicht auf"
+        f"still {_tilt_of(sim):.1f} degrees askew after the grasp -- the jaws " f"do not square the body up"
     )
 
 
@@ -462,12 +462,12 @@ def test_squaring_snaps_to_the_NEAREST_axis_not_to_upright():
     marker of the pre-study lies down in two out of three cells.
     """
     sim = _build()
-    _set_payload_tilt(sim, np.radians(88.0))  # fast waagerecht
+    _set_payload_tilt(sim, np.radians(88.0))  # almost horizontal
     _approach(sim)
     sim.command_gripper(close=True)
     sim.step_physics(30)
     assert sim.grasped_label() == "payload"
-    assert _tilt_of(sim) > 89.0, f"der liegende Koerper wurde auf {_tilt_of(sim):.1f} Grad gedreht"
+    assert _tilt_of(sim) > 89.0, f"the lying body was turned to {_tilt_of(sim):.1f} degrees"
 
 
 # --------------------------------------------------------------------- #
@@ -490,9 +490,9 @@ def test_a_sound_grasp_has_both_pads_at_the_object():
     sim.command_gripper(close=True)
     sim.step_physics(30)
     assert sim.grasped_label() == "payload"
-    spalt = sim.grasp_gap()
-    assert spalt is not None, "kein Griff, also kein Spalt"
-    assert spalt < 0.01, f"Abstand {spalt*1000:.1f} mm -- die Backen beruehren den Koerper " f"nicht wirklich"
+    gap = sim.grasp_gap()
+    assert gap is not None, "no grasp, so no gap"
+    assert gap < 0.01, f"distance {gap*1000:.1f} mm -- the jaws do not really " f"touch the body"
 
 
 def test_without_a_grasp_there_is_no_gap_to_report():
@@ -511,12 +511,12 @@ def test_the_check_sees_a_body_the_pads_pass_through():
     _approach(sim)
     sim.command_gripper(close=True)
     sim.step_physics(30)
-    # Den Koerper kuenstlich in die Pads schieben.
+    # Push the body into the pads artificially.
     adr = sim._graspable["payload"]["qpos"]
     sim.data.qpos[adr + 1] += 0.02
     sim._mujoco.mj_forward(sim.model, sim.data)
-    spalt = sim.grasp_gap()
-    assert spalt < 0.0, f"Abstand {spalt*1000:+.1f} mm -- eine Durchdringung muss negativ " f"sein"
+    gap = sim.grasp_gap()
+    assert gap < 0.0, f"distance {gap*1000:+.1f} mm -- a penetration has to be " f"negative"
 
 
 # --------------------------------------------------------------------- #
@@ -543,7 +543,9 @@ def test_the_capture_reports_how_far_it_had_to_square_the_object():
     assert sim.grasped_label() == "payload"
     skewed = sim.grasp_misalign_deg()
     assert skewed is not None
-    assert abs(skewed) == pytest.approx(12.0, abs=1.5), f"gemeldet {skewed} Grad -- der Fang musste 12 Grad ausbuegeln"
+    assert abs(skewed) == pytest.approx(
+        12.0, abs=1.5
+    ), f"reported {skewed} degrees -- the capture had to iron out 12 degrees"
 
 
 def test_a_square_grasp_reports_nearly_zero():
@@ -603,7 +605,7 @@ def test_the_grip_reference_follows_the_real_body_not_its_upright_hull():
     # computed from the upright bounding box (half height 70 mm).
     assert abs(float(ref[2]) - top) < 0.03, (
         f"Greifpunkt bei {float(ref[2]):.3f}, echte Oberkante {top:.3f} -- "
-        f"er folgt der aufrechten Huelle statt dem Koerper"
+        f"it follows the upright hull instead of the body"
     )
     # ...and then the span measurement finds something there as well.
     assert sim._span_between_pads(entry, ref, 0.0) is not None
@@ -654,9 +656,7 @@ def test_a_slightly_tipped_object_is_still_squared_and_grasped():
     _approach(sim)
     sim.command_gripper(close=True)
     sim.step_physics(30)
-    assert sim.grasped_label() == "payload", (
-        "leichte Neigung muss weiter ausgeglichen werden -- " "Nachgiebigkeit ist echt"
-    )
+    assert sim.grasped_label() == "payload", "a slight tilt still has to be compensated -- " "the compliance is real"
 
 
 def test_the_limit_stays_inside_the_geometric_capture_window():
@@ -727,15 +727,13 @@ def _with_wall(x: float):
 
 
 def test_a_carried_object_clear_of_the_world_reports_a_positive_gap():
-    sim = _with_wall(1.4)  # weit weg
+    sim = _with_wall(1.4)  # far away
     _approach(sim)
     sim.command_gripper(close=True)
     sim.step_physics(30)
     assert sim.grasped_label() == "payload"
-    spalt = sim.carried_world_gap()
-    assert spalt is not None and spalt > 0.0, (
-        f"frei getragen, aber Abstand {spalt} -- die Pruefung sieht die " f"Welt nicht"
-    )
+    gap = sim.carried_world_gap()
+    assert gap is not None and gap > 0.0, f"carried free, but distance {gap} -- the check does not see the " f"world"
 
 
 def test_a_carried_object_driven_into_the_world_reports_no_gap_left():
@@ -751,11 +749,9 @@ def test_a_carried_object_driven_into_the_world_reports_no_gap_left():
     sim.command_gripper(close=True)
     sim.step_physics(30)
     assert sim.grasped_label() == "payload"
-    sim.set_arm_command({"arm_0_slide": 0.63})  # TCP ─▶ 0.80, in die Wand
+    sim.set_arm_command({"arm_0_slide": 0.63})  # TCP ─▶ 0.80, into the wall
     sim.step_physics(60)
-    assert sim.carried_world_gap() <= 0.0, (
-        "der getragene Koerper steckt in der Wand und die Pruefung " "meldet freien Raum"
-    )
+    assert sim.carried_world_gap() <= 0.0, "the carried body sits in the wall and the check " "reports free space"
 
 
 def test_without_a_carry_there_is_nothing_to_report():
@@ -774,13 +770,13 @@ def test_the_worst_moment_of_the_carry_is_remembered():
     sim.command_gripper(close=True)
     sim.step_physics(30)
     assert sim.grasped_label() == "payload"
-    sim.set_arm_command({"arm_0_slide": 0.63})  # durch die Wand
+    sim.set_arm_command({"arm_0_slide": 0.63})  # through the wall
     sim.step_physics(60)
-    sim.set_arm_command({"arm_0_slide": 0.2})  # wieder heraus
+    sim.set_arm_command({"arm_0_slide": 0.2})  # back out again
     sim.step_physics(60)
-    assert sim.carried_world_gap() > 0.0, "am Ende steht er frei"
+    assert sim.carried_world_gap() > 0.0, "in the end it stands free"
     assert sim.carried_world_gap_min() <= 0.0, (
-        f"schlechtester Moment {sim.carried_world_gap_min()} -- die Fahrt " f"durch die Wand ist vergessen"
+        f"worst moment {sim.carried_world_gap_min()} -- the travel through the " f"wall is forgotten"
     )
 
 
@@ -839,7 +835,7 @@ def test_a_lying_cylinder_rolled_about_its_own_axis_is_still_graspable():
     for deg in (0.0, 39.3, 75.0):
         _roles(sim, deg)
         assert sim._square_tilt(adr, sim._graspable["payload"]), (
-            f"Roll um {deg} Grad um die eigene Achse als Schieflage " f"abgelehnt -- der Koerper ist darum symmetrisch"
+            f"a roll of {deg} degrees about its own axis refused as a tilt -- " f"the body is symmetric about it"
         )
 
 
@@ -883,7 +879,7 @@ def test_a_ramp_moves_the_fingers_through_intermediate_angles():
         sim.step_physics(1)
         between.append(sim.gripper_angle_applied())
     assert all(min(open, goal) <= w <= max(open, goal) for w in between)
-    assert len(set(round(w, 6) for w in between)) > 1, f"Winkel bleibt stehen: {between} -- keine sichtbare Bewegung"
-    assert between[-1] != pytest.approx(goal), "nach der halben Rampe schon da"
+    assert len(set(round(w, 6) for w in between)) > 1, f"the angle stands still: {between} -- no visible motion"
+    assert between[-1] != pytest.approx(goal), "already there after half the ramp"
     sim.step_physics(6)
-    assert sim.gripper_angle_applied() == pytest.approx(goal), "Ziel nicht erreicht"
+    assert sim.gripper_angle_applied() == pytest.approx(goal), "the goal was not reached"

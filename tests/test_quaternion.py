@@ -33,7 +33,7 @@ def test_the_first_argument_is_applied_last():
     tilt = mat_to_quat_wxyz(np.array([[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]]))
     forward = quat_mul_wxyz(a, tilt)
     backward = quat_mul_wxyz(tilt, a)
-    assert not np.allclose(forward, backward), "Testaufbau taugt nicht: die beiden Drehungen kommutieren"
+    assert not np.allclose(forward, backward), "the test setup is no good: the two rotations commute"
 
     # The evidence: first tilt, then a -- applied to a vector.
     v = np.array([1.0, 0.0, 0.0])

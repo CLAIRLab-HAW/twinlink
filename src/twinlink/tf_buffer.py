@@ -3,8 +3,12 @@
 Feeds on recorded ``tf2_msgs/TFMessage`` data (rosbags/MCAP replay, foxglove captures) and answers "map points from
 frame A into frame B at time t" — including multi-hop chains and linear/slerp interpolation between samples.
 
-Deliberately scipy-free to keep twinlink's core dependency-light (numpy only); ``apps/octomap_explorer`` imports it from
-here rather than keeping a copy.
+``apps/octomap_explorer`` imports this from here rather than keeping a copy.
+
+**``transforms3d`` checked and rejected** (measured 2026-08-29 against 0.4.2): 2000 matrix-to-quaternion conversions
+took 68.4 ms there against 20.6 ms in :func:`_matrix_to_quat`, a factor of 3.3, because it solves the K matrix via
+``np.linalg.eigh`` instead of branching.  (``scipy`` is rejected as well; the reason stands in
+``twinlink.quaternion``.)
 
 Note the complement in :class:`twinlink.RobotState`: the state keeps only the
 *latest* transform per edge (live-twin use); this buffer keeps *time series*

@@ -5,6 +5,16 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-08-29 (the grasp model and its suite are English)
+
+- **The remaining German docstrings and comments in `task_sim.py` are English** -- the three
+  `GripperLinkage` properties, the tilt-squaring helpers, `_measure_gap`, and the gripper ramp.
+- **Two comments quoted a log line that no longer reads that way.** They cited
+  `"kein schliessbares Flaechenpaar"`; what `task_sim` actually logs is
+  `"%s in reach but no closable face pair"`, and the citations now match it.
+- **`test_task_sim_grasp.py` and four smaller suites state their assertion messages in English**, and the
+  German local names (`spalt`) went with them.
+
 ## 2026-08-29 (the world states its own clock)
 
 - **`sim_time_s()` is the world's clock in seconds**, counted in control steps. The bridge publishes it as

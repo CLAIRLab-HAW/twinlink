@@ -43,18 +43,18 @@ class GripperLinkage(Protocol):
 
     @property
     def open_rad(self) -> float:
-        """Treibergelenk der weitest offenen Hand."""
+        """Driver joint of the widest open hand."""
 
     @property
     def closed_rad(self) -> float:
-        """Treibergelenk der ganz geschlossenen Hand."""
+        """Driver joint of the fully closed hand."""
 
     @property
     def max_width_m(self) -> float:
         """Largest clear width the linkage can produce."""
 
     def width_from_angle(self, q: float) -> float:
-        """Lichte Weite [m] beim Treibergelenk ``q`` [rad]."""
+        """Clear width [m] at the driver joint ``q`` [rad]."""
 
     def angle_from_width(self, width_m: float) -> float:
         """Driver joint [rad] for the clear width ``width_m`` [m]."""
@@ -783,7 +783,7 @@ class TwinTaskSim:
         for k in range(3):
             axis = R[:, k]
             if abs(float(axis[2])) > np.cos(np.radians(60.0)):
-                continue  # steht zu steil
+                continue  # stands too steeply
             angle.append(float(np.arctan2(axis[1], axis[0])))
         if not angle:
             return [float(np.arctan2(R[1, 0], R[0, 0]))]
@@ -849,8 +849,8 @@ class TwinTaskSim:
         # the TCP, closed 38 mm below it -- the reference thereby wandered by
         # 57 mm, and the jaw band lay where the pads ARE RIGHT NOW instead of
         # where they will grip (measured on the lid: band 43 mm off, capture
-        # fell back on the bounding box and reported "kein schliessbares
-        # Flaechenpaar" at a knob of 36 mm).
+        # fell back on the bounding box and reported "no closable face pair"
+        # at a knob of 36 mm).
         heights = self._pad_heights()
         if heights:
             bottom = heights[: max(1, len(heights) // 3)]
@@ -971,7 +971,7 @@ class TwinTaskSim:
             half = entry["half"]
             # The span comes from the geometry BETWEEN the jaws, not from the bounding box of the whole body.  For a
             # cubic body that is the same thing; for everything else it was the coarsest conceivable abstraction.
-            # Measured: a lid with a 180 mm disc and a 30 mm knob reported "kein schliessbares Flaechenpaar" on ALL
+            # Measured: a lid with a 180 mm disc and a 30 mm knob reported "no closable face pair" on ALL
             # four object rungs, because 180 mm stood against a 156 mm jaw travel -- independent of how finely the
             # object was modelled.  So the object axis could not bind over the grasp at all.
             axes = self._horizontal_axes(entry)
@@ -1049,7 +1049,7 @@ class TwinTaskSim:
                 return None
             R = np.zeros(9)
             mujoco.mju_quat2Mat(R, self.model.geom_quat[gid])
-            own = R.reshape(3, 3)[:, 2]  # lokale z ist die Achse
+            own = R.reshape(3, 3)[:, 2]  # the local z is the axis
             if axis is None:
                 axis = own
             elif abs(float(axis @ own)) < 0.999:
@@ -1100,7 +1100,7 @@ class TwinTaskSim:
                 flat = np.array([axis[0], axis[1], 0.0])
                 norm = float(np.linalg.norm(flat))
                 if norm < 1e-9:
-                    return True  # entartet: nichts auszurichten
+                    return True  # degenerate: nothing to align
                 goal = flat / norm
             angle = min(tilt_from_z, tilt_from_plane)
             return self._tilt_onto(adr, q, axis, goal, angle)
@@ -1114,13 +1114,13 @@ class TwinTaskSim:
         return self._tilt_onto(adr, q, axis, goal, angle)
 
     def _tilt_onto(self, adr: int, q, axis, goal, angle: float) -> bool:
-        """``achse`` auf ``ziel`` kippen -- die kleinstmoegliche Drehung."""
+        """Tip ``axis`` onto ``goal`` -- the smallest possible rotation."""
         if angle < 1e-9:
             return True
         rotate = np.cross(axis, goal)
         norm = float(np.linalg.norm(rotate))
         if norm < 1e-9:
-            return True  # parallel oder antiparallel
+            return True  # parallel or antiparallel
         rotate = rotate / norm
         correction = np.array([np.cos(angle / 2.0), *(np.sin(angle / 2.0) * rotate)])
         self.data.qpos[adr + 3 : adr + 7] = quat_mul_wxyz(correction, q)
@@ -1243,7 +1243,7 @@ class TwinTaskSim:
         return self._robot_body_cache
 
     def _measure_gap(self, entry) -> Optional[float]:
-        """Kleinster Abstand Hand◀─▶Koerper JETZT (m), oder ``None``."""
+        """Smallest distance hand◀─▶body RIGHT NOW (m), or ``None``."""
         if entry is None or not self._hand_geoms:
             return None
         smallest = float("inf")
@@ -1464,7 +1464,7 @@ class TwinTaskSim:
             self._gripper_applied = goal
             return goal
         if self._gripper_ramp_goal is None or goal != self._gripper_ramp_goal:
-            # Neuer Befehl: von dort losfahren, wo die Finger STEHEN.
+            # A new command: set off from where the fingers ARE.
             self._gripper_ramp_from = float(self._gripper_applied)
             self._gripper_ramp_goal = goal
             self._gripper_ramp_left = self._gripper_ramp_ticks
