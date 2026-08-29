@@ -1,7 +1,6 @@
 """Offline TFBuffer — chains, interpolation, inverses (numpy-only slerp)."""
 
 import numpy as np
-import pytest
 from types import SimpleNamespace as NS
 
 from twinlink.tf_buffer import TFBuffer, Transform, _slerp
