@@ -1,9 +1,11 @@
 """TwinLink -- a robot-agnostic bridge from a real robot to a digital twin.
 
 TwinLink keeps an in-memory :class:`RobotState` that mirrors the live robot and feeds it into simulation environments
-(MuJoCo today, Isaac Sim next).  The state can be filled from three interchangeable *sources*:
+(MuJoCo today, Isaac Sim next).  The state can be filled from any of five interchangeable *sources*:
 
-* :class:`~twinlink.sources.ros2.Ros2Source`       -- live ROS 2 topics,
+* :class:`~twinlink.sources.ros2.Ros2Source`         -- live ROS 2 topics (needs ``rclpy``),
+* :class:`~twinlink.sources.foxglove.FoxgloveSource` -- live through a ``foxglove_bridge`` WebSocket, no ROS,
+* :class:`~twinlink.sources.zenoh_source.ZenohSource` -- live as a native Zenoh client, no ROS,
 * :class:`McapSource`       -- a recorded MCAP / rosbag2 (mock mode),
 * :class:`UrdfStaticSource` -- a bare URDF, no motion (mock mode).
 
@@ -17,7 +19,7 @@ Quick start (mock mode, MuJoCo)::
     from twinlink.sinks.mujoco_sink import MujocoSink
     from twinlink.urdf_mujoco import load_mujoco_from_urdf
 
-    mapping = RobotMapping.from_yaml("configs/a200_0553.yaml")
+    mapping = RobotMapping.from_yaml("configs/a200_0553.yaml")  # from the demos project
     model = load_mujoco_from_urdf("urdf/robot.urdf")
     TwinLink(
         mapping=mapping,
@@ -25,7 +27,8 @@ Quick start (mock mode, MuJoCo)::
         sinks=[MujocoSink(model, show_sensor_camera="camera_0")],
     ).run()
 
-See ``examples/mujoco_mcap_twin.py`` for the full runnable example.
+The full runnable example is ``mujoco_mcap_twin.py`` in the sibling ``spact-integration-demos`` project, which also
+carries the robot mapping configs.
 """
 
 from __future__ import annotations

@@ -5,6 +5,13 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-08-29 (the package docstring lists every source)
+
+- **All five sources are named**: `Ros2Source` (needs `rclpy`), `FoxgloveSource`, `ZenohSource`, `McapSource` and
+  `UrdfStaticSource`, each with what it needs to run. The docstring named three.
+- **The quick start says where its inputs live.** The robot mapping configs and the runnable `mujoco_mcap_twin.py`
+  belong to the sibling `spact-integration-demos` project, not to this repo.
+
 ## 2026-08-29 (the package run can measure coverage again)
 
 - **`addopts = "-p no:cov"` is gone from `[tool.pytest.ini_options]`.** It disabled the pytest-cov plugin
