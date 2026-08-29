@@ -75,6 +75,3 @@ force-exclude = '''
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
-# The system python ships a pytest-cov whose coverage version mismatches;
-# the suite does not use coverage, so keep the broken plugin out.
-addopts = "-p no:cov"

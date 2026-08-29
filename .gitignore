@@ -8,3 +8,6 @@ dist/
 .DS_Store
 MUJOCO_LOG.TXT
 .idea/
+# a package run with --cov writes these; the workspace-wide measurement writes to the root instead
+.coverage
+.coverage.*

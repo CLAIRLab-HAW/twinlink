@@ -5,6 +5,21 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-08-29 (the package run can measure coverage again)
+
+- **`addopts = "-p no:cov"` is gone from `[tool.pytest.ini_options]`.** It disabled the pytest-cov plugin
+  outright, so `pytest --cov` in this package aborted with `unrecognized arguments: --cov`. The package run is
+  where a suite is measured on its own, and where the E2E marks are reachable at all -- the root run deselects
+  them.
+- The reason the line carried applied to the SYSTEM interpreter, whose pytest-cov did not match its coverage.
+  The workspace venv is not that interpreter: it carries pytest-cov 5.0.0 against coverage 7.15.1, verified on
+  2026-08-29 by measuring this package.
+- Coverage of the workspace is configured once, in `[tool.coverage.*]` of the root `pyproject.toml`, and driven
+  by the `coverage-report` skill.
+- **`.gitignore` gained `.coverage` and `.coverage.*`** -- a justified package extra, not a mass dump: a package
+  run with `--cov` writes them into this directory, and until now they would have shown up as untracked. The
+  workspace-wide measurement writes to `.coverage-data/` at the root instead.
+
 ## 2026-08-29 (one source for the scene prefix)
 
 ### Removed
