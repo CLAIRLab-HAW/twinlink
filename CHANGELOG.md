@@ -5,6 +5,15 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-08-29 (one source for the scene prefix)
+
+### Removed
+
+- **`OBSTACLE_BODY_PREFIX` and `DISTRACTOR_BODY_PREFIX` are gone.** They were kept for consumers that might
+  import and compare against them directly; no consumer in the workspace did, while the module's own comment
+  forbade twinlink from reading them. `DEFAULT_SCENE_PREFIX` plus the `prefix` argument of the name builders
+  is the whole surface, and `test_mjcf_scene.py` pins the names against that one constant.
+
 ## 2026-08-29 (the grasp model and its suite are English)
 
 - **The remaining German docstrings and comments in `task_sim.py` are English** -- the three

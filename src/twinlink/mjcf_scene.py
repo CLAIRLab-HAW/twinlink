@@ -32,14 +32,6 @@ OBSTACLE_POOL_SIZE = 8
 #: ``spact-integration-demos``, which never authored their own furniture and
 #: so never needed to override it) was built against.
 DEFAULT_SCENE_PREFIX = "hrl_"
-#: Kept for backward compatibility: the exact prefixes existing consumers may
-#: already import and compare against directly (unchanged values).
-#: Do NOT use these inside twinlink itself: ``TwinTaskSim`` derives both of its
-#: obstacle prefixes from the constructor's ``scene_prefix``.
-#: Comparing against these again here nails the library to ``hrl_`` and makes
-#: every second app silently blind to its own obstacles.
-OBSTACLE_BODY_PREFIX = f"{DEFAULT_SCENE_PREFIX}obstacle_"
-DISTRACTOR_BODY_PREFIX = f"{DEFAULT_SCENE_PREFIX}distractor_"
 #: Where unused pool slots wait: outside typical camera frustums and clear of
 #: scratch parking spots task sims use (hrl parks cubes at (5+, 5+)).
 OBSTACLE_PARK = (3.0, -3.0, 0.05)

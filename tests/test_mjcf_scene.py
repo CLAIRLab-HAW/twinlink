@@ -23,15 +23,11 @@ def test_distractor_names_take_the_same_prefix():
     assert mjcf_scene.distractor_joint_name(2, prefix="foo_") == "foo_distractor_2_free"
 
 
-def test_default_prefix_reproduces_the_pre_task11_constants():
-    """``OBSTACLE_BODY_PREFIX`` / ``DISTRACTOR_BODY_PREFIX`` keep their exact
-    values -- existing consumers (octomap_explorer, spact-integration-demos)
-    that import and compare against them directly must not notice this
-    refactor."""
-    assert mjcf_scene.OBSTACLE_BODY_PREFIX == "hrl_obstacle_"
-    assert mjcf_scene.DISTRACTOR_BODY_PREFIX == "hrl_distractor_"
-    assert mjcf_scene.obstacle_body_name(3) == f"{mjcf_scene.OBSTACLE_BODY_PREFIX}3"
-    assert mjcf_scene.distractor_body_name(3) == f"{mjcf_scene.DISTRACTOR_BODY_PREFIX}3"
+def test_the_default_prefix_is_the_single_source_of_the_names():
+    """One knob, and the name builders all read it -- no second constant that can drift from them."""
+    assert mjcf_scene.DEFAULT_SCENE_PREFIX == "hrl_"
+    assert mjcf_scene.obstacle_body_name(3) == f"{mjcf_scene.DEFAULT_SCENE_PREFIX}obstacle_3"
+    assert mjcf_scene.distractor_body_name(3) == f"{mjcf_scene.DEFAULT_SCENE_PREFIX}distractor_3"
 
 
 def test_add_obstacle_pool_honours_a_custom_prefix():

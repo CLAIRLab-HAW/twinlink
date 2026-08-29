@@ -64,9 +64,9 @@ def test_grasp_registry_is_label_keyed():
     The WHOLE module is checked, not just the class body: task vocabulary otherwise hides in module constants and helper
     functions beside it.
 
-    The app prefix ``hrl_`` in this word list would be green even though ``task_sim`` classifies against exactly that
-    prefix: the module IMPORTED the constants (``OBSTACLE_BODY_PREFIX`` &c.) instead of writing the literal, so the text
-    search found nothing.  A text scan fundamentally cannot prove this property; the proof is now carried by
+    An app prefix such as ``hrl_`` slips past a word list like this one whenever the module takes it from a
+    parameter or a constant instead of writing the literal -- the text search then finds nothing to object to.  A text
+    scan fundamentally cannot prove this property; the proof is carried by
     ``test_scene_prefix_drives_classification`` over the VALUES.
     """
     import inspect
