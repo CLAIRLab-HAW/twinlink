@@ -672,6 +672,7 @@ class TwinTaskSim:
         gripper's outcome.
         """
         self._gripper_closing = bool(close)
+        log.debug("gripper commanded %s (capture %s)", "closed" if close else "open", "on" if grasp else "off")
         if close:
             if grasp:
                 self._try_grasp()
@@ -987,6 +988,13 @@ class TwinTaskSim:
             _abs_mis, mis, span = min(candidates)
             best = (label, dist, mis, span)
         if best is None:
+            # The commonest report is "closing the gripper did nothing", and this is the branch behind it: nothing
+            # was within GRASP_RADIUS at all.  The two branches above already explain themselves; this one did not.
+            log.debug(
+                "no graspable within %.0f mm of the TCP (%d candidate(s) known)",
+                GRASP_RADIUS * 1e3,
+                len(self._graspable),
+            )
             return
         label, best_dist, best_misalign, span = best
         adr = self._graspable[label]["qpos"]
@@ -1010,7 +1018,7 @@ class TwinTaskSim:
         self._grasp_offset = (rel_pos, rel_quat)
         self._grasp_span = span
         self._grasp_misalign = float(best_misalign)
-        self._carry_gap_min = None  # neue Fahrt, neuer schlechtester Moment
+        self._carry_gap_min = None  # a new journey has its own worst moment
         self._carry_airborne = False
         # Record the gap NOW -- at the moment of gripping.  A later query measures the CARRY state: there the object is
         # kinematically welded on and the hand assembly inevitably overlaps it (measured 2026-08-17 on the marker: -13.3

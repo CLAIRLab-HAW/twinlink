@@ -32,6 +32,7 @@ import math
 import sys
 import time
 
+import clearlog
 import numpy as np
 
 from ..task_sim import RobotSimSpec
@@ -105,6 +106,8 @@ class MujocoSink(StateSink):
         preview_hold: float = 1.0,
     ) -> None:
         super().__init__()
+        # The sensor overlay is attempted once per rendered frame; a missing opencv is a property of the install.
+        self._cv2_once = clearlog.once(log)
         self._model_arg = model
         #: Robot facts used to resolve body names this sink otherwise has to
         #: guess (arm root for camera framing/ghost overlays, wrist-camera
@@ -929,6 +932,10 @@ class MujocoSink(StateSink):
             try:
                 import cv2  # noqa
             except ImportError:
+                # show_sensor_camera was asked for and silently does nothing -- the setting looks ignored.
+                self._cv2_once.debug(
+                    "show_sensor_camera=%s needs opencv-python, which is absent", self.show_sensor_camera
+                )
                 return
         cam = self.state.camera(self.show_sensor_camera)
         if cam is None:
@@ -966,11 +973,12 @@ class MujocoSink(StateSink):
             try:
                 self._viewer.close()
             except Exception:
-                pass
+                # A viewer window that survives close() keeps the GL context and blocks the next run's viewer.
+                log.debug("closing the mujoco viewer raised", exc_info=True)
         if self.display:
             try:
                 import cv2
 
                 cv2.destroyAllWindows()
             except Exception:
-                pass
+                log.debug("destroying the cv2 windows raised", exc_info=True)

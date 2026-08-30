@@ -5,6 +5,30 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-08-30 (the silent paths speak)
+
+- **25 of the 30 exception handlers that neither logged nor re-raised now say what they swallowed.** The five
+  that stay silent are all `except TimeoutError: continue` on a 0.5 s poll -- the idle path, which at 2 Hz would
+  be noise rather than information. DEBUG calls across the package go from 21 to 56.
+- **`mapping.py` had no logger at all.** A topic that matches no role in the mapping was dropped in `apply()`
+  without a trace, which is the mechanism behind "the twin does not move"; a stamp missing `sec`/`nanosec` became
+  `0.0` and every lag computed from it was then wrong by 56 years rather than absent; a camera `K` that would not
+  parse left the camera without intrinsics forever. All three are gated (`clearlog.once`) because the decoders run
+  at the wire rate.
+- **`state.chain()` names the frame pair it cannot connect.** Returning `None` rather than an identity matrix is
+  the documented and correct behaviour, but it was silent, and the caller then drops a point cloud with no reason
+  given. `clearlog.on_change` reports each distinct broken pair once, so a new one speaks and a repeating one does
+  not.
+- **`pin_kinematics.solve_ik` reports the residual it gave up at.** A few millimetres means the seed was poor;
+  half a metre means the target is out of reach. Both arrived at the caller as `None`.
+- **`sources/foxglove.py` was the worst single file in the workspace** with 15 mute handlers. A publisher that
+  never sees `serverInfo` within its window now warns instead of publishing unverified; the drain thread, the
+  session end and the discovery cut-off are dated; dropped non-JSON frames are counted rather than vanishing.
+- **The teardown paths in `zenoh_source.py` and `mujoco_sink.py` say what would not close.** A zenoh session that
+  holds its port makes the *next* start fail somewhere else entirely.
+- `task_sim._try_grasp` reports the commonest outcome of all -- nothing within `GRASP_RADIUS` -- which was the one
+  branch of the three without a line.
+
 ## 2026-08-30 (pytransform3d checked and rejected as well)
 
 - **`pytransform3d` 3.16.0 measured and rejected**: 2000 matrix-to-quaternion conversions took 22.5 ms against

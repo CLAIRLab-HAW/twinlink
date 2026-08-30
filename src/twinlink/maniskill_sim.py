@@ -17,11 +17,15 @@ building it as if it were is why this module walks the controller's sub-controll
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 
+import clearlog
 import numpy as np
 
 from .events import SimEvents
+
+log = logging.getLogger("twinlink.maniskill")
 
 #: Rotation from the OpenCV camera convention SAPIEN reports extrinsics in to the OpenGL one ``perception``
 #: back-projects with.  Only the fallback: an observation carries ``cam2world_gl`` ready-made, and composing this by
@@ -63,6 +67,9 @@ class ManiSkillTaskSim:
         gripper_driver_joint: str | None = None,
         home_pose: dict[str, float] | None = None,
     ) -> None:
+        # Per-frame gate for the sensor lookup: a camera name missing from the observation is a property of the
+        # environment, so it is reported the first time and not once per frame afterwards.
+        self._sensor_once = clearlog.once(log)
         self.env = env.unwrapped
         self.arm_joints: tuple[str, ...] = tuple(arm_joints)
         self.kinematics = kinematics
@@ -315,6 +322,10 @@ class ManiSkillTaskSim:
         try:
             return obs[block][camera]
         except (KeyError, TypeError):
+            # Runs per frame, so it is gated: a camera name that is not in the observation is wrong for the whole
+            # run, not for this one frame.  None reaches the caller as "no image", which reads like a dropped
+            # frame rather than a name that never existed.
+            self._sensor_once.debug("no %s/%s in the observation -- available: %s", block, camera, sorted(obs))
             return None
 
     def render_rgb(self, camera: str) -> np.ndarray | None:

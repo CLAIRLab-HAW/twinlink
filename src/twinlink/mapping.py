@@ -13,12 +13,23 @@ Adapting TwinLink to a different robot is therefore usually just a new YAML file
 
 from __future__ import annotations
 
+import logging
 import struct
 from dataclasses import dataclass, field
 
+import clearlog
 import numpy as np
 
 from .state import CameraFrame, ObstacleCloud, PlannedTrajectory, RobotState, Transform
+
+log = logging.getLogger("twinlink.mapping")
+
+# Every decoder below runs once per message, so a plain log call would fire at the wire rate.  These three gates
+# report the first occurrence of a condition and then stay quiet -- a mapping fault is a property of the
+# configuration, so it is either wrong for the whole run or not wrong at all.
+_unmapped_once = clearlog.once(log)
+_stamp_once = clearlog.once(log)
+_intrinsics_once = clearlog.once(log)
 
 # Default ROS message type per role -- used by the live source to pick the message class to subscribe with.  Override
 # per-topic in YAML if needed.
@@ -41,6 +52,9 @@ def stamp_to_sec(stamp) -> float:
     try:
         return float(stamp.sec) + float(stamp.nanosec) * 1e-9
     except AttributeError:
+        # 0.0 is indistinguishable downstream from "the publisher stamped it at the epoch", and every lag and
+        # freshness figure computed from it is then wrong by 56 years rather than absent.
+        _stamp_once.debug("stamp without sec/nanosec (%s) -- reading as 0.0", type(stamp).__name__)
         return 0.0
 
 
@@ -153,6 +167,11 @@ class RobotMapping:
         message (foxglove ws MessageData carries one), it is forwarded onto image frames for latency splitting.
         """
         role = self.role_of(topic)
+        if role is None:
+            # The classic "the twin does not move" fault: the source subscribed to a topic the mapping does not
+            # claim, so the message is dropped here without a trace.
+            _unmapped_once.debug("topic %r matches no role in this mapping -- message dropped", topic)
+            return
         if role == "joint_states":
             self._decode_joint_states(msg, state)
         elif role in ("tf", "tf_static"):
@@ -293,6 +312,9 @@ class RobotMapping:
             try:
                 K = np.array(list(msg.k), float).reshape(3, 3)
             except Exception:
+                # Without K the camera keeps streaming frames that cannot be projected, and the miss is cached
+                # nowhere -- so this repeats every frame and stays invisible every time.
+                _intrinsics_once.debug("camera %s: intrinsics K unreadable", cam.name, exc_info=True)
                 return
             self._info_cache[cam.name] = K
         frame = state.camera(cam.name)

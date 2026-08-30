@@ -13,10 +13,13 @@ frame placements 0.59 us.  Twenty belief boxes cost 0.9 ms to add and lift the f
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from typing import NamedTuple
 
 import numpy as np
+
+log = logging.getLogger("twinlink.kinematics")
 
 
 class BeliefBox(NamedTuple):
@@ -127,6 +130,7 @@ class PinocchioKinematics:
         """``(position (3,), rotation (3,3))`` of ``name`` in the model's root frame."""
         fid = self.model.getFrameId(name)
         if fid >= self.model.nframes:
+            log.debug("frame %r unknown -- the model has %d frames", name, self.model.nframes)
             raise KeyError(f"frame {name!r} not in model")
         q = self._q(joints)
         self._pin.forwardKinematics(self.model, self.data, q)
@@ -149,6 +153,7 @@ class PinocchioKinematics:
         target = pin.SE3(np.asarray(target_rot, dtype=float), np.asarray(target_pos, dtype=float))
         q = self._q(seed)
         cols = [self._vidx[name] for name in self.joints]
+        err = np.zeros(6)
         for _ in range(_MAX_ITERS):
             pin.forwardKinematics(self.model, self.data, q)
             pin.updateFramePlacements(self.model, self.data)
@@ -161,6 +166,16 @@ class PinocchioKinematics:
             for k, col in enumerate(cols):
                 dq[col] = step[k]
             q = pin.integrate(self.model, q, dq)
+        # The residual at give-up is the whole diagnosis: a few millimetres means the seed was poor and another
+        # seed will do, while half a metre means the target is out of reach and no seed will.  Without it both
+        # look the same from the caller -- None.
+        log.debug(
+            "IK did not converge in %d iterations: residual %.4f m / %.3f rad, target %s",
+            _MAX_ITERS,
+            float(np.linalg.norm(err[:3])),
+            float(np.linalg.norm(err[3:])),
+            np.round(np.asarray(target_pos, dtype=float), 4).tolist(),
+        )
         return None
 
     # ------------------------------------------------------------------ #

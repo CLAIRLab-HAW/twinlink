@@ -314,13 +314,15 @@ class ZenohSource(StateSource):
             try:
                 sub.undeclare()
             except Exception:
-                pass
+                # A subscription that will not undeclare keeps delivering into a source that believes it stopped.
+                log.debug("undeclaring a subscription raised during teardown", exc_info=True)
         self._subs = []
         if self._session is not None:
             try:
                 self._session.close()
             except Exception:
-                pass
+                # A session that does not close holds its port; the next start then fails somewhere else entirely.
+                log.debug("closing the zenoh session raised during teardown", exc_info=True)
             self._session = None
 
     def _make_cb(self, topic: str, msgtype: str):
@@ -393,7 +395,7 @@ class ZenohUplink:
                 try:
                     self._session.close()
                 except Exception:
-                    pass
+                    log.debug("closing the shared uplink session raised", exc_info=True)
                 self._session = None
 
     # ------------------------------------------------------------------ #
@@ -500,5 +502,5 @@ class ZenohPublisher:
             try:
                 self._pub.undeclare()
             except Exception:
-                pass
+                log.debug("undeclaring the publisher for %s raised", self.topic, exc_info=True)
             self._pub = None

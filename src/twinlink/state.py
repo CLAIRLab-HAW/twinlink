@@ -23,7 +23,14 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+import clearlog
 import numpy as np
+
+log = logging.getLogger("twinlink.state")
+
+# ``chain()`` is asked once per point cloud, so a failing frame pair would report at the cloud rate.  on_change
+# reports each DISTINCT rendered line once: a new broken pair speaks up, the same one repeating stays quiet.
+_chain_gate = clearlog.on_change(log)
 
 
 def _now() -> float:
@@ -115,9 +122,8 @@ class CameraFrame:
                 self.raw, self.raw_format, is_depth=self.is_depth, allow_rvl=False
             )
         except Exception as exc:
-            logging.getLogger("twinlink.state").warning(
-                "lazy image decode failed (format=%r, depth=%s): %s", self.raw_format, self.is_depth, exc
-            )
+            log.warning("lazy image decode failed (format=%r, depth=%s): %s", self.raw_format, self.is_depth, exc)
+            log.debug("the failing payload was %d bytes", len(self.raw), exc_info=True)
             self.raw = None  # do not retry a poisoned payload
             return False
         self.image = image
@@ -343,7 +349,10 @@ class RobotState:
 
         if source == target:
             known = any(source in edge for edge in edges)
-            return np.eye(4) if known else None
+            if not known:
+                _chain_gate.debug("frame %r appears in no tf edge -- no chain to itself", source)
+                return None
+            return np.eye(4)
 
         # Undirected adjacency: tf edges are stored as (parent, child) but a chain may traverse either way.
         adjacency: dict[str, list[str]] = {}
@@ -364,6 +373,9 @@ class RobotState:
                     previous[neighbour] = node
                     queue.append(neighbour)
         if target not in seen:
+            # The caller drops whatever it wanted to transform.  Naming both frames is what separates "tf is not
+            # published at all" from "these two trees are not joined" -- the second looks identical from outside.
+            _chain_gate.debug("no tf chain %s -> %s (%d frame(s) reachable from %s)", source, target, len(seen), source)
             return None
 
         path = [target]

@@ -17,10 +17,13 @@ parse raises, so the caller can fall back or skip the mesh.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import xml.etree.ElementTree as ET
 
 import numpy as np
+
+log = logging.getLogger("twinlink.collada")
 
 
 def _ns(root: ET.Element) -> dict:
@@ -75,7 +78,9 @@ def _diffuse_by_material(root: ET.Element, ns: dict) -> dict:
             try:
                 eff_color[eff.get("id")] = [float(x) for x in col.text.split()][:4]
             except (ValueError, AttributeError):
-                pass
+                # The material keeps the default colour below -- a wrong colour is much harder to trace back to
+                # this file than a missing one.
+                log.debug("effect %s: diffuse colour unreadable", eff.get("id"), exc_info=True)
     mat_color = {}
     for mat in root.findall(f".//{_q('material', ns)}", ns):
         ie = mat.find(_q("instance_effect", ns), ns)
@@ -241,7 +246,9 @@ def dae_to_colored_objs(dae_path: str, out_dir: str, stem: str) -> list[tuple[st
             if all(os.path.exists(p) for p, _ in data):
                 return [(os.path.abspath(p), rgba) for p, rgba in data]
         except Exception:
-            pass
+            # Falls through to the full re-parse below.  That is correct but slow, and "why does this take
+            # seconds every single time" is otherwise unanswerable from the outside.
+            log.debug("colour sidecar %s unusable, re-parsing the DAE", sidecar, exc_info=True)
 
     _up, groups = _extract_groups(dae_path)
     result: list[tuple[str, list | None]] = []
@@ -254,5 +261,6 @@ def dae_to_colored_objs(dae_path: str, out_dir: str, stem: str) -> list[tuple[st
     try:
         json.dump(result, open(sidecar, "w"))
     except Exception:
-        pass
+        # Not fatal -- only the next run pays for it again, which is exactly what makes it easy to miss.
+        log.debug("colour sidecar %s not written", sidecar, exc_info=True)
     return result
