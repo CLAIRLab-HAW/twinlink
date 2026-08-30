@@ -19,12 +19,12 @@ class StateSink(abc.ABC):
         self.state = state
         return self
 
-    def setup(self) -> None:
+    def setup(self) -> None:  # noqa: B027  # optional hook, not abstract
         """One-time initialisation (load model, open window, ...)."""
 
     @abc.abstractmethod
     def update(self) -> bool:
         """Push the latest state into the sim. Return False to request stop."""
 
-    def close(self) -> None:
+    def close(self) -> None:  # noqa: B027  # optional hook, not abstract
         """Release resources."""

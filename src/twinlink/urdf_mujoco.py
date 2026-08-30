@@ -65,6 +65,8 @@ def _link_or_copy(src: str, dst: str) -> None:
     try:
         os.symlink(src, dst)
     except (OSError, NotImplementedError):
+        # A copy costs disk and goes stale when the source changes -- worth knowing which of the two happened.
+        log.debug("symlink %s not possible, copying instead", dst, exc_info=True)
         shutil.copyfile(src, dst)
 
 
@@ -89,6 +91,8 @@ def _mesh_compiles(path: str) -> bool:
         mujoco.MjModel.from_xml_string(xml)
         ok = True
     except Exception:
+        # The caller drops the mesh on False.  Without this line the model simply renders without that part.
+        log.debug("mesh %s does not compile, dropping it", path, exc_info=True)
         ok = False
     _compile_cache[path] = ok
     return ok
@@ -357,7 +361,7 @@ def _ground_welded_robot(worldbody: ET.Element, model, data) -> float:
 
 def _root_link_name(urdf_path: str) -> str | None:
     root = ET.parse(urdf_path).getroot()
-    links = [l.get("name") for l in root.findall("link")]
+    links = [link.get("name") for link in root.findall("link")]
     children = {j.find("child").get("link") for j in root.findall("joint") if j.find("child") is not None}
     roots = [name for name in links if name not in children]
     return roots[0] if roots else None

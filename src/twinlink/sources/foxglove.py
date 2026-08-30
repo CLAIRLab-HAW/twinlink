@@ -111,6 +111,7 @@ def discover_channels(url: str, timeout: float = 5.0) -> list[dict]:
     from websockets.sync.client import connect
 
     channels: dict[int, dict] = {}
+    log.debug("discovering channels on %s (timeout %.1f s)", url, timeout)
     with connect(url, subprotocols=_SUBPROTOCOLS, open_timeout=timeout, max_size=None) as ws:
         end = time.monotonic() + timeout
         while time.monotonic() < end:
@@ -119,15 +120,20 @@ def discover_channels(url: str, timeout: float = 5.0) -> list[dict]:
             except TimeoutError:
                 continue
             except Exception:
+                # The loop ends here and the caller gets a SHORT list, indistinguishable from "the bridge offers
+                # little" -- which is the whole reason this needs a line.
+                log.debug("discovery ended early after %d channel(s)", len(channels), exc_info=True)
                 break
             if isinstance(msg, str):
                 try:
                     data = json.loads(msg)
                 except ValueError:
+                    log.debug("discovery: dropped a frame that is not JSON (%d bytes)", len(msg))
                     continue
                 if data.get("op") == "advertise":
                     for ch in data.get("channels", []):
                         channels[ch.get("id")] = ch
+    log.debug("discovered %d channel(s) on %s", len(channels), url)
     return list(channels.values())
 
 
@@ -173,7 +179,7 @@ class FoxgloveSource(StateSource):
             return
         if log.isEnabledFor(logging.DEBUG):
             parts = [
-                "%s: %.1f/s lag=%.0fms" % (t, n / elapsed, self._stat_lag.get(t, 0.0) * 1e3)
+                f"{t}: {n / elapsed:.1f}/s lag={self._stat_lag.get(t, 0.0) * 1e3:.0f}ms"
                 for t, n in sorted(self._stat_counts.items())
             ]
             log.debug("ingest %s", " | ".join(parts))
@@ -195,7 +201,7 @@ class FoxgloveSource(StateSource):
             try:
                 self._ws.close()
             except Exception:
-                pass
+                log.debug("closing the socket on stop() raised", exc_info=True)
         if self._thread is not None:
             self._thread.join(timeout=2.0)
         self._running = False
@@ -238,7 +244,7 @@ class FoxgloveSource(StateSource):
                     try:
                         self._ws.close()
                     except Exception:
-                        pass
+                        log.debug("closing the socket before the reconnect raised", exc_info=True)
                     self._ws = None
                 self._sub_map.clear()
                 self._next_sub = 0
@@ -259,6 +265,9 @@ class FoxgloveSource(StateSource):
             except TimeoutError:
                 continue
             except ConnectionClosed:
+                # Not an error -- the reconnect loop above takes over.  But "the session ended" is exactly the
+                # question one asks when data stops arriving, so it gets a line.
+                log.debug("session closed by the bridge while subscribed to %d topic(s)", len(self._sub_map))
                 return
             if isinstance(msg, str):
                 self._on_text(msg, wanted)
@@ -269,6 +278,7 @@ class FoxgloveSource(StateSource):
         try:
             msg = json.loads(text)
         except ValueError:
+            log.debug("dropped a text frame that is not JSON (%d bytes)", len(text))
             return
         if msg.get("op") == "advertise":
             for ch in select_channels(msg.get("channels", []), wanted):
@@ -295,7 +305,9 @@ class FoxgloveSource(StateSource):
             if msgtype in self._typestore.types:
                 return
         except Exception:
-            pass
+            # The probe failing is not the same as the type being absent -- fall through to the registration
+            # below, but say that the shortcut did not hold.
+            log.debug("typestore lookup for %s raised, registering anyway", msgtype, exc_info=True)
         if schema and schema_encoding == "ros2msg":
             try:
                 self._typestore.register(_parse_concatenated_msg(msgtype, schema))
@@ -373,6 +385,7 @@ class FoxglovePublisher:
         from websockets.sync.client import connect
 
         self._typestore = get_typestore(getattr(Stores, self.store, Stores.LATEST))
+        log.debug("connecting publisher to %s (topic %s)", self.url, self.topic)
         self._ws = connect(self.url, subprotocols=_SUBPROTOCOLS, open_timeout=self.connect_timeout, max_size=None)
         self._await_server_info()
         self._advertise()
@@ -390,6 +403,7 @@ class FoxglovePublisher:
             except TimeoutError:
                 continue
             except Exception:
+                log.debug("gave up waiting for serverInfo -- receive raised", exc_info=True)
                 return
             if isinstance(msg, str):
                 try:
@@ -400,7 +414,12 @@ class FoxglovePublisher:
                     caps = data.get("capabilities", [])
                     if "clientPublish" not in caps:
                         log.warning("bridge caps %s lack 'clientPublish' — uplink may be rejected", caps)
+                    else:
+                        log.debug("bridge announced clientPublish, caps %s", caps)
                     return
+        # Falling out of the window means the capability check never ran.  Silence here reads exactly like a
+        # confirmed-good bridge, and the uplink then fails later with nothing pointing back to this moment.
+        log.warning("no serverInfo from %s within %.1f s -- publishing unverified", self.url, timeout)
 
     def _advertise(self) -> None:
         self._ws.send(
@@ -429,6 +448,9 @@ class FoxglovePublisher:
             except TimeoutError:
                 continue
             except Exception:
+                # The drain thread ends here.  publish() keeps working for a while afterwards, so the failure only
+                # shows up as unanswered pings much later -- this is the line that dates it.
+                log.debug("drain thread ending", exc_info=True)
                 return
 
     def publish(self, msg) -> None:
@@ -448,5 +470,5 @@ class FoxglovePublisher:
             try:
                 self._ws.close()
             except Exception:
-                pass
+                log.debug("closing the publisher socket raised", exc_info=True)
             self._ws = None

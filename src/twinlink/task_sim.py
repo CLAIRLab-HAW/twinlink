@@ -926,7 +926,7 @@ class TwinTaskSim:
                 # (measured 2026-08-17): the jaws stood above the bare disc and the capture measured the knob.
                 tol = self._pad_half_width()
                 beside = False
-                for i, axis in enumerate(axes):
+                for axis in axes:
                     d = abs(float((basis - np.array([tcp_xy[0], tcp_xy[1], basis[2]])) @ axis))
                     if d > float(np.abs(R.T @ axis) @ half) + tol:
                         beside = True
@@ -958,7 +958,6 @@ class TwinTaskSim:
         tol = np.radians(GRASP_MAX_MISALIGN_DEG)
         best = None  # (label, dist, signed misalign, span)
         for label, entry in self._graspable.items():
-            pos = self.data.xpos[entry["body"]]
             # Grip-point reference: objects are gripped by their TOP slice (grasp skills descend to top - span/2), so
             # tall boxes must be measured there, not at the body centre.  For a default-sized object the two coincide
             # (half height == span/2) -- classic behaviour kept.
@@ -966,8 +965,6 @@ class TwinTaskSim:
             dist = float(np.linalg.norm(ref - tcp_pos))
             if dist >= (best[1] if best is not None else GRASP_RADIUS):
                 continue
-            mat = self.data.xmat[entry["body"]].reshape(3, 3)
-            obj_yaw = float(np.arctan2(mat[1, 0], mat[0, 0]))
             half = entry["half"]
             # The span comes from the geometry BETWEEN the jaws, not from the bounding box of the whole body.  For a
             # cubic body that is the same thing; for everything else it was the coarsest conceivable abstraction.
