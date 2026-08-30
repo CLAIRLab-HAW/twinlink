@@ -186,6 +186,10 @@ class TwinTaskSim:
         self.data = mujoco.MjData(self.model)
         self.n_substeps = int(n_substeps)
         self.control_dt = float(self.model.opt.timestep) * self.n_substeps
+        #: Control periods stepped since construction.  The world's own clock is derived from it -- see
+        #: ``sim_time_s``.  Never reset: a clock that rewinds silently expires every deadline formed across
+        #: the jump, and ``reset_robot`` is exactly where such a jump would happen.
+        self._ticks = 0
         #: Body-name prefix of the app's own scene furniture (never hidden
         #: from the render passes, see :meth:`_hide_robot_collision_geoms`).
         #: Mandatory constructor argument on purpose: with a default of ``""``
@@ -1416,6 +1420,7 @@ class TwinTaskSim:
                 elif self._carry_gap_min is None or now < self._carry_gap_min:
                     self._carry_gap_min = now
                     self._carry_gap_min_who = self._carry_gap_who
+        self._ticks += int(n_ticks)
         for _ in range(int(n_ticks)):
             # ONCE per tick, not per joint: the ramp is a state that keeps running, and the followers have to see the
             # same angle -- otherwise the two jaws stand at different widths.
@@ -1641,6 +1646,18 @@ class TwinTaskSim:
                 scratch.qpos[adr] = float(value)
         mujoco.mj_forward(self.model, scratch)
         return scratch.xpos[bid].copy(), scratch.xmat[bid].reshape(3, 3).copy()
+
+    def sim_time_s(self) -> float:
+        """Seconds of SIMULATED time since construction.
+
+        The deadlines in a tree runtime are formed on this rather than on the wall clock: a world running at half
+        speed has to make every deadline run at half speed with it, or a settle that is merely being simulated
+        slowly is reported as an arm that will not come to rest.  Read only as a DIFFERENCE, so the epoch does not
+        matter -- monotonicity does, and ``reset_robot`` therefore leaves the counter alone.
+
+        :returns: elapsed simulated seconds.
+        """
+        return self._ticks * self.control_dt
 
     def tcp_pose(self) -> tuple[np.ndarray, np.ndarray]:
         """TCP world pose: ``(position (3,), rotation matrix (3,3))``."""

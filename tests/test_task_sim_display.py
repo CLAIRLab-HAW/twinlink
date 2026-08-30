@@ -138,3 +138,20 @@ def test_display_release_without_position_leaves_object_in_place():
         assert sim.grasped_label() is None
     finally:
         sim.close()
+
+
+def test_the_sim_clock_advances_with_the_physics_and_not_with_the_wall():
+    """Deadlines formed on this have to follow the world's speed, not the laptop's."""
+    sim = _build()
+    before = sim.sim_time_s()
+    sim.step_physics(10)
+    assert abs((sim.sim_time_s() - before) - 10 * sim.control_dt) < 1e-9
+
+
+def test_the_sim_clock_does_not_jump_backwards_on_a_reset():
+    """A clock that rewinds silently expires every deadline formed across the reset."""
+    sim = _build()
+    sim.step_physics(5)
+    before = sim.sim_time_s()
+    sim.reset_robot()
+    assert sim.sim_time_s() >= before
