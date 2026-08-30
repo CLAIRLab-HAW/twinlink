@@ -119,6 +119,23 @@ class ManiSkillTaskSim:
         """
         return self._steps * self.step_dt
 
+    def continue_clock_from(self, other: ManiSkillTaskSim) -> None:
+        """Take over ``other``'s clock, so REPLACING a world does not move ``/clock`` backwards.
+
+        A world's step count belongs to its instance, so a fresh world starts near zero.  Where one world
+        replaces another behind a live bridge -- a sweep that rebuilds the scene per cell and swaps it into the
+        running :class:`~maniskill_bridge.server.WorldServer` -- the published clock would jump back by however
+        long the previous world ran.  That is the failure :meth:`sim_time_s` exists to prevent, and it is not
+        hypothetical: measured 2026-08-31, the first swapped-in cell answered every goal with
+        ``control_failed`` while the arm stood exactly still, because the trajectory controller's deadlines are
+        in a time that had gone backwards.
+
+        Never moves the clock back: a world that already ran longer keeps its own count.
+
+        :param other: the world being replaced.
+        """
+        self._steps = max(self._steps, int(np.ceil(other.sim_time_s() / self.step_dt)))
+
     @property
     def step_dt(self) -> float:
         """Simulated seconds one ``env.step`` advances the world.
