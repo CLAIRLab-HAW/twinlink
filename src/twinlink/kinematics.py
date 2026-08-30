@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from dataclasses import replace
 from typing import Protocol
 
 import numpy as np
@@ -100,9 +99,15 @@ class WorldFramed:
         return self._inner.solve_ik(r.T @ (np.asarray(target_pos, dtype=float) - t), r.T @ np.asarray(target_rot), seed)
 
     def set_belief_boxes(self, boxes) -> None:
-        """Take WORLD boxes and place them in the model's own frame."""
+        """Take WORLD boxes and place them in the model's own frame.
+
+        ``_replace``, not ``dataclasses.replace``: :class:`~twinlink.pin_kinematics.BeliefBox` is a NamedTuple,
+        and ``dataclasses.replace`` raises ``TypeError`` on one -- which is what it did the first time anything
+        actually fed belief boxes through a framed world (2026-08-31, the sufficiency sweep on ManiSkill).  The
+        two other methods here take arrays and were exercised from the first run; this one was not.
+        """
         r, t = self._rt()
-        moved = [replace(box, position_m=tuple(r.T @ (np.asarray(box.position_m, dtype=float) - t))) for box in boxes]
+        moved = [box._replace(position_m=tuple(r.T @ (np.asarray(box.position_m, dtype=float) - t))) for box in boxes]
         self._inner.set_belief_boxes(moved)
 
 
