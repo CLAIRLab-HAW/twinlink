@@ -1,7 +1,7 @@
 """Regression pin: only the gripper shells become permeable, not the whole hand.
 
-Carried over from Task 10 (2026-07-31): ``TwinTaskSim._setup_collision_masks`` must key off ``spec.gripper_prefixes`` --
-the jaws/housing alone -- not ``spec.hand_prefixes`` (gripper + wrist camera).  Swapping the two back is a one-word typo
+``TwinTaskSim._setup_collision_masks`` must key off ``spec.gripper_prefixes`` -- the jaws/housing alone -- not
+``spec.hand_prefixes`` (gripper + wrist camera).  Swapping the two back is a one-word typo
 that leaves every suite green (nothing exercised the wrist camera's contact mask), yet it silently disables
 ``robot_obstacle_collision`` for the camera housing: the fix that motivated this test cost a full debugging round
 because of exactly that blind spot.

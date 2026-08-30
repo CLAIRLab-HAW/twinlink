@@ -165,7 +165,7 @@ def test_scene_prefix_drives_classification():
         prefix 'task_':  obstacle_geoms=0  pool_slots=0  non_obstacle_graspables=('clutter',)
 
     -- a second consumer would have been silently blind to the entire obstacle
-    class (the same blindness that once already cost Task 10 a round of fixes).
+    class (the same blindness that once already cost a round of fixes).
     VALUES are checked, not module text: a text scan for ``"hrl_"`` stays green
     as long as the module imports the constants.
     """
