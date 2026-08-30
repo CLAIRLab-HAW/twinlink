@@ -58,19 +58,22 @@ clearlog = { workspace = true }
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.black]
+[tool.ruff]
+# Black ran until 2026-08-26 (no formatter before 2026-08-24); ruff format is byte-compatible enough that the
+# 2026-08-30 switch is the one reflow commit, not a rewrite (198 files workspace-wide).
 line-length = 120
-force-exclude = '''
-/(
-    \.venv
-  | \.superpowers
-  | \.idea
-  | urdf
-  | data
-  | node_modules
-  | [^/]*\.egg-info
-)/
-'''
+extend-exclude = [".venv", ".superpowers", ".idea", "urdf", "data", "node_modules", "build", "dist", "*.egg-info"]
+respect-gitignore = false
+
+[tool.ruff.lint]
+# The durable lint scope of this workspace, measured against the 2026-08-30 stock (ruff@0.16.5): deliberately out
+# are T20 (168 print hits in legitimate CLIs/scripts), N (197 hits, all existing convention rather than bugs) as
+# well as TD/FIX (demands TODO author and link -- R-numbers take that role here) and FLY (0 hits).
+select = ["E4", "E7", "E9", "E501", "F", "I", "UP", "B", "D100"]
+ignore = ["B905"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/*.ipynb" = ["E402", "E702"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
