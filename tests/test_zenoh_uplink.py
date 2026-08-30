@@ -170,7 +170,7 @@ def test_uplink_loopback_discovers_and_publishes():
         type_name = mangle_ros_type("std_msgs/msg/String")
         type_hash = "RIHS01_" + "ab" * 32
         token = session.liveliness().declare_token(
-            f"@ros2_lv/0/{'0' * 32}/0/10/MS/%/%/plan_server/" f"%twin%arm_cmd/{type_name}/{type_hash}/::,10:,:,:,,"
+            f"@ros2_lv/0/{'0' * 32}/0/10/MS/%/%/plan_server/%twin%arm_cmd/{type_name}/{type_hash}/::,10:,:,:,,"
         )
         received = []
         sub = session.declare_subscriber(f"0/twin/arm_cmd/{type_name}/{type_hash}", lambda s: received.append(s))

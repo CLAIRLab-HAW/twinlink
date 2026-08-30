@@ -93,7 +93,7 @@ def liveliness_subscriber_query(domain_id: int, topic: str) -> str:
     """
     mangled = topic if topic.startswith("/") else f"/{topic}"
     mangled = mangled.replace("/", "%")
-    return f"{LIVELINESS_ADMIN_SPACE}/{domain_id}/*/*/*/{LIVELINESS_SUBSCRIBER}" f"/*/*/*/{mangled}/*/*/*"
+    return f"{LIVELINESS_ADMIN_SPACE}/{domain_id}/*/*/*/{LIVELINESS_SUBSCRIBER}/*/*/*/{mangled}/*/*/*"
 
 
 def parse_liveliness_token(keyexpr: str) -> dict | None:
@@ -145,7 +145,7 @@ def _session_config(zenoh, mode: str, connect):
 # definitions are missing. Field order/types must match the wire layout exactly -- these are the stable upstream
 # ``.msg`` definitions (unchanged across ROS 2 distros).
 _MOVEIT_MSG_DEFS = {
-    "object_recognition_msgs/msg/ObjectType": ("string key\n" "string db\n"),
+    "object_recognition_msgs/msg/ObjectType": ("string key\nstring db\n"),
     "moveit_msgs/msg/CollisionObject": (
         "std_msgs/Header header\n"
         "geometry_msgs/Pose pose\n"
@@ -183,7 +183,7 @@ _MOVEIT_MSG_DEFS = {
         "trajectory_msgs/MultiDOFJointTrajectory multi_dof_joint_trajectory\n"
     ),
     "moveit_msgs/msg/DisplayTrajectory": (
-        "string model_id\n" "moveit_msgs/RobotTrajectory[] trajectory\n" "moveit_msgs/RobotState trajectory_start\n"
+        "string model_id\nmoveit_msgs/RobotTrajectory[] trajectory\nmoveit_msgs/RobotState trajectory_start\n"
     ),
 }
 
@@ -429,7 +429,7 @@ class ZenohUplink:
             # A subscriber exists but under another type: trust the graph — it is the side that deserializes.
             info = tokens[0]
             log.warning(
-                "subscriber on %s has type %s (expected %s) — " "publishing with the graph's type",
+                "subscriber on %s has type %s (expected %s) — publishing with the graph's type",
                 topic,
                 info["type_name"],
                 expected,

@@ -126,8 +126,8 @@ POOL_SCENE_XML = f"""
         </body>
       </body>
     </body>
-    <body name="{obstacle_body_name(0, prefix='')}" pos="3 -3 0.05">
-      <geom name="{obstacle_body_name(0, prefix='')}_geom" type="box"
+    <body name="{obstacle_body_name(0, prefix="")}" pos="3 -3 0.05">
+      <geom name="{obstacle_body_name(0, prefix="")}_geom" type="box"
             size="0.02 0.02 0.02"/>
     </body>
     <body name="payload" pos="1.0 0 0.26">
@@ -201,7 +201,7 @@ def test_perceived_obstacle_does_not_shove_the_object_it_mirrors():
         sim.step_physics(20)
         after = sim.data.qpos[sim._graspable["payload"]["qpos"] :][:3].copy()
         moved = float(np.linalg.norm(after - before))
-        assert moved < 1e-6, f"the perceived box shoved its own source body by {moved*1e3:.1f} mm"
+        assert moved < 1e-6, f"the perceived box shoved its own source body by {moved * 1e3:.1f} mm"
     finally:
         sim.close()
 

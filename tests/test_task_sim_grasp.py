@@ -258,9 +258,9 @@ def test_a_grasped_object_sets_the_width_to_its_own_span():
     sim.command_gripper(True)
     assert sim.grasped_label() == "payload", "without a grasp the test checks nothing"
     assert sim.gripper_width_m() == pytest.approx(0.03, abs=2e-3)
-    assert sim.gripper_width_m() != pytest.approx(
-        0.04, abs=2e-3
-    ), "the width hangs on the command instead of the object -- then it measures nothing"
+    assert sim.gripper_width_m() != pytest.approx(0.04, abs=2e-3), (
+        "the width hangs on the command instead of the object -- then it measures nothing"
+    )
 
 
 # --------------------------------------------------------------------- #
@@ -284,9 +284,9 @@ def test_releasing_opens_only_as_far_as_the_object_needed():
     sim.command_gripper(False)
     assert sim.grasped_label() is None, "the object has to have been let go"
     assert sim.gripper_width_m() == pytest.approx(0.04, abs=2e-3)
-    assert (
-        sim.gripper_width_m() < StraightLinkage().max_width_m
-    ), "on release the hand tears open wider than the object demands"
+    assert sim.gripper_width_m() < StraightLinkage().max_width_m, (
+        "on release the hand tears open wider than the object demands"
+    )
 
 
 def test_the_release_opening_is_clamped_to_what_the_linkage_can_do():
@@ -451,7 +451,7 @@ def test_the_pads_square_a_tilted_object_upright():
     sim.step_physics(30)
     assert sim.grasped_label() == "payload"
     assert _tilt_of(sim) < 1.0, (
-        f"still {_tilt_of(sim):.1f} degrees askew after the grasp -- the jaws " f"do not square the body up"
+        f"still {_tilt_of(sim):.1f} degrees askew after the grasp -- the jaws do not square the body up"
     )
 
 
@@ -492,7 +492,7 @@ def test_a_sound_grasp_has_both_pads_at_the_object():
     assert sim.grasped_label() == "payload"
     gap = sim.grasp_gap()
     assert gap is not None, "no grasp, so no gap"
-    assert gap < 0.01, f"distance {gap*1000:.1f} mm -- the jaws do not really " f"touch the body"
+    assert gap < 0.01, f"distance {gap * 1000:.1f} mm -- the jaws do not really touch the body"
 
 
 def test_without_a_grasp_there_is_no_gap_to_report():
@@ -516,7 +516,7 @@ def test_the_check_sees_a_body_the_pads_pass_through():
     sim.data.qpos[adr + 1] += 0.02
     sim._mujoco.mj_forward(sim.model, sim.data)
     gap = sim.grasp_gap()
-    assert gap < 0.0, f"distance {gap*1000:+.1f} mm -- a penetration has to be " f"negative"
+    assert gap < 0.0, f"distance {gap * 1000:+.1f} mm -- a penetration has to be negative"
 
 
 # --------------------------------------------------------------------- #
@@ -543,9 +543,9 @@ def test_the_capture_reports_how_far_it_had_to_square_the_object():
     assert sim.grasped_label() == "payload"
     skewed = sim.grasp_misalign_deg()
     assert skewed is not None
-    assert abs(skewed) == pytest.approx(
-        12.0, abs=1.5
-    ), f"reported {skewed} degrees -- the capture had to iron out 12 degrees"
+    assert abs(skewed) == pytest.approx(12.0, abs=1.5), (
+        f"reported {skewed} degrees -- the capture had to iron out 12 degrees"
+    )
 
 
 def test_a_square_grasp_reports_nearly_zero():
@@ -656,7 +656,7 @@ def test_a_slightly_tipped_object_is_still_squared_and_grasped():
     _approach(sim)
     sim.command_gripper(close=True)
     sim.step_physics(30)
-    assert sim.grasped_label() == "payload", "a slight tilt still has to be compensated -- " "the compliance is real"
+    assert sim.grasped_label() == "payload", "a slight tilt still has to be compensated -- the compliance is real"
 
 
 def test_the_limit_stays_inside_the_geometric_capture_window():
@@ -733,7 +733,7 @@ def test_a_carried_object_clear_of_the_world_reports_a_positive_gap():
     sim.step_physics(30)
     assert sim.grasped_label() == "payload"
     gap = sim.carried_world_gap()
-    assert gap is not None and gap > 0.0, f"carried free, but distance {gap} -- the check does not see the " f"world"
+    assert gap is not None and gap > 0.0, f"carried free, but distance {gap} -- the check does not see the world"
 
 
 def test_a_carried_object_driven_into_the_world_reports_no_gap_left():
@@ -751,7 +751,7 @@ def test_a_carried_object_driven_into_the_world_reports_no_gap_left():
     assert sim.grasped_label() == "payload"
     sim.set_arm_command({"arm_0_slide": 0.63})  # TCP ─▶ 0.80, into the wall
     sim.step_physics(60)
-    assert sim.carried_world_gap() <= 0.0, "the carried body sits in the wall and the check " "reports free space"
+    assert sim.carried_world_gap() <= 0.0, "the carried body sits in the wall and the check reports free space"
 
 
 def test_without_a_carry_there_is_nothing_to_report():
@@ -776,7 +776,7 @@ def test_the_worst_moment_of_the_carry_is_remembered():
     sim.step_physics(60)
     assert sim.carried_world_gap() > 0.0, "in the end it stands free"
     assert sim.carried_world_gap_min() <= 0.0, (
-        f"worst moment {sim.carried_world_gap_min()} -- the travel through the " f"wall is forgotten"
+        f"worst moment {sim.carried_world_gap_min()} -- the travel through the wall is forgotten"
     )
 
 
@@ -792,7 +792,7 @@ CYLINDER_XML = SCENE_XML.replace(
     '<geom name="payload_geom" type="box" size="0.02 0.015 0.02"/>',
     # ``zaxis`` puts the cylinder axis onto world y -- the body LIES DOWN.  ``euler`` would be a trap here: MuJoCo
     # reads it in DEGREES, "1.5708" would have tilted the cylinder by 1.6 degrees instead of laying it down.
-    '<geom name="payload_geom" type="cylinder" size="0.015 0.05"' ' zaxis="0 1 0"/>',
+    '<geom name="payload_geom" type="cylinder" size="0.015 0.05" zaxis="0 1 0"/>',
 )
 
 
@@ -835,7 +835,7 @@ def test_a_lying_cylinder_rolled_about_its_own_axis_is_still_graspable():
     for deg in (0.0, 39.3, 75.0):
         _roles(sim, deg)
         assert sim._square_tilt(adr, sim._graspable["payload"]), (
-            f"a roll of {deg} degrees about its own axis refused as a tilt -- " f"the body is symmetric about it"
+            f"a roll of {deg} degrees about its own axis refused as a tilt -- the body is symmetric about it"
         )
 
 

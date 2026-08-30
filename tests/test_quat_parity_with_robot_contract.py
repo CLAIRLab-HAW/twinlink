@@ -62,7 +62,7 @@ def test_both_implementations_agree(name):
     if float(np.dot(a, b)) < 0.0:
         b = -b
     assert a == pytest.approx(b, abs=1e-9), (
-        f"{name}: twinlink and robot_contract compute apart -- " f"twinlink={a}, robot_contract={b}"
+        f"{name}: twinlink and robot_contract compute apart -- twinlink={a}, robot_contract={b}"
     )
 
 

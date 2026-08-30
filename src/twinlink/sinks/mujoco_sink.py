@@ -760,7 +760,7 @@ class MujocoSink(StateSink):
             else:
                 if self._preview_state == "planning":
                     log.debug(
-                        "ghost_positions=None but state=planning — " "preview_positions returned None (traj expired?)"
+                        "ghost_positions=None but state=planning — preview_positions returned None (traj expired?)"
                     )
 
         self._maybe_snapshot(frame)

@@ -443,9 +443,7 @@ class TwinTaskSim:
         if pad_bodies and not self._pad_geoms:
             # Fail loudly instead of silently falling back on the whole hand -- it is exactly that silent fallback
             # which tripled the tolerance.
-            raise RuntimeError(
-                f"pad_bodies {sorted(pad_bodies)} not found in model -- " "grip surfaces not classifiable"
-            )
+            raise RuntimeError(f"pad_bodies {sorted(pad_bodies)} not found in model -- grip surfaces not classifiable")
         # Registered graspables that are ALSO classified as obstacles (pool slots or authored clutter the task promoted
         # to a target) stay obstacles for the validity and settling questions: the arm must plan around them, so parking
         # them away would make the goal gate blind to exactly the objects it exists for.  Only the sim's own payload is
@@ -1287,7 +1285,7 @@ class TwinTaskSim:
         """
         saved: dict[int, tuple[int, int]] = {}
         entry = self._graspable.get(label)
-        for gid in (entry["geoms"] if entry else []):
+        for gid in entry["geoms"] if entry else []:
             saved[gid] = (int(self.model.geom_contype[gid]), int(self.model.geom_conaffinity[gid]))
             self.model.geom_contype[gid] = 0
             self.model.geom_conaffinity[gid] = 0
