@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import Protocol
 
 import numpy as np
@@ -54,6 +55,55 @@ class Kinematics(Protocol):
 
     def config_collides(self, joints: dict[str, float], *, obstacles_only: bool = False) -> bool:
         """True when the configuration is invalid."""
+
+
+class WorldFramed:
+    """A kinematics provider seen from the WORLD, where its own root is not the world origin.
+
+    Pinocchio answers in the URDF root frame. A world that stands the robot off the floor -- SAPIEN puts
+    ``base_link`` at the ``base_footprint`` height -- then has two frames in one surface: object poses and the
+    planner's targets are in the world, the kinematics are in the base. Measured 2026-08-30, that gap is 0.13228 m
+    on this robot, and it showed as a gripper closing a clean 132 mm above the cube while the planner was right to
+    think it had arrived.
+
+    Both directions are covered, because both leak: a pose comes OUT of the model and a target goes IN. Joint-space
+    reads (``config_collides``, ``enabled_link_pairs``) carry no frame and pass straight through.
+
+    :param inner: the provider to wrap.
+    :param root: called for the root's 4x4 transform in the world, fresh each time -- a mobile base moves.
+    """
+
+    def __init__(self, inner, root) -> None:
+        self._inner = inner
+        self._root = root
+
+    def __getattr__(self, name: str):
+        """Anything not framed is the inner provider's, unchanged."""
+        return getattr(self._inner, name)
+
+    def _rt(self):
+        m = np.asarray(self._root(), dtype=float)
+        return m[:3, :3], m[:3, 3]
+
+    def frame_pose(self, name: str, joints: dict[str, float]) -> tuple[np.ndarray, np.ndarray]:
+        """:returns: the frame's pose in the WORLD."""
+        pos, rot = self._inner.frame_pose(name, joints)
+        r, t = self._rt()
+        return r @ np.asarray(pos, dtype=float) + t, r @ np.asarray(rot, dtype=float)
+
+    def solve_ik(self, target_pos, target_rot, seed):
+        """Take a WORLD target and answer joint values.
+
+        :returns: the joint values, or ``None`` when the solver does not converge.
+        """
+        r, t = self._rt()
+        return self._inner.solve_ik(r.T @ (np.asarray(target_pos, dtype=float) - t), r.T @ np.asarray(target_rot), seed)
+
+    def set_belief_boxes(self, boxes) -> None:
+        """Take WORLD boxes and place them in the model's own frame."""
+        r, t = self._rt()
+        moved = [replace(box, position_m=tuple(r.T @ (np.asarray(box.position_m, dtype=float) - t))) for box in boxes]
+        self._inner.set_belief_boxes(moved)
 
 
 class ArmIK:

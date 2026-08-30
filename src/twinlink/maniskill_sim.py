@@ -24,6 +24,7 @@ import clearlog
 import numpy as np
 
 from .events import SimEvents
+from .kinematics import WorldFramed
 
 log = logging.getLogger("twinlink.maniskill")
 
@@ -72,7 +73,10 @@ class ManiSkillTaskSim:
         self._sensor_once = clearlog.once(log)
         self.env = env.unwrapped
         self.arm_joints: tuple[str, ...] = tuple(arm_joints)
-        self.kinematics = kinematics
+        # World-framed, because everything else on this surface is: object poses, the planner's targets and the
+        # belief boxes are all in the world, while Pinocchio answers in the URDF root -- and this world stands the
+        # root off the floor.  See twinlink.kinematics.WorldFramed for the measurement.
+        self.kinematics = WorldFramed(kinematics, lambda: self._robot.pose.to_transformation_matrix()[0].cpu())
         self.control_dt = float(control_dt)
         self.owns_tick = bool(owns_tick)
         self._followers = dict(gripper_follower_factors or {})
@@ -160,9 +164,11 @@ class ManiSkillTaskSim:
         return float(self._linkage.width_from_angle(float(self._qpos()[idx])))
 
     def tcp_pose(self) -> tuple[np.ndarray, np.ndarray]:
+        """Where the tool centre point is, IN THE WORLD -- the frame the object poses are in."""
         return self.kinematics.frame_pose(self.kinematics.tcp_frame, self.arm_positions())
 
     def fk_body_pose(self, name: str, joints: dict[str, float]) -> tuple[np.ndarray, np.ndarray]:
+        """Where a named body would be at that configuration, in the world frame."""
         return self.kinematics.frame_pose(name, joints)
 
     def arm_config_collides(self, joints: dict[str, float], *, obstacles_only: bool = False) -> bool:

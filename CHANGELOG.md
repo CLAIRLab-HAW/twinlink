@@ -5,6 +5,19 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-08-30 (one frame on the ManiSkill surface)
+
+- **`ManiSkillTaskSim` answers in the WORLD frame.** It handed out poses from the URDF root while the object poses,
+  the planner's targets and the belief boxes were all in the world — and this world stands `base_link` at the
+  `base_footprint` height, 0.13228 m. Measured 2026-08-30 by running hrl's pick on it: the gripper closed a clean
+  132 mm above the cube, and the planner was right to think it had arrived.
+- **`kinematics.WorldFramed`** wraps a provider whose root is not the world origin, in BOTH directions, because both
+  leak: a pose comes out of the model and a target goes in. `set_belief_boxes` is framed too — world boxes were
+  landing in a base-frame collision model, the same 132 mm out, which is `maniskill-eval`'s oracle gate as much as
+  hrl's. Joint-space reads carry no frame and pass through.
+- What the gap cost before it was found: a descend-offset sweep from +0.045 m to -0.015 m changed nothing. Sixty
+  millimetres of travel against a 132 mm error, and the reasoning had settled on grasp geometry, which was sound.
+
 ## 2026-08-30 (one name for the inverse kinematics)
 
 - **`ArmIK.solve` is `ArmIK.solve_ik`** — the name the `Kinematics` protocol beside it already declared, and the
