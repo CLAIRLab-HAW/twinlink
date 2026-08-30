@@ -344,7 +344,12 @@ class ManiSkillTaskSim:
         obs = self.env.get_obs()
         try:
             return obs[block][camera]
-        except (KeyError, TypeError):
+        except (KeyError, TypeError, IndexError):
+            # IndexError as well: an environment built WITHOUT sensors answers `get_obs` with a flat tensor, and
+            # indexing that by a block name raises `IndexError: too many indices for tensor of dimension 2` --
+            # not the KeyError a mapping would give. Measured 2026-08-31 on the sufficiency sweep, whose cells
+            # carry no camera: every frame the bridge asked for logged a traceback, 900 kB of it per run, for a
+            # world that simply has no image to give.
             # Runs per frame, so it is gated: a camera name that is not in the observation is wrong for the whole
             # run, not for this one frame.  None reaches the caller as "no image", which reads like a dropped
             # frame rather than a name that never existed.
