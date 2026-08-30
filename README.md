@@ -134,6 +134,8 @@ twinlink/
                     (robot-agnostic; MoveIt still plans the collision-free path)
   mjcf_scene.py     reusable MJCF scene blocks (obstacle pool, distractors,
                     camera intrinsics/extrinsics) for task twins
+  mjcf_parts.py     one MJCF body out of convex Parts at an authored mass —
+                    vary an object's fidelity without moving its mass or inertia
   tf_buffer.py      offline TF tree with BFS path lookup + time interpolation
                     (rosbags/MCAP/foxglove captures; numpy-only, no ROS)
   task_sim.py       TwinTaskSim — MuJoCo scene + twin execution semantics for a

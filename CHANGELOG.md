@@ -5,6 +5,19 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-08-30 (a body out of convex parts is the lib's, not an app's)
+
+- **`twinlink.mjcf_parts` added** -- `Part`, `add_shape`, `bounding_half_extents`, `free_joint_name` and
+  `PRIMITIVES`, moved here from `hrl.env.geometry`. It sits beside `mjcf_scene`, whose `fmt` it already used, and
+  needs nothing but numpy: writing a MuJoCo body out of convex geoms at an authored mass is a twin concern, not a
+  cube-stacking one. Two packages read it -- `hrl` builds its scene with it, `twin-sufficiency` varies object
+  fidelity with it -- and the second was reaching across a package boundary into the first to get it.
+- **`part_bounds` is public** (was `_part_bounds`). A caller that merges or coarsens a decomposition needs the same
+  reading of `fromto`, `pos` and `quat` that `bounding_half_extents` uses; a second reading of those three fields is
+  the drift the module exists to prevent -- in the endpoint form `size` carries the RADIUS alone, so a naive reader
+  takes a 0.256 m capsule for an 8 mm one. `twin-sufficiency.coarsen` was importing the private name.
+- The module docstring says **four** facts, which is how many it lists.
+
 ## 2026-08-30 (drawing is the simulator's, not the world's)
 
 - **`SceneView` is a protocol of its own**, and `TaskWorld` no longer carries `render_rgb`, `camera_matrix` or
