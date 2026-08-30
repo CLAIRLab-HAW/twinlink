@@ -382,6 +382,34 @@ class ManiSkillTaskSim:
             )
         return poses
 
+    def settle(self, max_ticks: int = 100, vel_eps: float = 0.01) -> SimEvents:
+        """Step until the task objects are at rest, or ``max_ticks`` elapsed.
+
+        The sibling of ``TwinTaskSim.settle`` and asked for by the same callers: a placement is judged after the
+        object has come to rest, not while it is still falling into place. The MuJoCo one reads free-joint
+        velocities out of ``qvel``; here SAPIEN answers per actor, which is the same question in the engine's own
+        terms.
+
+        The GRASPED object is excluded there and cannot be here -- this world does not know which one is held, and
+        that read is exactly the one that does not travel (see ``hrl.env.task_objects``). A carried object moves
+        with the arm, so a settle during a carry runs to the tick limit rather than returning early. Callers ask
+        for a settle when they have put something down, which is when it matters.
+
+        :param max_ticks: how long to wait at most.
+        :param vel_eps: linear speed below which an object counts as standing [m/s].
+        :returns: what happened while waiting.
+        """
+        events = SimEvents()
+        for _ in range(max(0, int(max_ticks))):
+            events.merge(self.step_physics(1))
+            speeds = [
+                float(np.linalg.norm(np.asarray(actor.linear_velocity[0].cpu(), dtype=float)))
+                for actor in getattr(self.env, "task_objects", {}).values()
+            ]
+            if not speeds or max(speeds) < vel_eps:
+                break
+        return events
+
     def contact_forces(self, link_names: Sequence[str]) -> dict[str, float]:
         """Per-link contact force magnitude in newton, against things that are NOT the robot.
 

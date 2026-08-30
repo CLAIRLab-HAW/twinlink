@@ -5,6 +5,13 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-08-30 (a world that something else steps can still be settled)
+
+- **`ManiSkillTaskSim.settle`**, the sibling of `TwinTaskSim.settle`: step until the task objects are at rest. The
+  MuJoCo one excludes the grasped object; this one cannot, because this world does not know which object is held —
+  that read is the one that does not travel. A settle during a carry therefore runs to the tick limit instead of
+  returning early, which costs time and no result, and callers ask for a settle after putting something down.
+
 ## 2026-08-30 (one frame on the ManiSkill surface)
 
 - **`ManiSkillTaskSim` answers in the WORLD frame.** It handed out poses from the URDF root while the object poses,
