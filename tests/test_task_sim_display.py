@@ -78,7 +78,7 @@ def test_display_object_teleports_without_events():
     sim = _build()
     try:
         sim.display_object("believed", (0.5, 0.1, 0.2), yaw=0.3)
-        assert np.allclose(sim.object_position("believed"), [0.5, 0.1, 0.2])
+        assert np.allclose(sim.object_poses()["believed"][0], [0.5, 0.1, 0.2])
         events = sim.step_physics(1)
         assert events.grasp_acquired is None and events.grasp_lost is None
     finally:
@@ -90,7 +90,7 @@ def test_park_object_moves_it_out_of_view():
     try:
         sim.display_object("believed", (0.5, 0.1, 0.2))
         sim.park_object("believed", index=2)
-        pos = sim.object_position("believed")
+        pos = sim.object_poses()["believed"][0]
         assert float(np.linalg.norm(pos[:2])) > 1.5
     finally:
         sim.close()
@@ -104,7 +104,7 @@ def test_display_carry_follows_tcp_without_events():
         sim.set_arm_command({"arm_0_slide": 0.4})
         events = sim.step_physics(5)
         tcp, _mat = sim.tcp_pose()
-        assert float(np.linalg.norm(sim.object_position("believed") - tcp)) < 0.10
+        assert float(np.linalg.norm(sim.object_poses()["believed"][0] - tcp)) < 0.10
         # A display carry must never look like a real grasp/drop to a consumer watching sim EVENTS -- only the real
         # gripper feedback (real mode) or the kinematic grasp (sim mode) may raise those. (The internal _grasped
         # bookkeeping above is deliberately shared with the real carry machinery; only the event accumulator is exempt
@@ -123,7 +123,7 @@ def test_display_carry_switching_labels_ends_the_previous_carry():
         assert sim.model.geom_contype[gid] == 0, "carried object's contacts suspended"
         sim.display_release("believed", position=(0.9, -0.2, 0.05))
         assert sim.model.geom_contype[gid] != 0, "release must restore contacts"
-        assert np.allclose(sim.object_position("believed"), [0.9, -0.2, 0.05])
+        assert np.allclose(sim.object_poses()["believed"][0], [0.9, -0.2, 0.05])
     finally:
         sim.close()
 
@@ -132,9 +132,9 @@ def test_display_release_without_position_leaves_object_in_place():
     sim = _build()
     try:
         sim.display_carry("believed")
-        before = sim.object_position("believed").copy()
+        before = sim.object_poses()["believed"][0].copy()
         sim.display_release("believed")  # no position ─▶ stays where the carry left it
-        assert np.allclose(sim.object_position("believed"), before, atol=1e-6)
+        assert np.allclose(sim.object_poses()["believed"][0], before, atol=1e-6)
         assert sim.grasped_label() is None
     finally:
         sim.close()

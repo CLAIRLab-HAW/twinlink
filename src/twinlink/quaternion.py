@@ -87,3 +87,16 @@ def mat_to_quat_wxyz(mat: np.ndarray) -> np.ndarray:
     out = np.empty(4)
     _mj().mju_mat2Quat(out, _arr(mat, 9))
     return out
+
+
+def quat_to_yaw_wxyz(quat: Sequence[float]) -> float:
+    """In-plane rotation of a ``wxyz`` quaternion (rad).
+
+    Here rather than at the call sites: a world answers ``object_poses`` with quaternions, and every reader that
+    wants a yaw would otherwise write this same ``arctan2`` again -- with its own sign convention.
+
+    :param quat: quaternion as ``(w, x, y, z)``.
+    :returns: yaw in radians.
+    """
+    w, x, y, z = _arr(quat, 4)
+    return float(np.arctan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z)))

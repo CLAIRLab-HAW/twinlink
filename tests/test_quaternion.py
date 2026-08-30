@@ -68,3 +68,10 @@ def test_a_wrong_length_is_an_error_not_a_silent_result():
         quat_mul_wxyz([1.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0])
     with pytest.raises(ValueError, match="expected 9 values"):
         mat_to_quat_wxyz(np.eye(2))
+
+
+def test_the_yaw_of_a_z_rotation_is_the_angle_itself():
+    from twinlink.quaternion import quat_about_z_wxyz, quat_to_yaw_wxyz
+
+    for angle in (0.0, 0.3, -1.2, 2.9):
+        assert abs(quat_to_yaw_wxyz(quat_about_z_wxyz(angle)) - angle) < 1e-9

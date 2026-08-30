@@ -1674,7 +1674,7 @@ class TwinTaskSim:
 
         :returns: label -> ``(position (3,), quat_wxyz (4,))``.
         """
-        return {label: (self.object_position(label), self.object_quat_wxyz(label)) for label in self._graspable}
+        return {label: self._pose_of(label) for label in self._graspable}
 
     def object_half_extents(self, label: str) -> np.ndarray:
         """Half extents of a registered object, as it was registered.
@@ -1688,15 +1688,22 @@ class TwinTaskSim:
         """
         return self._graspable[label]["half"]
 
-    def object_position(self, label: str) -> np.ndarray:
-        return self.data.xpos[self._graspable[label]["body"]].copy()
-
-    def object_quat_wxyz(self, label: str) -> np.ndarray:
+    def _pose_of(self, label: str) -> tuple[np.ndarray, np.ndarray]:
+        """One object's true pose.  Private: :meth:`object_poses` is the one way to ask."""
         adr = self._graspable[label]["qpos"]
-        return self.data.qpos[adr + 3 : adr + 7].copy()
+        return (
+            self.data.xpos[self._graspable[label]["body"]].copy(),
+            self.data.qpos[adr + 3 : adr + 7].copy(),
+        )
 
     def object_yaw(self, label: str) -> float:
-        """In-plane rotation of the object's faces (rad, meaningful modulo 90 deg)."""
+        """In-plane rotation of the object's faces (rad, meaningful modulo 90 deg).
+
+        Kept beside :meth:`object_poses` rather than folded into it: yaw is a DERIVED question, and it is read off
+        the rotation matrix directly, which is exact and free here.  Whoever holds only a quaternion -- a caller of
+        the ManiSkill world, say -- converts with :func:`twinlink.quaternion.quat_to_yaw_wxyz` rather than writing
+        the ``arctan2`` again with its own sign convention.
+        """
         mat = self.data.xmat[self._graspable[label]["body"]].reshape(3, 3)
         return float(np.arctan2(mat[1, 0], mat[0, 0]))
 

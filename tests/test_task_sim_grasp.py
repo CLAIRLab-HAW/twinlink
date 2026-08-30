@@ -185,7 +185,7 @@ def test_grasp_carry_release():
         sim.set_arm_command({"arm_0_slide": ALIGNED_SLIDE + 0.2})
         sim.step_physics(3)
         tcp, _mat = sim.tcp_pose()
-        payload_pos = sim.object_position("payload")
+        payload_pos = sim.object_poses()["payload"][0]
         assert float(np.linalg.norm(payload_pos - tcp)) < 0.03
         # released: grasp ends and the object's ordinary contacts return.
         gid = sim._graspable["payload"]["geoms"][0]
@@ -904,4 +904,4 @@ def test_the_world_reports_every_registered_object_at_once():
     assert set(poses) == {"payload"}
     position, quat = poses["payload"]
     assert position.shape == (3,) and quat.shape == (4,)
-    assert np.allclose(position, sim.object_position("payload"))
+    assert np.allclose(position, sim.object_poses()["payload"][0])
