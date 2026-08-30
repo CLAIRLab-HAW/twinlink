@@ -65,6 +65,13 @@ line-length = 120
 extend-exclude = [".venv", ".superpowers", ".idea", "urdf", "data", "node_modules", "build", "dist", "*.egg-info"]
 respect-gitignore = false
 
+[tool.ruff.format]
+# Ruff formats Python inside Markdown fences and notebook cells too, not only .py (measured 2026-08-30,
+# ruff@0.16.5: six repos went red on their README samples alone). Both are prose here -- the README blocks
+# align their trailing comments into a column that carries meaning, and the walkthrough notebook keeps the
+# semicolon-joined plot lines the lint side already exempts. Lint still reads both, only the formatter stays out.
+exclude = ["*.md", "**/*.ipynb"]
+
 [tool.ruff.lint]
 # The durable lint scope of this workspace, measured against the 2026-08-30 stock (ruff@0.16.5): deliberately out
 # are T20 (168 print hits in legitimate CLIs/scripts), N (197 hits, all existing convention rather than bugs) as
