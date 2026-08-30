@@ -19,6 +19,7 @@ the point of the layering decision.
 
 import numpy as np
 import pytest
+
 from twinlink.tf_buffer import _matrix_to_quat
 
 tp = pytest.importorskip(

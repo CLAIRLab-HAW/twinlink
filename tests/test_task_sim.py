@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+
 from twinlink.task_sim import RobotSimSpec
 from twinlink.testing import StraightLinkage  # noqa: E402
 
@@ -124,6 +125,7 @@ _PROBE_SPEC = RobotSimSpec(
 def _classification_under_prefix(prefix: str) -> dict:
     """Build the probe scene under ``prefix`` and read back its classification."""
     import mujoco
+
     from twinlink.task_sim import TwinTaskSim
 
     class _ProbeSim(TwinTaskSim):

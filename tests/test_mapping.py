@@ -10,6 +10,7 @@ from types import SimpleNamespace as NS
 
 import numpy as np
 import pytest
+
 from twinlink import RobotMapping, RobotState
 from twinlink.mapping import CameraMap, pointcloud2_to_xyz
 
