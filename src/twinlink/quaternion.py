@@ -89,6 +89,22 @@ def mat_to_quat_wxyz(mat: np.ndarray) -> np.ndarray:
     return out
 
 
+def quat_to_mat_wxyz(quat: Sequence[float]) -> np.ndarray:
+    """wxyz quaternion ─▶ 3x3 rotation matrix.
+
+    The counterpart of :func:`mat_to_quat_wxyz`, and here for the same reason: a world answers ``object_poses``
+    with quaternions while the geometry that reads them -- a grasp chooser sweeping the horizontal extent, a
+    belief rotated into world -- wants a matrix.  Written at each call site it would be four transcriptions of
+    the same formula, each with its own chance of transposing it.
+
+    :param quat: quaternion as ``(w, x, y, z)``.
+    :returns: the rotation matrix.
+    """
+    out = np.empty(9)
+    _mj().mju_quat2Mat(out, _arr(quat, 4))
+    return out.reshape(3, 3)
+
+
 def quat_to_yaw_wxyz(quat: Sequence[float]) -> float:
     """In-plane rotation of a ``wxyz`` quaternion (rad).
 

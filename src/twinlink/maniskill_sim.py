@@ -382,6 +382,117 @@ class ManiSkillTaskSim:
             )
         return poses
 
+    def object_half_extents(self, label: str) -> np.ndarray:
+        """Half extents of a task object, AS THE SCENE REGISTERED THEM.
+
+        The sibling of :meth:`twinlink.task_sim.TwinTaskSim.object_half_extents` and asked by the same readers.
+        Taken from the environment rather than measured off the collision shapes: whoever built the scene already
+        wrote the box down -- from a declaration, from an authored part list -- and re-deriving it here would be a
+        second description of one body, free to drift from the first.
+
+        :param label: the object's name.
+        :returns: the half extents (m).
+        :raises KeyError: the scene registers no extents under this label.
+        """
+        registered = getattr(self.env, "body_half_extents", None)
+        if registered is None or label not in registered:
+            raise KeyError(
+                f"the scene registers no half extents for {label!r} -- an environment whose bodies are read "
+                "geometrically has to expose `body_half_extents`"
+            )
+        return np.asarray(registered[label], dtype=float)
+
+    def object_yaw(self, label: str) -> float:
+        """In-plane rotation of the object (rad), from the pose the world reports.
+
+        The MuJoCo world reads this straight off its rotation matrix; here the pose is a quaternion, so it goes
+        through the shared conversion rather than through an ``arctan2`` written out again with its own sign
+        convention -- exactly what ``TwinTaskSim.object_yaw`` points at.
+
+        :param label: the object's name.
+        :returns: the yaw in radians.
+        :raises KeyError: no such object.
+        """
+        from .quaternion import quat_to_yaw_wxyz
+
+        return float(quat_to_yaw_wxyz(self.object_poses()[label][1]))
+
+    def graspable_labels(self) -> frozenset[str]:
+        """The names a grasp may take -- the scene's task objects."""
+        return frozenset(getattr(self.env, "task_objects", {}))
+
+    def display_object(self, label: str, position, yaw: float = 0.0) -> None:
+        """Set an object down at a pose, at rest.
+
+        The counterpart of ``TwinTaskSim.display_object`` and used for the same thing: putting a body where the
+        scatter cannot author it -- the stacking support at the tower spot, the pen in its holder.  The velocity
+        is cleared with the pose, otherwise the body carries its old motion into the new place and drifts out of
+        it while the caller believes it was set down.
+
+        :param label: the object's name.
+        :param position: where its origin goes.
+        :param yaw: rotation about the vertical axis (rad).
+        :raises KeyError: no such object.
+        """
+        import sapien
+        import torch
+
+        actor = getattr(self.env, "task_objects", {})[label]
+        half = float(yaw) / 2.0
+        actor.set_pose(
+            sapien.Pose(p=[float(v) for v in position], q=[float(np.cos(half)), 0.0, 0.0, float(np.sin(half))])
+        )
+        zero = torch.zeros_like(actor.linear_velocity)
+        actor.set_linear_velocity(zero)
+        actor.set_angular_velocity(torch.zeros_like(actor.angular_velocity))
+
+    def set_object_quat(self, label: str, quat_wxyz) -> None:
+        """Turn an object where it stands, at rest -- the sibling of ``TwinTaskSim.set_object_quat``.
+
+        :param label: the object's name.
+        :param quat_wxyz: the new orientation; normalised here.
+        :raises KeyError: no such object.
+        """
+        import sapien
+        import torch
+
+        actor = getattr(self.env, "task_objects", {})[label]
+        quat = np.asarray(quat_wxyz, dtype=float)
+        quat = quat / np.linalg.norm(quat)
+        position = actor.pose.p[0].cpu().numpy().astype(float)
+        actor.set_pose(sapien.Pose(p=[float(v) for v in position], q=[float(v) for v in quat]))
+        actor.set_linear_velocity(torch.zeros_like(actor.linear_velocity))
+        actor.set_angular_velocity(torch.zeros_like(actor.angular_velocity))
+
+    def pairwise_contact_force(self, label: str, link_names: Sequence[str]) -> dict[str, float]:
+        """Contact force between one task object and each named robot link [N].
+
+        ``contact_forces`` answers the other question -- what is the worst thing this link touches -- and a grasp
+        needs to know WHICH body the jaws are on.  Both go through ``get_pairwise_contact_forces`` for the reason
+        that method spells out: the RG6's four-bar touches itself by construction, so a net force on a finger is
+        never evidence of a grasp.
+
+        :param label: the object's name.
+        :param link_names: the robot links to ask about.
+        :returns: force magnitude per link, zero for a link the robot does not have.
+        :raises KeyError: no such object.
+        """
+        actor = getattr(self.env, "task_objects", {})[label]
+        links = {link.name: link for link in self._robot.get_links()}
+        out: dict[str, float] = {}
+        for name in link_names:
+            link = links.get(name)
+            if link is None:
+                out[name] = 0.0
+                continue
+            force = self.env.scene.get_pairwise_contact_forces(actor, link)
+            out[name] = float(np.linalg.norm(force[0].cpu().numpy()))
+        return out
+
+    def close(self) -> None:
+        """Release the environment -- SAPIEN holds a renderer and a device context per world."""
+        self.env.close()
+
     def settle(self, max_ticks: int = 100, vel_eps: float = 0.01) -> SimEvents:
         """Step until the task objects are at rest, or ``max_ticks`` elapsed.
 

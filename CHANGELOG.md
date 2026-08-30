@@ -5,6 +5,25 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-08-31 (the SAPIEN world answers the reads a study makes)
+
+- **`ManiSkillTaskSim` gained the reads its MuJoCo sibling already had** — `object_half_extents`, `object_yaw`,
+  `graspable_labels`, `display_object`, `set_object_quat` and `close`. They existed on `TwinTaskSim` and every
+  consumer that wanted them from the other engine reached into the model instead. `object_half_extents` answers
+  from what the SCENE registered (`env.body_half_extents`) rather than measuring the collision shapes: whoever
+  built the scene already wrote the box down, and re-deriving it would be a second description of one body.
+- **`pairwise_contact_force`** — force between one named task object and each named robot link. `contact_forces`
+  answers the other question (what is the worst thing this link touches), and a grasp verdict needs to know WHICH
+  body the jaws are on.
+- **`TwinTaskSim.set_object_quat`** turns a body where it stands. `display_object` sets a whole pose but takes
+  only a yaw, and laying a pen down is a rotation the vertical axis cannot express.
+- **`quat_to_mat_wxyz`** beside `mat_to_quat_wxyz`. A world answers `object_poses` with quaternions while the
+  geometry reading them wants a matrix; written out at each call site it was four transcriptions of one formula.
+- **Fixed: `WorldFramed.set_belief_boxes` raised on every call.** It used `dataclasses.replace` on a `BeliefBox`,
+  which is a `NamedTuple` — `TypeError: replace() should be called on dataclass instances`. The other two methods
+  of that class take arrays and were exercised from the first run; this one was dead until the sufficiency sweep
+  fed belief boxes through a framed world on 2026-08-31. `test_world_framed.py` now pins all three directions.
+
 ## 2026-08-30 (a world that something else steps can still be settled)
 
 - **`ManiSkillTaskSim.settle`**, the sibling of `TwinTaskSim.settle`: step until the task objects are at rest. The

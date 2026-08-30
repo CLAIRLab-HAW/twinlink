@@ -1330,6 +1330,24 @@ class TwinTaskSim:
         self.data.qvel[dof : dof + 6] = 0.0
         self._mujoco.mj_forward(self.model, self.data)
 
+    def set_object_quat(self, label: str, quat_wxyz) -> None:
+        """Turn an object where it stands, at rest -- position untouched.
+
+        :meth:`display_object` sets a whole pose but takes only a YAW, and a study that has to lay a pen down
+        needs a rotation the vertical axis cannot express.  Splitting the orientation off rather than widening
+        that signature keeps the two operations honest: one moves a body, this one only turns it.
+
+        :param label: the object's label.
+        :param quat_wxyz: the new orientation; normalised here, so a caller may compose freely.
+        :raises KeyError: no object is registered under this label.
+        """
+        adr = self._graspable[label]["qpos"]
+        quat = np.asarray(quat_wxyz, dtype=float)
+        self.data.qpos[adr + 3 : adr + 7] = quat / np.linalg.norm(quat)
+        dof = self._free_joint_dof(label)
+        self.data.qvel[dof : dof + 6] = 0.0
+        self._mujoco.mj_forward(self.model, self.data)
+
     def park_object(self, label: str, index: int = 0) -> None:
         """Move an un-localized object out of every camera view (display only)."""
         px, py, pz = self._OBJECT_PARK
