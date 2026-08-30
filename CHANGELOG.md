@@ -5,6 +5,17 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-08-30 (ruff resolves the same settings from anywhere)
+
+- **`target-version = "py311"` now stands in `[tool.ruff]`.** Ruff infers it from `project.requires-python`
+  when absent -- which the virtual workspace root has no `[project]` table to supply, so a run through the ROOT
+  config resolved to 3.10 while a run inside this package resolved to 3.11 (measured 2026-08-30,
+  `ruff check --show-settings`). The pre-commit hook passes `--config <workspace-root>`, so 3.10 was the
+  version every commit got checked against.
+- **CI pins `ruff>=0.16.5,<0.17`** -- the minor the lint scope was measured against, the same bound the
+  workspace dev group carries. Unpinned, a ruff release can stabilise new rules and turn this CI red without
+  a commit of ours.
+
 ## 2026-08-30 (the silent paths speak)
 
 - **25 of the 30 exception handlers that neither logged nor re-raised now say what they swallowed.** The five

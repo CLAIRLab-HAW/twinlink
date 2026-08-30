@@ -29,7 +29,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - run: pip install numpy pyyaml pytest ruff
+      # ruff is pinned to the minor the lint scope was measured against (same bound as the workspace dev
+      # group): an unpinned install lets a ruff release stabilise new rules and turn this CI red with no commit.
+      - run: pip install numpy pyyaml pytest 'ruff>=0.16.5,<0.17'
       # From the checkout, not from an index: clearlog is not published, and the suite has to measure against the
       # sibling this workspace ships.
       - run: pip install ./libs/clearlog
