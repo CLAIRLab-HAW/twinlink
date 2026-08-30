@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from twinlink.task_world import GroundTruth, TaskWorld
+from twinlink.task_world import GroundTruth, SceneView, TaskWorld
 
 mujoco = pytest.importorskip("mujoco", reason="mujoco extra not installed")
 
@@ -15,9 +15,38 @@ from twinlink.task_sim import TwinTaskSim  # noqa: E402
 @pytest.mark.parametrize("world", [TwinTaskSim, ManiSkillTaskSim])
 def test_both_worlds_carry_the_whole_seam(world):
     """Measured against the CLASSES: the protocols are what the two actually share, not a wish."""
-    for protocol in (TaskWorld, GroundTruth):
+    for protocol in (TaskWorld, GroundTruth, SceneView):
         missing = [m for m in protocol.__protocol_attrs__ if not hasattr(world, m)]
         assert not missing, f"{world.__name__} is missing {missing} of {protocol.__name__}"
+
+
+def test_a_world_needs_no_camera_to_be_a_task_world():
+    """Drawing is the SIMULATOR's, not the world's -- so a world that draws nothing is still a world.
+
+    Pinned because the split has a measurable cause: the two worlds' render signatures already disagree
+    (2026-08-30), MuJoCo taking a width and a height that SAPIEN decides once at ``gym.make``. A protocol carrying
+    that method makes one of the two a liar.
+    """
+
+    class _Blind:
+        def sim_time_s(self) -> float:
+            return 0.0
+
+        def step_physics(self, n: int = 1):
+            return None
+
+        def tcp_pose(self):
+            return None
+
+        def arm_positions(self) -> dict[str, float]:
+            return {}
+
+        def gripper_width_m(self) -> float:
+            return 0.0
+
+    blind = _Blind()
+    assert isinstance(blind, TaskWorld)
+    assert not isinstance(blind, SceneView)
 
 
 def test_the_protocol_does_not_settle_the_role():

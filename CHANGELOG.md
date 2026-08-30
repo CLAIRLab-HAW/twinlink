@@ -5,6 +5,18 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-08-30 (drawing is the simulator's, not the world's)
+
+- **`SceneView` is a protocol of its own**, and `TaskWorld` no longer carries `render_rgb`, `camera_matrix` or
+  `camera_pose`. What a camera sees, at what resolution and through which renderer, is decided by the engine that
+  draws it. The evidence was already in the tree, measured 2026-08-30: `TwinTaskSim.render_rgb` takes a `width` and
+  a `height`, because MuJoCo renders on demand, while `ManiSkillTaskSim.render_rgb` takes neither, because SAPIEN
+  fixes the sensor resolution once at `gym.make`. One protocol covering both makes one of the two a liar -- and it
+  already did: `openvla_stack` calls the sized form, which no ManiSkill world can serve. `SceneView` declares only
+  the shape both keep, `render_depth` included, and a sized render stays what it is: one engine's own extension.
+- **A world without a renderer is still a world**, and a test says so. `TaskWorld` is now what its name promises --
+  run, and say where the robot is.
+
 ## 2026-08-30 (ruff resolves the same settings from anywhere)
 
 - **`target-version = "py311"` now stands in `[tool.ruff]`.** Ruff infers it from `project.requires-python`

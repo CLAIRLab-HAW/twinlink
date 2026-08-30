@@ -40,10 +40,11 @@ from .sources.urdf_static import UrdfStaticSource
 from .state import CameraFrame, JointState, RobotState, Transform
 
 __version__ = "0.1.0"
-from .task_world import GroundTruth, TaskWorld  # noqa: F401
+from .task_world import GroundTruth, SceneView, TaskWorld  # noqa: F401
 
 __all__ = [
     "GroundTruth",
+    "SceneView",
     "TaskWorld",
     "TwinLink",
     "RobotState",
