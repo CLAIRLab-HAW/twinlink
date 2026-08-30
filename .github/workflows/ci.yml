@@ -1,4 +1,12 @@
-# CI: pytest + ruff (hard errors only). Standalone; the urdf/mujoco smoke test skips without a workspace.
+# CI: pytest + ruff. clearlog is checked out and installed: it is a CORE dependency of this package (state.py and
+# mapping.py import it at module level for the `once`/`on_change` gates), not an extra, and `[tool.uv.sources]`
+# resolves it to the workspace sibling -- which a bare checkout does not have. Measured 2026-08-30 on a checkout
+# with nothing but numpy/pyyaml/pytest/ruff: 12 collection errors, `No module named 'clearlog'`; with the sibling
+# installed, 60 passed and 18 skipped. Token as everywhere here: the sibling repo is private, and the default
+# GITHUB_TOKEN cannot read it (404, not 403).
+#
+# The urdf/mujoco smoke tests skip without a workspace -- the runner has no `workspace.repos`, so the fixtures in
+# tests/conftest.py find no bundle; those tests skip on the absent optional packages before they ask.
 name: ci
 on:
   push:
@@ -12,11 +20,19 @@ jobs:
       - uses: actions/checkout@v5
         with:
           path: libs/twinlink
+      - uses: actions/checkout@v5
+        with:
+          repository: CLAIRLab-HAW/clearlog
+          path: libs/clearlog
+          token: ${{ secrets.CLAIRLAB_READ_TOKEN }}
 
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - run: pip install numpy pyyaml pytest ruff
+      # From the checkout, not from an index: clearlog is not published, and the suite has to measure against the
+      # sibling this workspace ships.
+      - run: pip install ./libs/clearlog
       - run: cd libs/twinlink && ruff check .
       - run: cd libs/twinlink && ruff format --check .
       - run: cd libs/twinlink && python -m pytest -q
