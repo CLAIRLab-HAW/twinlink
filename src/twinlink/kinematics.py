@@ -87,7 +87,7 @@ class ArmIK:
         return getattr(self.cfg, field, _IK_DEFAULTS[field]) if self.cfg is not None else _IK_DEFAULTS[field]
 
     # ------------------------------------------------------------------ #
-    def solve(
+    def solve_ik(
         self,
         target_pos: np.ndarray,
         target_mat: np.ndarray | None = None,

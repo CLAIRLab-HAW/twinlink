@@ -5,6 +5,13 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-08-30 (one name for the inverse kinematics)
+
+- **`ArmIK.solve` is `ArmIK.solve_ik`** — the name the `Kinematics` protocol beside it already declared, and the
+  one `PinocchioKinematics` already used. `ArmMotionPlanner` picks the world's own kinematics when it has one and
+  then called `solve`, so the seam was half built: the selection worked and the call did not. Found by running
+  hrl's task on a SAPIEN world, which fails on that line and nowhere earlier.
+
 ## 2026-08-30 (a body out of convex parts is the lib's, not an app's)
 
 - **`twinlink.mjcf_parts` added** -- `Part`, `add_shape`, `bounding_half_extents`, `free_joint_name` and
