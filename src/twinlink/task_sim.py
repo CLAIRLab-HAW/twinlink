@@ -1665,6 +1665,17 @@ class TwinTaskSim:
         mat = self.data.xmat[self._tcp_body_id].reshape(3, 3).copy()
         return pos, mat
 
+    def object_poses(self) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+        """True poses of every registered object -- GROUND TRUTH, never fed into a planning scene.
+
+        One call for all of them rather than one per object: that is the shape the readers want, and it is the one
+        :class:`twinlink.maniskill_sim.ManiSkillTaskSim` already answers, so a caller can hold either world without
+        knowing which.
+
+        :returns: label -> ``(position (3,), quat_wxyz (4,))``.
+        """
+        return {label: (self.object_position(label), self.object_quat_wxyz(label)) for label in self._graspable}
+
     def object_half_extents(self, label: str) -> np.ndarray:
         """Half extents of a registered object, as it was registered.
 

@@ -895,3 +895,13 @@ def test_an_unregistered_label_raises_rather_than_inventing_a_box():
     sim = _build()
     with pytest.raises(KeyError):
         sim.object_half_extents("no_such_object")
+
+
+def test_the_world_reports_every_registered_object_at_once():
+    """The canonical shape, the one ManiSkillTaskSim already answers: label -> (position, quat_wxyz)."""
+    sim = _build()
+    poses = sim.object_poses()
+    assert set(poses) == {"payload"}
+    position, quat = poses["payload"]
+    assert position.shape == (3,) and quat.shape == (4,)
+    assert np.allclose(position, sim.object_position("payload"))
