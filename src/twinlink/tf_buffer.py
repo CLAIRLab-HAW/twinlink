@@ -5,9 +5,15 @@ frame A into frame B at time t" — including multi-hop chains and linear/slerp 
 
 ``apps/octomap_explorer`` imports this from here rather than keeping a copy.
 
-**``transforms3d`` checked and rejected** (measured 2026-08-29 against 0.4.2): 2000 matrix-to-quaternion conversions
-took 68.4 ms there against 20.6 ms in :func:`_matrix_to_quat`, a factor of 3.3, because it solves the K matrix via
-``np.linalg.eigh`` instead of branching.  (``scipy`` is rejected as well; the reason stands in
+**``pytransform3d`` and ``transforms3d`` checked and rejected.**  Measured 2026-08-30 in one run (Python 3.11,
+numpy 2.4.6, median of nine passes over the same 2000 random rotation matrices): :func:`_matrix_to_quat` 3.0 ms,
+``transforms3d.mat2quat`` 13.5 ms — a factor of 4.5, because it solves the K matrix via ``np.linalg.eigh`` instead
+of branching — and ``pytransform3d.quaternion_from_matrix`` 22.5 ms, a factor of 7.5.  pytransform3d branches the
+same way this function does; 19.2 of its 22.5 ms are ``check_matrix``, the orthonormality test it runs on every
+call, and ``strict_check=False`` does not skip it (22.9 ms — the flag only turns the raise into a warning).  All
+three agree to 6.7e-16 over 500 matrices, so this compares like with like.  pytransform3d also returns wxyz where
+this module speaks xyzw, and it requires ``scipy`` and ``matplotlib`` — 14 packages resolved — for a package that
+declares three dependencies.  (``scipy`` is rejected on its own account too; the reason stands in
 ``twinlink.quaternion``.)
 
 Note the complement in :class:`twinlink.RobotState`: the state keeps only the

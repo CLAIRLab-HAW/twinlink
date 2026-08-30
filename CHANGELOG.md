@@ -5,6 +5,20 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-08-30 (pytransform3d checked and rejected as well)
+
+- **`pytransform3d` 3.16.0 measured and rejected**: 2000 matrix-to-quaternion conversions took 22.5 ms against
+  3.0 ms in `_matrix_to_quat`, a factor of 7.5. It branches the same way this module does rather than solving the
+  K matrix, but `check_matrix` -- the orthonormality test it runs on every call -- accounts for 19.2 of those
+  22.5 ms, and `strict_check=False` does not skip it: the flag only turns the raise into a warning. It also
+  returns wxyz where `tf_buffer` speaks xyzw, and requires `scipy` and `matplotlib` (14 packages resolved) for a
+  package that declares three dependencies.
+- **The transforms3d figures in the `tf_buffer` docstring were re-measured in that same run** and now read
+  13.5 ms against 3.0 ms, a factor of 4.5. Until 2026-08-30 they read 68.4 ms against 20.6 ms, a factor of 3.3;
+  those absolute values did not reproduce on 2026-08-30, neither in the workspace venv (numpy 2.4.6) nor in a
+  clean one (numpy 2.5.2) -- both put `_matrix_to_quat` at 3.0-3.2 ms. The ranking is unchanged; the docstring now
+  quotes one run, so its ratios are comparable among themselves.
+
 ## 2026-08-29 (the package docstring lists every source)
 
 - **All five sources are named**: `Ros2Source` (needs `rclpy`), `FoxgloveSource`, `ZenohSource`, `McapSource` and
