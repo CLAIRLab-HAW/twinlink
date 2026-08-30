@@ -1,3 +1,5 @@
+"""Tests for transform chains in ``RobotState``: known frames, and no identity silently invented for unknown ones."""
+
 import numpy as np
 import pytest
 from twinlink.state import RobotState, Transform
