@@ -7,7 +7,7 @@ name = "twinlink"
 version = "0.2.0"
 description = "Robot-agnostic bridge from a real robot (ROS 2 / MCAP) to a digital twin in simulation (MuJoCo, Isaac Sim)."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [
     { name = "Hannes Philip Voss", email = "mail@hannesvoss.de" },
@@ -67,7 +67,7 @@ line-length = 120
 # to 3.11 (measured 2026-08-30, `ruff check --show-settings`). The pre-commit hook passes
 # --config <workspace-root>, so 3.10 was what every commit got checked against. Same class of trap as the
 # known-first-party split below: one stock, two verdicts, depending on where the run started.
-target-version = "py311"
+target-version = "py312"
 extend-exclude = [".venv", ".superpowers", ".idea", "urdf", "data", "node_modules", "build", "dist", "*.egg-info"]
 respect-gitignore = false
 
