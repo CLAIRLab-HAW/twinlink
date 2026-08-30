@@ -17,5 +17,6 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install numpy pyyaml pytest ruff
-      - run: cd libs/twinlink && ruff check --select E9,F63,F7,F82 .
+      - run: cd libs/twinlink && ruff check .
+      - run: cd libs/twinlink && ruff format --check .
       - run: cd libs/twinlink && python -m pytest -q
