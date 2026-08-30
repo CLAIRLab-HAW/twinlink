@@ -15,6 +15,11 @@ the versioning [Semantic Versioning](https://semver.org/).
   leak: a pose comes out of the model and a target goes in. `set_belief_boxes` is framed too — world boxes were
   landing in a base-frame collision model, the same 132 mm out, which is `maniskill-eval`'s oracle gate as much as
   hrl's. Joint-space reads carry no frame and pass through.
+- **How far it reached, measured:** only this class's FK/IK path. Both worlds place the robot identically
+  (`base_footprint` 0.0, `base_link` 0.13228, `arm_0_base_link` 0.363), `maniskill-eval` plans over the wire and
+  publishes world boxes rather than going through these reads, and the oracle gate over belief boxes has never been
+  wired — `set_belief_boxes` has no production caller. Nothing already measured is affected, shown by
+  `maniskill-eval` reporting the same 33 passed before and after.
 - What the gap cost before it was found: a descend-offset sweep from +0.045 m to -0.015 m changed nothing. Sixty
   millimetres of travel against a 132 mm error, and the reasoning had settled on grasp geometry, which was sound.
 
