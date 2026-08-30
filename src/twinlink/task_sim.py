@@ -1665,6 +1665,18 @@ class TwinTaskSim:
         mat = self.data.xmat[self._tcp_body_id].reshape(3, 3).copy()
         return pos, mat
 
+    def object_half_extents(self, label: str) -> np.ndarray:
+        """Half extents of a registered object, as it was registered.
+
+        The world already carries the box -- ``register_graspable`` was given it.  A reader here spares every
+        consumer from describing the same object a second time, which is how two descriptions of one box drift.
+
+        :param label: the object's label.
+        :returns: the half extents (m).
+        :raises KeyError: no object is registered under this label.
+        """
+        return self._graspable[label]["half"]
+
     def object_position(self, label: str) -> np.ndarray:
         return self.data.xpos[self._graspable[label]["body"]].copy()
 

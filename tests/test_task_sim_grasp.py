@@ -883,3 +883,15 @@ def test_a_ramp_moves_the_fingers_through_intermediate_angles():
     assert between[-1] != pytest.approx(goal), "already there after half the ramp"
     sim.step_physics(6)
     assert sim.gripper_angle_applied() == pytest.approx(goal), "the goal was not reached"
+
+
+def test_the_world_reports_the_box_it_was_given():
+    """The half extents came in with register_graspable; a consumer must not have to describe the box again."""
+    sim = _build()
+    assert list(sim.object_half_extents("payload")) == [0.02, 0.015, 0.02]
+
+
+def test_an_unregistered_label_raises_rather_than_inventing_a_box():
+    sim = _build()
+    with pytest.raises(KeyError):
+        sim.object_half_extents("no_such_object")
