@@ -5,6 +5,15 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-09-01 (a linkage may be held by constraints instead of by six drives)
+
+- **`_index_gripper_actuators` no longer demands an actuator per follower joint.** A scene may hold the gripper's
+  closed loop with joint-equality constraints -- MuJoCo's way of writing what URDF calls `mimic` -- and then carries a
+  single drive on purpose: a second servo on a constrained joint works against the solver rather than with it. What
+  stays a hard error is a model with NO drive at all, where the closing command reaches nothing and every grasp is a
+  silent no-op.
+- `_drive_gripper` needed no change: it already skips joints without an actuator.
+
 ## 2026-08-31 (the SAPIEN world answers the reads a study makes)
 
 - **`ManiSkillTaskSim` gained the reads its MuJoCo sibling already had** — `object_half_extents`, `object_yaw`,

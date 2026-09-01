@@ -362,11 +362,15 @@ class TwinTaskSim:
             jname = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_JOINT, jid)
             if jname in self._gripper_follower_factors:
                 self._gripper_actuators[jname] = aid
-        missing = sorted(set(self._gripper_follower_factors) - set(self._gripper_actuators))
-        if missing:
+        # At least ONE of the linkage's joints has to be driven; the rest may be held by joint-equality constraints
+        # instead (MuJoCo's way of writing what URDF calls ``mimic``), and a scene that does it that way carries a
+        # single drive on purpose -- a second servo on a constrained joint works against the solver.  What stays a hard
+        # error is a model with NO drive at all: there the closing command reaches nothing and every grasp is a silent
+        # no-op, which is the failure this flag exists to end.
+        if not self._gripper_actuators:
             raise RuntimeError(
-                "actuated_gripper=True, but the model has no actuator for "
-                f"{missing} -- the closing command could not reach them"
+                "actuated_gripper=True, but the model has no actuator on any of "
+                f"{sorted(self._gripper_follower_factors)} -- the closing command could not reach the gripper"
             )
 
     def _free_joint_qpos(self, joint: str) -> int:
