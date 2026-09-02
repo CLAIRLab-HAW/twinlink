@@ -10,7 +10,7 @@ them so an arbitrary robot URDF "just loads":
    collapse into one mesh -- the gripper ends up wearing the chassis.  Unique
    cache names prevent that.
 3. ``.dae`` meshes are converted with :mod:`twinlink.collada` (which preserves
-   the authored orientation, unlike assimp, and recovers per-material colours);
+   the authored orientation, unlike assimp, and recovers per-material colors);
    ``.gltf``/``.glb`` use ``assimp`` if present; ``.stl``/``.obj`` pass through.
 4. Degenerate meshes (zero-volume shells) that MuJoCo refuses are detected and
    dropped, with a fallback to the link's collision geometry where available.
@@ -72,7 +72,10 @@ def _link_or_copy(src: str, dst: str) -> None:
 
 def _assimp_convert(src: str, dst: str) -> bool:
     if shutil.which("assimp") is None:
-        log.warning("assimp not found; cannot convert %s (install assimp or drop it)", os.path.basename(src))
+        log.warning(
+            "assimp not found; cannot convert %s (install assimp or drop it)",
+            os.path.basename(src),
+        )
         return False
     res = subprocess.run(["assimp", "export", src, dst], capture_output=True)
     return res.returncode == 0 and os.path.exists(dst)
@@ -101,7 +104,7 @@ def _mesh_compiles(path: str) -> bool:
 def _process_mesh(rel: str, urdf_dir: str, cache_dir: str, colored: bool) -> MeshParts:
     """Resolve a URDF mesh to unique, MuJoCo-loadable cache file(s).
 
-    Returns a list of ``(abspath, rgba)`` parts -- several when a coloured
+    Returns a list of ``(abspath, rgba)`` parts -- several when a colored
     ``.dae`` is split per material, otherwise one.  Empty if unusable."""
     rel = rel.lstrip("./")
     src = os.path.normpath(os.path.join(urdf_dir, rel))
@@ -179,7 +182,7 @@ def _rewrite_or_drop(link, geoms, urdf_dir, cache_dir, colored, dropped) -> int:
             kept += 1
             continue
 
-        # Coloured DAE split into several materials ─▶ one <visual> each.
+        # Colored DAE split into several materials ─▶ one <visual> each.
         scale = mesh.get("scale")
         origin = g.find("origin")
         link.remove(g)
@@ -255,7 +258,7 @@ def _add_scene(mjcf_root: ET.Element, floating_base: bool, base_body_name: str |
         glob = ET.SubElement(visual, "global")
     glob.set("offwidth", "1280")
     glob.set("offheight", "960")
-    # A brighter headlight so material colours read well.
+    # A brighter headlight so material colors read well.
     headlight = visual.find("headlight")
     if headlight is None:
         headlight = ET.SubElement(visual, "headlight")
@@ -326,7 +329,10 @@ def _geom_lowest_z(model, data, gid: int) -> float:
         return float(pos[2] - np.abs(mat[2, :]) @ size)
     if gtype == int(mujoco.mjtGeom.mjGEOM_SPHERE):
         return float(pos[2] - size[0])
-    if gtype in (int(mujoco.mjtGeom.mjGEOM_CYLINDER), int(mujoco.mjtGeom.mjGEOM_CAPSULE)):
+    if gtype in (
+        int(mujoco.mjtGeom.mjGEOM_CYLINDER),
+        int(mujoco.mjtGeom.mjGEOM_CAPSULE),
+    ):
         c = abs(float(mat[2, 2]))
         s = float(np.sqrt(max(0.0, 1.0 - c * c)))
         drop = size[1] * c + size[0] * (s if gtype == int(mujoco.mjtGeom.mjGEOM_CYLINDER) else 1.0)
@@ -355,7 +361,11 @@ def _ground_welded_robot(worldbody: ET.Element, model, data) -> float:
         pos = [float(v) for v in (body.get("pos") or "0 0 0").split()]
         pos[2] += shift
         body.set("pos", " ".join(f"{v:.6g}" for v in pos))
-        log.info("grounded welded base %r: raised %.3f m so the robot rests on z=0", body.get("name", "?"), shift)
+        log.info(
+            "grounded welded base %r: raised %.3f m so the robot rests on z=0",
+            body.get("name", "?"),
+            shift,
+        )
     return shift
 
 
@@ -395,7 +405,7 @@ def load_mujoco_from_urdf(
         geometry.  Falls back to collision geometry per-link when a visual mesh
         cannot be loaded.
     :param colored: with ``keep_visual``, split ``.dae`` meshes per material and apply
-        their diffuse colours (the UR5's blue/grey/black, etc.).
+        their diffuse colors (the UR5's blue/grey/black, etc.).
     :param with_collision: with ``keep_visual``, *also* keep the ``<collision>``
         geometry so the model can be simulated (contacts) while rendering the
         visual meshes.  Needed for the physics demo.

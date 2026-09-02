@@ -3,7 +3,7 @@
 The event record is twin-layer vocabulary (what happened inside the simulated mirror of
 the robot), not task vocabulary -- every manipulation app that steps a twin
 wants exactly these fields.  ``grasp_acquired``/``grasp_lost`` carry the
-*object identifier* the task layer uses (hrl: the cube colour).
+*object identifier* the task layer uses (hrl: the cube color).
 """
 
 from __future__ import annotations

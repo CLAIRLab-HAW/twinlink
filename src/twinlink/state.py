@@ -76,7 +76,7 @@ class CameraFrame:
       the still-compressed ``CompressedImage`` payload; the *consumer* calls
       :meth:`ensure_decoded` on the frame it actually reads.  This keeps the
       ingest thread of a live source (e.g. ``FoxgloveSource``) free of
-      JPEG/PNG decoding -- with a 30 Hz colour + 15 Hz depth stream only the
+      JPEG/PNG decoding -- with a 30 Hz color + 15 Hz depth stream only the
       handful of frames perception actually consumes get decoded instead of
       every frame on the wire, so the receive loop cannot fall behind the
       arrival rate (the root cause of ever-growing camera latency).
@@ -122,7 +122,12 @@ class CameraFrame:
                 self.raw, self.raw_format, is_depth=self.is_depth, allow_rvl=False
             )
         except Exception as exc:
-            log.warning("lazy image decode failed (format=%r, depth=%s): %s", self.raw_format, self.is_depth, exc)
+            log.warning(
+                "lazy image decode failed (format=%r, depth=%s): %s",
+                self.raw_format,
+                self.is_depth,
+                exc,
+            )
             log.debug("the failing payload was %d bytes", len(self.raw), exc_info=True)
             self.raw = None  # do not retry a poisoned payload
             return False
@@ -172,7 +177,11 @@ def _transform_matrix(tf: Transform) -> np.ndarray:
 
     mat = np.eye(4)
     mat[:3, :3] = np.array(
-        [[1.0 - (yy + zz), xy - wz, xz + wy], [xy + wz, 1.0 - (xx + zz), yz - wx], [xz - wy, yz + wx, 1.0 - (xx + yy)]]
+        [
+            [1.0 - (yy + zz), xy - wz, xz + wy],
+            [xy + wz, 1.0 - (xx + zz), yz - wx],
+            [xz - wy, yz + wx, 1.0 - (xx + yy)],
+        ]
     )
     mat[:3, 3] = np.asarray(tf.translation, dtype=float)
     return mat
@@ -311,7 +320,10 @@ class RobotState:
 
     def joint_positions(self, names: Iterable[str]) -> np.ndarray:
         with self._lock:
-            return np.array([self._joints[n].position if n in self._joints else np.nan for n in names], dtype=float)
+            return np.array(
+                [self._joints[n].position if n in self._joints else np.nan for n in names],
+                dtype=float,
+            )
 
     def joints(self) -> dict[str, JointState]:
         with self._lock:
@@ -375,7 +387,13 @@ class RobotState:
         if target not in seen:
             # The caller drops whatever it wanted to transform.  Naming both frames is what separates "tf is not
             # published at all" from "these two trees are not joined" -- the second looks identical from outside.
-            _chain_gate.debug("no tf chain %s -> %s (%d frame(s) reachable from %s)", source, target, len(seen), source)
+            _chain_gate.debug(
+                "no tf chain %s -> %s (%d frame(s) reachable from %s)",
+                source,
+                target,
+                len(seen),
+                source,
+            )
             return None
 
         path = [target]

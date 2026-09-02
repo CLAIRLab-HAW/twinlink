@@ -5,8 +5,8 @@ Collada files (it bakes an inconsistent axis conversion), which lands meshes rot
 extracts the **raw** vertex coordinates and the node-transform hierarchy and writes them straight to OBJ, preserving the
 authored frame -- exactly what a URDF (and RViz/Gazebo) expect.  It only needs ``numpy`` + the stdlib XML parser.
 
-It also recovers the **per-material diffuse colours** the meshes carry (e.g. the UR5's blue/grey/black), because STL and
-a plain merged OBJ are colourless.  A single MuJoCo mesh has a single colour, so :func:`dae_to_colored_objs` splits a
+It also recovers the **per-material diffuse colors** the meshes carry (e.g. the UR5's blue/grey/black), because STL and
+a plain merged OBJ are colorless.  A single MuJoCo mesh has a single color, so :func:`dae_to_colored_objs` splits a
 ``.dae`` into one compact OBJ per material, each tagged with its RGBA.
 
 It deliberately handles just what robot description meshes use: ``<triangles>`` and ``<polylist>`` primitives,
@@ -56,9 +56,24 @@ def _node_matrix(node: ET.Element) -> np.ndarray:
             c, s = np.cos(a), np.sin(a)
             M = M @ np.array(
                 [
-                    [c + x * x * (1 - c), x * y * (1 - c) - z * s, x * z * (1 - c) + y * s, 0],
-                    [y * x * (1 - c) + z * s, c + y * y * (1 - c), y * z * (1 - c) - x * s, 0],
-                    [z * x * (1 - c) - y * s, z * y * (1 - c) + x * s, c + z * z * (1 - c), 0],
+                    [
+                        c + x * x * (1 - c),
+                        x * y * (1 - c) - z * s,
+                        x * z * (1 - c) + y * s,
+                        0,
+                    ],
+                    [
+                        y * x * (1 - c) + z * s,
+                        c + y * y * (1 - c),
+                        y * z * (1 - c) - x * s,
+                        0,
+                    ],
+                    [
+                        z * x * (1 - c) - y * s,
+                        z * y * (1 - c) + x * s,
+                        c + z * z * (1 - c),
+                        0,
+                    ],
                     [0, 0, 0, 1],
                 ]
             )
@@ -78,9 +93,9 @@ def _diffuse_by_material(root: ET.Element, ns: dict) -> dict:
             try:
                 eff_color[eff.get("id")] = [float(x) for x in col.text.split()][:4]
             except (ValueError, AttributeError):
-                # The material keeps the default colour below -- a wrong colour is much harder to trace back to
+                # The material keeps the default color below -- a wrong color is much harder to trace back to
                 # this file than a missing one.
-                log.debug("effect %s: diffuse colour unreadable", eff.get("id"), exc_info=True)
+                log.debug("effect %s: diffuse color unreadable", eff.get("id"), exc_info=True)
     mat_color = {}
     for mat in root.findall(f".//{_q('material', ns)}", ns):
         ie = mat.find(_q("instance_effect", ns), ns)
@@ -137,7 +152,9 @@ def _compact(V: np.ndarray, faces: np.ndarray):
     return V[used], np.searchsorted(used, faces)
 
 
-def _extract_groups(dae_path: str) -> tuple[str, list[tuple[str, list | None, np.ndarray, np.ndarray]]]:
+def _extract_groups(
+    dae_path: str,
+) -> tuple[str, list[tuple[str, list | None, np.ndarray, np.ndarray]]]:
     """Return (up_axis, [(material, rgba, V, F), ...]) in Z-up coordinates."""
     root = ET.parse(dae_path).getroot()
     ns = _ns(root)
@@ -219,7 +236,7 @@ def _write_obj(path: str, V: np.ndarray, F: np.ndarray, comment: str = "") -> No
 
 
 def dae_to_obj(dae_path: str, obj_path: str) -> tuple:
-    """Convert a ``.dae`` to a single merged ``.obj`` (colourless)."""
+    """Convert a ``.dae`` to a single merged ``.obj`` (colorless)."""
     _up, groups = _extract_groups(dae_path)
     Vs, Fs, off = [], [], 0
     for _mat, _rgba, V, F in groups:
@@ -229,7 +246,12 @@ def dae_to_obj(dae_path: str, obj_path: str) -> tuple:
         off += len(V)
     V = np.vstack(Vs)
     F = np.vstack(Fs) if Fs else np.zeros((0, 3), int)
-    _write_obj(obj_path, V, F, f"converted from {os.path.basename(dae_path)} by twinlink.collada")
+    _write_obj(
+        obj_path,
+        V,
+        F,
+        f"converted from {os.path.basename(dae_path)} by twinlink.collada",
+    )
     return len(V), len(F), (V.max(0) - V.min(0))
 
 
@@ -248,7 +270,7 @@ def dae_to_colored_objs(dae_path: str, out_dir: str, stem: str) -> list[tuple[st
         except Exception:
             # Falls through to the full re-parse below.  That is correct but slow, and "why does this take
             # seconds every single time" is otherwise unanswerable from the outside.
-            log.debug("colour sidecar %s unusable, re-parsing the DAE", sidecar, exc_info=True)
+            log.debug("color sidecar %s unusable, re-parsing the DAE", sidecar, exc_info=True)
 
     _up, groups = _extract_groups(dae_path)
     result: list[tuple[str, list | None]] = []
@@ -262,5 +284,5 @@ def dae_to_colored_objs(dae_path: str, out_dir: str, stem: str) -> list[tuple[st
         json.dump(result, open(sidecar, "w"))
     except Exception:
         # Not fatal -- only the next run pays for it again, which is exactly what makes it easy to miss.
-        log.debug("colour sidecar %s not written", sidecar, exc_info=True)
+        log.debug("color sidecar %s not written", sidecar, exc_info=True)
     return result

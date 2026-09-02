@@ -59,7 +59,7 @@ def test_twinlink_stands_alone():
 
 
 def test_grasp_registry_is_label_keyed():
-    """Graspable objects are carried by labels, not by colours.
+    """Graspable objects are carried by labels, not by colors.
 
     The WHOLE module is checked, not just the class body: task vocabulary otherwise hides in module constants and helper
     functions beside it.
@@ -131,7 +131,10 @@ def _classification_under_prefix(prefix: str) -> dict:
     class _ProbeSim(TwinTaskSim):
         def register_graspables(self) -> None:
             self.register_graspable(
-                "clutter", f"{prefix}distractor_0_free", self._body_id(f"{prefix}distractor_0"), np.full(3, 0.05)
+                "clutter",
+                f"{prefix}distractor_0_free",
+                self._body_id(f"{prefix}distractor_0"),
+                np.full(3, 0.05),
             )
 
     model = mujoco.MjModel.from_xml_string(_PROBE_SCENE.format(p=prefix))
