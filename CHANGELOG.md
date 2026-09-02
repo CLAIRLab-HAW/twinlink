@@ -5,6 +5,12 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-09-02 (a path in a docstring follows a renamed directory)
+
+- **`tf_buffer.py` names its consumer as `apps/octomap-explorer`.** The app directory lost its underscore that
+  day; the docstring records who imports `TFBuffer` from here rather than keeping a copy, and a path that no
+  longer exists makes that record useless to the next reader. Nothing about the module changes.
+
 ## 2026-09-01 (a linkage may be held by constraints instead of by six drives)
 
 - **`_index_gripper_actuators` no longer demands an actuator per follower joint.** A scene may hold the gripper's

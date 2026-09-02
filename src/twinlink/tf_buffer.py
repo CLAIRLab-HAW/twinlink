@@ -3,7 +3,7 @@
 Feeds on recorded ``tf2_msgs/TFMessage`` data (rosbags/MCAP replay, foxglove captures) and answers "map points from
 frame A into frame B at time t" — including multi-hop chains and linear/slerp interpolation between samples.
 
-``apps/octomap_explorer`` imports this from here rather than keeping a copy.
+``apps/octomap-explorer`` imports this from here rather than keeping a copy.
 
 **``pytransform3d`` and ``transforms3d`` checked and rejected.**  Measured 2026-08-30 in one run (Python 3.11,
 numpy 2.4.6, median of nine passes over the same 2000 random rotation matrices): :func:`_matrix_to_quat` 3.0 ms,
