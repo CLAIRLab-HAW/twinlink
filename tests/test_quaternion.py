@@ -9,7 +9,7 @@ simulation computes against anyway.  What needs a test is what can break when sw
 * **the layout** -- w first.  Feeding xyzw in here returns numbers, not an
   exception.
 
-Until 2026-08-23 this computation stood written out by hand three times in the workspace (``task_sim``,
+This computation used to stand written out by hand three times in the workspace (``task_sim``,
 ``openvla_stack.env.sim``, ``twin_sufficiency.scenes``).
 """
 

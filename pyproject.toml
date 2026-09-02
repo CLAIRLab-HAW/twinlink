@@ -59,8 +59,8 @@ clearlog = { workspace = true }
 where = ["src"]
 
 [tool.ruff]
-# Black ran until 2026-08-26 (no formatter before 2026-08-24); ruff format is byte-compatible enough that the
-# 2026-08-30 switch is the one reflow commit, not a rewrite (198 files workspace-wide).
+# ruff format is byte-compatible enough with the black it replaced that the switch cost one reflow commit
+# rather than a rewrite (198 files workspace-wide).
 line-length = 120
 # Spelled out rather than inferred from `project.requires-python`: the virtual workspace root carries no
 # [project] table, so a run through the ROOT config resolved to 3.10 while a run inside a package resolved

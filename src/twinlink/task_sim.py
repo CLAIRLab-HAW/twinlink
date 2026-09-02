@@ -1784,6 +1784,6 @@ class TwinTaskSim:
 
     # ------------------------------------------------------------------ #
     # Quaternion algebra: ``twinlink.quaternion`` -- MuJoCo's own ``mju_*``
-    # operations.  Until 2026-08-23 it stood here by hand, line for line the
+    # operations.  It used to stand here by hand, line for line the
     # same as in two further modules.
     # ------------------------------------------------------------------ #

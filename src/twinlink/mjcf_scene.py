@@ -45,7 +45,7 @@ def fmt(*vals: float) -> str:
     """MJCF attribute formatting (compact float list).
 
     The only version in the workspace: ``hrl.env.geometry`` (today :mod:`twinlink.mjcf_parts`) and
-    ``openvla_stack.env.scene`` each carried their own copy until 2026-08-23.  The conversion to ``float`` originates
+    ``openvla_stack.env.scene`` each used to carry a copy of their own.  The conversion to ``float`` originates
     in hrl's copy and is the reason this one became the shared version -- it also accepts numpy scalars and numeric
     strings, which ``f"{v:.6g}"`` on its own rejects.
     """
